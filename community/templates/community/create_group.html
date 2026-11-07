@@ -1,0 +1,253 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <!-- ========================================
+         1. PAGE SETTINGS
+    ========================================= -->
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Create Group | CodeView</title>
+
+    <!-- Load the existing Groups stylesheet. -->
+   <!-- Shared CodeView styles -->
+<link rel="stylesheet" href="{% static 'community/sheared.css' %}">
+
+<!-- Create Group page styles -->
+<link rel="stylesheet" href="{% static 'community/create_group.css' %}">
+
+</head>
+
+<body>
+
+    <!-- ========================================
+         2. TOP NAVIGATION
+    ========================================= -->
+
+    <header class="navbar">
+
+        <!-- CodeView logo. -->
+        <a href="{% url 'groups' %}" class="brand">
+            &lt;/&gt; CodeView
+        </a>
+
+        <!-- Navigation links. -->
+        <nav class="top-links">
+
+            <a href="{% url 'groups' %}">
+                Groups
+            </a>
+
+            <a
+                href="{% url 'create_group' %}"
+                class="active"
+                aria-current="page"
+            >
+                Create Group
+            </a>
+
+        </nav>
+
+        <!-- Logged-in developer profile. -->
+        <div class="profile">
+
+            <span class="avatar">
+                {{ request.user.username|first|upper }}
+            </span>
+
+            <span>
+                {{ request.user.username }}
+            </span>
+
+        </div>
+
+    </header>
+
+
+    <!-- ========================================
+         3. CREATE GROUP FORM
+    ========================================= -->
+
+    <main class="form-page">
+
+        <section class="form-card">
+
+            <!-- Back navigation. -->
+            <a href="{% url 'groups' %}" class="back-link">
+                ← Back to Groups
+            </a>
+
+            <h1>Create a CodeView Group</h1>
+
+            <p class="form-intro">
+                Create a public community for discussions
+                or a private development group for team collaboration.
+            </p>
+
+
+            <!-- ========================================
+                 4. FORM
+            ========================================= -->
+
+            <form
+                method="POST"
+                action="{% url 'create_group' %}"
+            >
+
+                <!-- Protect against cross-site request forgery. -->
+                {% csrf_token %}
+
+                <!-- General validation errors. -->
+                {{ form.non_field_errors }}
+
+
+                <!-- ========================================
+                     5. GROUP NAME
+                ========================================= -->
+
+                <div class="form-field">
+
+                    <label for="{{ form.name.id_for_label }}">
+                        Group Name
+                    </label>
+
+                    {{ form.name }}
+
+                    {{ form.name.errors }}
+
+                </div>
+
+
+                <!-- ========================================
+                     6. GROUP DESCRIPTION
+                ========================================= -->
+
+                <div class="form-field">
+
+                    <label for="{{ form.description.id_for_label }}">
+                        Description
+                    </label>
+
+                    {{ form.description }}
+
+                    {{ form.description.errors }}
+
+                </div>
+
+
+                <!-- ========================================
+                     7. GROUP TYPE
+                ========================================= -->
+
+                <div class="privacy-option">
+
+                    {{ form.is_private }}
+
+                    <div>
+
+                        <label for="{{ form.is_private.id_for_label }}">
+                            Private Development Group
+                        </label>
+
+                        <p>
+                            Leave unchecked to create a public community.
+                            Public communities can be discovered by developers.
+                        </p>
+
+                        <p>
+                            Check this option to create a private development
+                            group with GitHub collaboration,
+                            and meeting features.
+                        </p>
+
+                        <p>
+                            Private development groups support a maximum
+                            of 10 members, including the creator.
+                        </p>
+
+                    </div>
+
+                </div>
+
+                {{ form.is_private.errors }}
+
+
+                <!-- ========================================
+                     8. JOINING POLICY
+                ========================================= -->
+
+                <div class="form-field">
+
+                    <label for="{{ form.join_policy.id_for_label }}">
+                        Who Can Join?
+                    </label>
+
+                    <!-- Dropdown from ProjectGroupForm. -->
+                    {{ form.join_policy }}
+
+                    <!-- Show validation errors beside this field. -->
+                    {{ form.join_policy.errors }}
+
+                    <p class="group-description">
+                        <strong>Anyone Can Join:</strong>
+                        Developers become members immediately.
+                    </p>
+
+                    <p class="group-description">
+                        <strong>Admin Approval Required:</strong>
+                        Developers send a request, and an administrator
+                        must approve it before they can participate.
+                    </p>
+
+                    <p class="group-description">
+                        <strong>Invitation Only:</strong>
+                        Only invited developers can become members.
+                    </p>
+
+                    <p class="group-description">
+                        Private development groups must use
+                        Admin Approval Required or Invitation Only.
+                    </p>
+
+                </div>
+
+
+                <!-- ========================================
+                     9. FORM BUTTONS
+                ========================================= -->
+
+                <div class="form-actions">
+
+                    <a
+                        href="{% url 'groups' %}"
+                        class="secondary-button"
+                    >
+                        Cancel
+                    </a>
+
+                    <button
+                        type="submit"
+                        class="primary-button"
+                    >
+                        Create Group
+                    </button>
+
+                </div>
+
+            </form>
+
+        </section>
+
+    </main>
+
+</body>
+
+</html>

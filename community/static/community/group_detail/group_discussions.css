@@ -1,0 +1,155 @@
+/* ==========================================
+   1. DISCUSSION SECTIONS
+========================================== */
+
+.workspace-section {
+    padding: 24px;
+    margin-bottom: 24px;
+    background: #232428;
+    border: 1px solid #383a40;
+    border-radius: 12px;
+}
+
+.workspace-section h2 {
+    margin-top: 0;
+    font-size: 19px;
+}
+
+.workspace-section-description {
+    color: #9ca3af;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.discussion-card {
+    padding: 22px 0;
+    border-bottom: 1px solid #383a40;
+}
+
+.discussion-card:last-child {
+    border-bottom: none;
+}
+
+.discussion-author {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.discussion-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: #244c38;
+    color: #86efac;
+    border-radius: 50%;
+    font-weight: 700;
+}
+
+.discussion-username {
+    color: #4ade80;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.discussion-date {
+    color: #858994;
+    font-size: 12px;
+}
+
+/* Discussion title */
+.discussion-title {
+    margin-bottom: 10px;
+    font-size: 18px;
+
+    /* Prevent long titles from overflowing the card. */
+    overflow-wrap: anywhere;
+}
+
+.discussion-title a {
+    color: #f3f4f6;
+    text-decoration: none;
+}
+
+.discussion-title a:hover {
+    color: #4ade80;
+}
+
+.discussion-content {
+    color: #b7bac3;
+    font-size: 14px;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+}
+
+/* ==========================================
+   2. DISCUSSION ACTIONS
+========================================== */
+
+.discussion-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    margin-top: 15px;
+    color: #9ca3af;
+    font-size: 13px;
+}
+
+.discussion-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 18px;
+}
+
+.discussion-actions form {
+    margin: 0;
+}
+
+.like-button,
+.comment-button,
+.hide-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 9px 14px;
+    background: #303239;
+    color: #d1d5db;
+    border: 1px solid #41434a;
+    border-radius: 8px;
+    font-size: 13px;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.like-button:hover,
+.comment-button:hover {
+    background: #3b3e45;
+}
+
+.like-button.liked {
+    background: #166534;
+    color: #ffffff;
+    border-color: #16a34a;
+}
+
+.like-button:disabled {
+    opacity: 0.7;
+    cursor: wait;
+}
+
+.hide-button:hover {
+    background: #451f24;
+    color: #fca5a5;
+}
+
+.like-error {
+    color: #fca5a5;
+    font-size: 13px;
+}
+

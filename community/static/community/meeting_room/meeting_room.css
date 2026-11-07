@@ -1,0 +1,1211 @@
+/* ============================================================
+   CODEVIEW DEVELOPMENT ROOM
+   ============================================================ */
+
+/* Main workspace layout */
+.development-workspace {
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+    min-height: 500px;
+    margin-top: 24px;
+    border: 1px solid #363636;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #1e1e1e;
+}
+
+/* Left file explorer */
+.development-explorer {
+    background: #252526;
+    border-right: 1px solid #363636;
+    padding: 16px;
+    min-width: 0;
+}
+
+/* Explorer heading */
+.explorer-header {
+    margin-bottom: 20px;
+}
+
+.explorer-header h2 {
+    margin: 0 0 8px;
+    font-size: 14px;
+    text-transform: uppercase;
+}
+
+.explorer-header span {
+    color: #9ca3af;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+}
+
+/* File tree */
+#github-file-tree {
+    font-size: 14px;
+    color: #d4d4d4;
+    overflow-wrap: anywhere;
+}
+
+/* File and folder buttons */
+.explorer-item {
+    display: block;
+    width: 100%;
+    padding: 7px 8px;
+    border: none;
+    border-radius: 5px;
+    background: transparent;
+    color: #d4d4d4;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+}
+
+.explorer-item:hover {
+    background: #37373d;
+}
+
+.explorer-item:focus-visible {
+    outline: 2px solid #4ade80;
+    outline-offset: 2px;
+}
+
+/* Nested folders */
+.explorer-children {
+    margin-left: 14px;
+    padding-left: 8px;
+    border-left: 1px solid #404040;
+}
+
+/* Center editor */
+.development-editor {
+    min-width: 0;
+    background: #1e1e1e;
+}
+
+/* Editor tab/header */
+.editor-header {
+    padding: 14px 18px;
+    background: #2d2d2d;
+    border-bottom: 1px solid #363636;
+    color: #ffffff;
+}
+
+/* Editor body */
+.editor-content {
+    padding: 24px;
+    color: #9ca3af;
+}
+
+/* Small screens */
+@media (max-width: 768px) {
+    .development-workspace {
+        grid-template-columns: 1fr;
+    }
+
+    .development-explorer {
+        border-right: none;
+        border-bottom: 1px solid #363636;
+        max-height: 350px;
+        overflow-y: auto;
+    }
+}
+
+/* ============================================================
+   SOURCE CODE VIEWER
+   ============================================================ */
+
+/* Preserve indentation and line breaks in source code. */
+.source-code {
+    margin: 0;
+    padding: 20px;
+    overflow: auto;
+    white-space: pre;
+    color: #d4d4d4;
+    font-family: "Courier New", monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    tab-size: 4;
+}
+
+/* Allow the editor to scroll when source code is long. */
+.editor-content {
+    min-height: 400px;
+    max-height: 650px;
+    overflow: auto;
+}
+
+/* Ensure the hidden attribute works despite other styles. */
+.source-code[hidden] {
+    display: none;
+}
+
+/* ========================================
+   VS CODE-STYLE SOURCE CODE VIEWER
+======================================== */
+
+/* Arrange line numbers beside the source code. */
+.code-viewer {
+    display: flex;
+    align-items: flex-start;
+    width: max-content;
+    min-width: 100%;
+    font-family: monospace;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* Keep the viewer hidden until a file is opened. */
+.code-viewer[hidden] {
+    display: none;
+}
+
+/* Style the line-number column. */
+.line-numbers {
+    flex-shrink: 0;
+    padding: 16px 12px;
+    margin: 0;
+    color: #858585;
+    text-align: right;
+    user-select: none;
+    border-right: 1px solid #333;
+}
+
+/* Style the actual source code. */
+.code-content {
+    padding: 16px;
+    margin: 0;
+    color: #d4d4d4;
+    white-space: pre;
+    tab-size: 4;
+}
+
+/* Allow scrolling when a code line is too long. */
+.editor-content {
+    overflow: auto;
+}
+
+/* ========================================
+   SYNTAX HIGHLIGHTING
+======================================== */
+
+/* Keep the editor background consistent. */
+.code-content,
+.code-content code {
+    background: transparent;
+}
+
+/* Preserve indentation and spacing. */
+.code-content code {
+    font-family: monospace;
+    white-space: pre;
+    tab-size: 4;
+}
+
+/* Prevent Prism's theme from changing our code layout. */
+.code-content[class*="language-"],
+.code-content code[class*="language-"] {
+    background: transparent;
+    text-shadow: none;
+}
+
+/* ============================================================
+   GITHUB REPOSITORY CARD
+============================================================ */
+
+/* Main repository card. */
+.github-repository-section {
+    width: 100%;
+    box-sizing: border-box;
+    margin: 24px 0;
+    padding: 24px;
+
+    background: #111827;
+    border: 1px solid #334155;
+    border-radius: 12px;
+}
+
+/* Repository heading. */
+.github-repository-section h2 {
+    margin: 0 0 20px;
+    color: #f8fafc;
+    font-size: 20px;
+}
+
+/* Connected repository information. */
+.connected-repository {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Repository details. */
+.connected-repository p {
+    margin: 0;
+    color: #cbd5e1;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.connected-repository strong {
+    color: #f8fafc;
+}
+
+/* Repository link. */
+.connected-repository a {
+    color: #22c55e;
+    text-decoration: none;
+}
+
+.connected-repository a:hover {
+    text-decoration: underline;
+}
+
+/* Connected status badge. */
+.repository-status {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+
+    padding: 6px 12px;
+    background: rgba(34, 197, 94, 0.12);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    border-radius: 20px;
+
+    color: #22c55e !important;
+    font-size: 12px !important;
+    font-weight: 600;
+}
+
+/* Repository connection form. */
+.repository-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    margin-top: 22px;
+    padding-top: 20px;
+
+    border-top: 1px solid #334155;
+}
+
+/* Form label. */
+.repository-form label {
+    color: #cbd5e1;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+/* Repository URL input. */
+.repository-form input {
+    width: 100%;
+    box-sizing: border-box;
+
+    padding: 12px 14px;
+    background: #020617;
+    color: #f8fafc;
+
+    border: 1px solid #475569;
+    border-radius: 8px;
+
+    font-size: 14px;
+}
+
+.repository-form input:focus {
+    outline: none;
+    border-color: #22c55e;
+}
+
+/* Change repository button. */
+.repository-form button {
+    align-self: flex-start;
+
+    padding: 12px 20px;
+    background: #16a34a;
+    color: white;
+
+    border: none;
+    border-radius: 8px;
+
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.repository-form button:hover {
+    background: #15803d;
+}
+
+/* Mobile layout. */
+@media (max-width: 600px) {
+    .github-repository-section {
+        padding: 16px;
+    }
+
+    .repository-form button {
+        width: 100%;
+    }
+}
+/* Keep repository heading and status on the same row. */
+.repository-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+
+    margin-bottom: 20px;
+}
+
+.repository-card-header h2 {
+    margin: 0;
+}
+/* ============================================================
+   CODEVIEW — NEW MEETING ROOM DESIGN
+============================================================ */
+
+/* Overall page layout */
+.cv-layout {
+    display: grid;
+    grid-template-columns: 230px minmax(0, 1fr);
+    gap: 20px;
+
+    width: min(1800px, 98%);
+    margin: 20px auto;
+
+    align-items: start;
+}
+
+.cv-main {
+    min-width: 0;
+}
+
+/* ============================================================
+   SIDEBAR
+============================================================ */
+
+.codeview-sidebar {
+    position: sticky;
+    top: 20px;
+
+    padding: 20px 14px;
+
+    background: #111827;
+    border: 1px solid #334155;
+    border-radius: 12px;
+}
+
+.sidebar-group-info {
+    padding: 8px 8px 20px;
+    border-bottom: 1px solid #334155;
+}
+
+.sidebar-group-avatar {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    width: 55px;
+    height: 55px;
+
+    margin-bottom: 14px;
+
+    background: #1e3a5f;
+    color: #93c5fd;
+
+    border-radius: 10px;
+
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.sidebar-group-info h2 {
+    margin: 0 0 8px;
+    color: #f8fafc;
+    font-size: 18px;
+}
+
+.sidebar-group-info p {
+    margin: 0;
+    color: #94a3b8;
+    font-size: 12px;
+}
+
+.sidebar-navigation {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    margin-top: 20px;
+}
+
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    width: 100%;
+    box-sizing: border-box;
+
+    padding: 12px;
+
+    background: transparent;
+    color: #cbd5e1;
+
+    border: none;
+    border-radius: 8px;
+
+    text-decoration: none;
+    text-align: left;
+
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.sidebar-link:hover {
+    background: #1e293b;
+}
+
+.sidebar-link.active {
+    background: #064e3b;
+    color: #ffffff;
+
+    border-left: 3px solid #22c55e;
+}
+
+.cv-sidebar-button {
+    font-family: inherit;
+}
+
+.cv-sidebar-note {
+    margin-top: 25px;
+    padding: 12px;
+
+    color: #94a3b8;
+    background: #020617;
+
+    border-radius: 8px;
+
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+/* ============================================================
+   PAGE HEADER
+============================================================ */
+
+.cv-page-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+
+    padding: 20px 24px;
+    margin-bottom: 18px;
+
+    background: #111827;
+    border: 1px solid #334155;
+    border-radius: 12px;
+}
+
+.cv-page-heading h1 {
+    margin: 12px 0 8px;
+
+    color: #f8fafc;
+    font-size: 25px;
+}
+
+.cv-page-heading p {
+    margin: 0;
+    color: #94a3b8;
+    font-size: 14px;
+}
+
+.cv-chat-toggle {
+    padding: 11px 16px;
+
+    background: #166534;
+    color: #ffffff;
+
+    border: 1px solid #22c55e;
+    border-radius: 8px;
+
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.cv-chat-toggle:hover {
+    background: #15803d;
+}
+
+/* ============================================================
+   REPOSITORY CARD
+============================================================ */
+
+.github-repository-section {
+    margin: 0 0 18px;
+}
+
+.cv-disconnected {
+    padding: 6px 12px;
+
+    color: #fbbf24;
+    background: rgba(245, 158, 11, 0.12);
+
+    border-radius: 20px;
+    font-size: 12px;
+}
+
+/* ============================================================
+   WORKSPACE AND CHAT LAYOUT
+============================================================ */
+
+.cv-workspace-with-chat {
+    display: grid;
+
+    grid-template-columns:
+        minmax(0, 1fr)
+        310px;
+
+    gap: 16px;
+
+    align-items: start;
+}
+
+.cv-workspace-main {
+    min-width: 0;
+}
+
+/* Expand the workspace when chat is hidden */
+.cv-workspace-with-chat.chat-collapsed {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+/* Make sure hidden panels stay hidden */
+.cv-chat-panel[hidden] {
+    display: none !important;
+}
+
+/* ============================================================
+   FILE EXPLORER AND EDITOR
+============================================================ */
+
+.development-workspace {
+    grid-template-columns: 230px minmax(0, 1fr);
+
+    margin-top: 0;
+
+    min-height: 520px;
+
+    border-color: #334155;
+    border-radius: 12px;
+}
+
+.development-explorer {
+    background: #111827;
+}
+
+.development-editor {
+    background: #020617;
+}
+
+.editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+
+    padding: 14px 18px;
+
+    background: #1e293b;
+    border-bottom: 1px solid #334155;
+
+    overflow-wrap: anywhere;
+}
+
+.cv-readonly-badge {
+    flex-shrink: 0;
+
+    padding: 5px 9px;
+
+    color: #93c5fd;
+    background: #1e3a5f;
+
+    border-radius: 6px;
+    font-size: 11px;
+}
+
+.editor-content {
+    min-height: 440px;
+    max-height: 700px;
+
+    padding: 18px;
+}
+
+.cv-empty-workspace {
+    padding: 35px;
+
+    background: #111827;
+    border: 1px solid #334155;
+    border-radius: 12px;
+}
+
+.cv-empty-workspace h2 {
+    color: #f8fafc;
+}
+
+.cv-empty-workspace p {
+    color: #94a3b8;
+}
+
+/* ============================================================
+   COLLABORATION CARDS
+============================================================ */
+
+.cv-feature-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+
+    gap: 15px;
+    margin-top: 18px;
+}
+
+.cv-feature-grid .group-card {
+    min-width: 0;
+}
+
+.cv-coming-soon {
+    display: inline-block;
+
+    padding: 9px 12px;
+
+    color: #94a3b8;
+    background: #1e293b;
+
+    border-radius: 8px;
+    font-size: 12px;
+}
+
+/* ============================================================
+   TEAM CHAT PANEL
+============================================================ */
+
+.cv-chat-panel {
+    display: flex;
+    flex-direction: column;
+
+    min-height: 520px;
+    max-height: 760px;
+
+    background: #111827;
+    border: 1px solid #334155;
+    border-radius: 12px;
+
+    overflow: hidden;
+}
+
+/* Chat header */
+.cv-chat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+
+    padding: 18px;
+
+    background: #1e293b;
+    border-bottom: 1px solid #334155;
+}
+
+.cv-chat-header h2 {
+    margin: 0 0 6px;
+
+    color: #f8fafc;
+    font-size: 17px;
+}
+
+.cv-chat-header p {
+    margin: 0;
+
+    color: #94a3b8;
+    font-size: 12px;
+}
+
+.cv-close-chat {
+    width: 32px;
+    height: 32px;
+
+    background: #334155;
+    color: #ffffff;
+
+    border: none;
+    border-radius: 7px;
+
+    cursor: pointer;
+}
+
+.cv-close-chat:hover {
+    background: #475569;
+}
+
+/* Message area */
+.cv-chat-messages {
+    flex: 1;
+
+    min-height: 260px;
+    padding: 16px;
+
+    overflow-y: auto;
+}
+
+.cv-chat-empty {
+    padding: 30px 12px;
+
+    text-align: center;
+}
+
+.cv-chat-empty h3 {
+    margin-bottom: 10px;
+
+    color: #f8fafc;
+    font-size: 15px;
+}
+
+.cv-chat-empty p {
+    color: #94a3b8;
+
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+/* Reply preview */
+.cv-chat-reply-preview {
+    padding: 12px;
+
+    background: #1e293b;
+    border-top: 1px solid #334155;
+}
+
+.cv-chat-reply-preview[hidden] {
+    display: none;
+}
+
+.cv-chat-reply-preview p {
+    margin: 0 0 8px;
+
+    color: #cbd5e1;
+    font-size: 12px;
+}
+
+.cv-chat-reply-preview button {
+    padding: 7px 10px;
+
+    color: #f8fafc;
+    background: #334155;
+
+    border: none;
+    border-radius: 6px;
+
+    cursor: pointer;
+}
+
+/* Message input */
+.cv-chat-composer {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    padding: 15px;
+
+    border-top: 1px solid #334155;
+}
+
+.cv-chat-composer label {
+    color: #cbd5e1;
+    font-size: 12px;
+}
+
+.cv-chat-composer textarea {
+    width: 100%;
+    box-sizing: border-box;
+
+    padding: 12px;
+
+    color: #f8fafc;
+    background: #020617;
+
+    border: 1px solid #334155;
+    border-radius: 8px;
+
+    resize: vertical;
+    font-family: inherit;
+}
+
+.cv-send-message {
+    padding: 11px;
+
+    color: #ffffff;
+    background: #16a34a;
+
+    border: none;
+    border-radius: 8px;
+
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.cv-send-message:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.cv-chat-help {
+    margin: 0;
+
+    color: #94a3b8;
+    font-size: 11px;
+}
+
+/* Unread message counter */
+.chat-unread-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    min-width: 19px;
+    height: 19px;
+
+    padding: 0 5px;
+
+    color: #ffffff;
+    background: #dc2626;
+
+    border-radius: 20px;
+
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.chat-unread-count[hidden] {
+    display: none;
+}
+
+/* ============================================================
+   RESPONSIVE DESIGN
+============================================================ */
+
+@media (max-width: 1200px) {
+
+    .cv-workspace-with-chat {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .cv-chat-panel {
+        max-height: 550px;
+    }
+
+}
+
+@media (max-width: 900px) {
+
+    .cv-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .codeview-sidebar {
+        position: static;
+    }
+
+    .cv-feature-grid {
+        grid-template-columns: 1fr;
+    }
+
+}
+
+@media (max-width: 600px) {
+
+    .cv-page-heading {
+        padding: 16px;
+    }
+
+    .cv-page-heading h1 {
+        font-size: 21px;
+    }
+
+    .development-workspace {
+        grid-template-columns: 1fr;
+    }
+
+    .development-explorer {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .cv-chat-toggle {
+        width: 100%;
+    }
+
+}
+
+/* ========================================
+   MEETING ROOM COMMUNICATION BUTTONS
+======================================== */
+
+.cv-meeting-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+/* Voice and video call buttons */
+.cv-call-button {
+    padding: 11px 16px;
+
+    background: #172b4d;
+    color: #e2e8f0;
+
+    border: 1px solid #294466;
+    border-radius: 8px;
+
+    font-size: 13px;
+    font-weight: 600;
+}
+
+/* Show that calling is not yet available */
+.cv-call-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* Mobile layout */
+@media (max-width: 600px) {
+
+    .cv-meeting-actions {
+        width: 100%;
+    }
+
+    .cv-call-button,
+    .cv-meeting-actions .cv-chat-toggle {
+        flex: 1;
+    }
+}
+/* ============================================================
+   MEETING ROOM — CHAT NOTIFICATION POPUP
+============================================================ */
+
+.cv-chat-notification {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: min(320px, calc(100vw - 48px));
+    padding: 16px;
+    background: #1e293b;
+    color: #ffffff;
+    border: 1px solid #475569;
+    border-radius: 12px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    z-index: 1000;
+}
+
+.cv-chat-notification[hidden] {
+    display: none;
+}
+
+.cv-chat-notification strong {
+    display: block;
+    margin-bottom: 8px;
+}
+
+.cv-chat-notification p {
+    margin: 0 0 14px;
+    overflow-wrap: anywhere;
+}
+
+.cv-chat-notification-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.cv-chat-notification-actions button {
+    padding: 8px 12px;
+    border: 1px solid #64748b;
+    border-radius: 6px;
+    background: #334155;
+    color: white;
+    cursor: pointer;
+}
+
+.cv-chat-notification-actions button:hover {
+    background: #475569;
+}
+
+/* ============================================
+   KEEP CHAT INPUT BELOW MESSAGES
+============================================ */
+
+#team-chat-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+#team-chat-panel .cv-chat-messages {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+#team-chat-panel .cv-chat-composer {
+    flex: 0 0 auto;
+}
+
+#team-chat-panel .cv-chat-reply-preview {
+    flex: 0 0 auto;
+}
+/* ============================================================
+   MEETING ROOM CHAT LAYOUT
+============================================================ */
+
+/* Arrange the chat vertically. */
+#team-chat-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+/* Messages occupy the available space and can scroll. */
+#chat-messages {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+/* Keep the reply preview above the textarea. */
+#chat-reply-preview {
+    flex: 0 0 auto;
+}
+
+/* Hide the reply preview when no reply is selected. */
+#chat-reply-preview[hidden] {
+    display: none;
+}
+
+/* Keep the textarea and Send button below messages. */
+.cv-chat-composer {
+    flex: 0 0 auto;
+}
+
+/* Arrange the message buttons. */
+.cv-chat-message-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+/* Style Reply, Edit, and Delete. */
+.cv-chat-message-actions button {
+    padding: 6px 10px;
+    background: #1e293b;
+    color: white;
+    border: 1px solid #475569;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+/* Make the textarea fit the chat panel. */
+#chat-message-input {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 8px 0;
+}
+/* ============================================
+   MEETING ROOM — INLINE MESSAGE EDITOR
+============================================ */
+
+.cv-chat-inline-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.cv-chat-edit-textarea {
+    width: 100%;
+    min-height: 75px;
+    padding: 10px;
+    border: 1px solid #64748b;
+    border-radius: 8px;
+    background: #0f172a;
+    color: #ffffff;
+    font: inherit;
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+.cv-chat-edit-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.cv-chat-save-button,
+.cv-chat-cancel-edit-button {
+    padding: 7px 14px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font: inherit;
+}
+
+.cv-chat-save-button {
+    background: #2563eb;
+    color: white;
+}
+
+.cv-chat-cancel-edit-button {
+    background: #334155;
+    color: white;
+}
+
+.cv-chat-save-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+/* ============================================
+   INLINE DELETE CONFIRMATION
+============================================ */
+
+.cv-chat-delete-confirmation {
+    margin-top: 10px;
+    padding: 12px;
+    background: #1e293b;
+    border: 1px solid #475569;
+    border-radius: 8px;
+}
+
+.cv-chat-delete-confirmation p {
+    margin-bottom: 12px;
+    color: #f8fafc;
+}
+
+.cv-chat-delete-cancel,
+.cv-chat-delete-confirm {
+    padding: 8px 12px;
+    margin-right: 8px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.cv-chat-delete-cancel {
+    background: #475569;
+    color: white;
+}
+
+.cv-chat-delete-confirm {
+    background: #dc2626;
+    color: white;
+}

@@ -1,0 +1,129 @@
+/* ==========================================
+   CODEVIEW — MEMBERSHIP REQUESTS
+   File: membership_requests.css
+========================================== */
+
+/* Main membership requests section. */
+.members-section {
+    margin-top: 25px;
+    padding: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+
+.members-section h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+}
+
+/* Individual membership request card. */
+.group-card {
+    margin-bottom: 18px;
+    padding: 22px;
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+
+/* Developer information container. */
+.group-card-content {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Developer avatar and username. */
+.member-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.member-item strong {
+    display: block;
+    overflow-wrap: anywhere;
+}
+
+.member-item small {
+    display: block;
+    margin-top: 5px;
+    color: var(--muted);
+}
+
+/* Developer introduction. */
+.form-field {
+    margin-top: 5px;
+}
+
+.group-description {
+    margin-top: 10px;
+    color: var(--muted);
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+
+/* Approve and reject buttons. */
+.group-card-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+}
+
+/* Notification messages. */
+.notifications {
+    margin-bottom: 20px;
+}
+
+.notification {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 18px;
+    margin-bottom: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.notification-success {
+    border-color: var(--accent);
+}
+
+.notification-error {
+    border-color: #ef4444;
+}
+
+/* Empty membership requests state. */
+.empty-state {
+    padding: 45px 20px;
+    text-align: center;
+    color: var(--muted);
+}
+
+.empty-state h2 {
+    color: var(--text);
+}
+
+/* Mobile responsiveness. */
+@media (max-width: 600px) {
+    .members-section {
+        padding: 16px;
+    }
+
+    .group-card {
+        padding: 16px;
+    }
+
+    .group-card-footer {
+        flex-direction: column;
+    }
+
+    .group-card-footer form,
+    .group-card-footer button {
+        width: 100%;
+    }
+}

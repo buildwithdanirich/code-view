@@ -1,0 +1,1392 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <!-- ========================================
+         1. PAGE SETTINGS
+    ========================================= -->
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>{{ group.name }} | CodeView</title>
+
+<!-- Shared styles -->
+<link rel="stylesheet" href="{% static 'community/sheared.css' %}">
+
+<!-- Group Workspace -->
+<link rel="stylesheet" href="{% static 'community/group_detail/group_detail.css' %}">
+
+<!-- Discussions -->
+<link rel="stylesheet" href="{% static 'community/group_detail/group_discussions.css' %}">
+
+<!-- Group Chat -->
+<link rel="stylesheet" href="{% static 'community/group_detail/group_chat.css' %}">
+
+<!-- Members -->
+<link rel="stylesheet" href="{% static 'community/group_detail/group_members.css' %}">
+
+</head>
+
+<body
+    data-current-user-id="{{ request.user.id }}"
+    data-discussion-socket-url="{% if request.is_secure %}wss{% else %}ws{% endif %}://{{ request.get_host }}/ws/groups/{{ group.id }}/discussions/"
+>
+    <!-- ========================================
+         2. TOP NAVIGATION
+    ========================================= -->
+
+    <header class="navbar">
+
+        <a
+            href="{% url 'groups' %}"
+            class="brand"
+        >
+            &lt;/&gt; CodeView
+        </a>
+
+        <nav class="top-links">
+
+            <a href="{% url 'groups' %}" class="active">
+                Groups
+            </a>
+
+            <a href="{% url 'create_group' %}">
+                Create Group
+            </a>
+
+        </nav>
+
+        <div class="profile">
+
+            <span class="avatar">
+                {{ request.user.username|first|upper }}
+            </span>
+
+            <span>
+                {{ request.user.username }}
+            </span>
+
+        </div>
+
+    </header>
+
+
+    <!-- ========================================
+         3. GROUP WORKSPACE
+    ========================================= -->
+
+    <div class="workspace-layout">
+
+        <!-- ====================================
+             4. LEFT SIDEBAR
+        ==================================== -->
+
+        <aside class="workspace-sidebar">
+
+            <div class="sidebar-title">
+                GROUP WORKSPACE
+            </div>
+
+            <div class="sidebar-group-name">
+                {{ group.name }}
+            </div>
+
+            <div class="sidebar-group-description">
+                {{ group.description|truncatechars:90 }}
+            </div>
+
+
+            <!-- MAIN GROUP NAVIGATION -->
+<!-- ====================================
+     MAIN GROUP NAVIGATION
+==================================== -->
+
+<nav
+    class="sidebar-links"
+    aria-label="Group navigation"
+>
+
+    <!-- Discussions are available to group viewers. -->
+    <a
+        href="#group-discussions"
+        class="sidebar-link active"
+        data-workspace-tab="discussions"
+        aria-current="page"
+    >
+        💬
+
+        <span class="sidebar-link-text">
+            Discussions
+        </span>
+    </a>
+
+    {% if is_member %}
+
+        <!-- Group Chat: available to members only. -->
+        <a
+            href="#group-chat"
+            class="sidebar-link"
+            data-workspace-tab="chat"
+        >
+            #
+
+            <span class="sidebar-link-text">
+                Group Chat
+            </span>
+        </a>
+
+        <!-- Group Members. -->
+        <a
+            href="#group-members"
+            class="sidebar-link"
+            data-workspace-tab="members"
+        >
+            👥
+
+            <span class="sidebar-link-text">
+                Members
+            </span>
+        </a>
+
+        <!-- Development Room: private groups only. -->
+        {% if group.is_private %}
+
+            <a
+                href="{% url 'meeting_room' group.id %}"
+                class="sidebar-link"
+            >
+                🚀
+
+                <span class="sidebar-link-text">
+                    Meeting Room
+                </span>
+            </a>
+
+        {% endif %}
+
+    {% endif %}
+
+</nav>
+
+
+            <!-- ====================================
+                 5. ADMINISTRATOR NAVIGATION
+            ==================================== -->
+
+{% if is_admin and group.join_policy == "approval" %}
+                <div class="sidebar-divider"></div>
+
+                <div class="sidebar-admin-title">
+                    ADMINISTRATION
+                </div>
+
+                <nav
+                    class="sidebar-links"
+                    aria-label="Group administration"
+                >
+
+                    <a
+                        href="{% url 'membership_requests' group.id %}"
+                        class="sidebar-link sidebar-admin-link"
+                        title="Manage Membership Requests"
+                    >
+                        ⚙
+
+                        <span class="sidebar-link-text">
+                            Manage Requests
+                        </span>
+
+                    </a>
+
+                </nav>
+
+            {% endif %}
+
+
+            <!-- ====================================
+                 6. OTHER NAVIGATION
+            ==================================== -->
+
+            <div class="sidebar-divider"></div>
+
+            <nav
+                class="sidebar-links"
+                aria-label="Other navigation"
+            >
+
+                <a
+                    href="{% url 'groups' %}"
+                    class="sidebar-link"
+                    title="All Groups"
+                >
+                    ←
+
+                    <span class="sidebar-link-text">
+                        All Groups
+                    </span>
+
+                </a>
+
+            </nav>
+
+        </aside>
+
+
+        <!-- ====================================
+             7. MAIN WORKSPACE CONTENT
+        ==================================== -->
+
+        <main class="workspace-main">
+
+            <div class="workspace-content">
+
+                <!-- ====================================
+                     8. DJANGO NOTIFICATIONS
+                ==================================== -->
+
+                {% if messages %}
+
+                    <section
+                        class="notifications"
+                        aria-live="polite"
+                    >
+
+                        {% for message in messages %}
+
+                            <div
+                                class="notification notification-{{ message.tags }}"
+                                role="status"
+                            >
+
+                                {{ message }}
+
+                            </div>
+
+                        {% endfor %}
+
+                    </section>
+
+                {% endif %}
+
+
+                <!-- ====================================
+                     9. WORKSPACE HEADING
+                ==================================== -->
+
+                <div class="workspace-heading">
+
+                    <div>
+
+                        <h1>
+                            💬 Group Discussions
+                        </h1>
+
+                        <p class="workspace-subtitle">
+                            Share ideas, ask questions,
+                            and collaborate with developers.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <!-- ====================================
+                     10. GROUP INFORMATION
+                ==================================== -->
+
+                <section class="workspace-group-info">
+
+                    <h2>
+                        {{ group.name }}
+                    </h2>
+
+                    {% if group.is_private %}
+
+                        <span class="privacy-badge private">
+                            Private Development Group
+                        </span>
+
+                    {% else %}
+
+                        <span class="privacy-badge public">
+                            Public Community
+                        </span>
+
+                    {% endif %}
+
+                    <p>
+                        {{ group.description|linebreaksbr }}
+                    </p>
+
+                    <div class="workspace-group-meta">
+
+                        <span>
+                            Created by {{ group.owner.username }}
+                        </span>
+
+                        <span>
+                            Joining Policy:
+                            {{ group.get_join_policy_display }}
+                        </span>
+
+                    </div>
+
+                </section>
+
+
+                <!-- ====================================
+                     11. MEMBERSHIP ACTIONS
+                ==================================== -->
+
+                {% if not is_member %}
+
+                    <section class="membership-notice">
+
+                        <h2>
+                            Join This Community
+                        </h2>
+
+                        {% if pending_request %}
+
+                            <p>
+                                Your membership request has been submitted.
+                                Please wait for a group administrator
+                                to review it.
+                            </p>
+
+                            <span class="membership-pending">
+                                ⏳ Request Pending
+                            </span>
+
+                        {% elif group.join_policy == "invite" %}
+
+                            <p>
+                                This group is invitation-only.
+                                Contact a group administrator
+                                to request access.
+                            </p>
+
+                        {% elif group.join_policy == "approval" %}
+
+                            <p>
+                                Administrator approval is required
+                                before you can participate.
+                            </p>
+
+                            <form
+                                method="POST"
+                                action="{% url 'join_group' group.id %}"
+                            >
+
+                                {% csrf_token %}
+
+                                <div class="form-field">
+
+                                    <label for="join-message">
+                                        Why would you like to join?
+                                    </label>
+
+                                    <textarea
+                                        id="join-message"
+                                        name="message"
+                                        class="group-textarea"
+                                        rows="4"
+                                        maxlength="1000"
+                                        placeholder="Introduce yourself (optional)"
+                                    ></textarea>
+
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    class="group-action"
+                                >
+                                    Request to Join
+                                </button>
+
+                            </form>
+
+                        {% elif group.join_policy == "open" %}
+
+                            <p>
+                                This community is open to everyone.
+                            </p>
+
+                            <form
+                                method="POST"
+                                action="{% url 'join_group' group.id %}"
+                            >
+
+                                {% csrf_token %}
+
+                                <button
+                                    type="submit"
+                                    class="group-action"
+                                >
+                                    Join Community
+                                </button>
+
+                            </form>
+
+                        {% endif %}
+
+                    </section>
+
+                {% endif %}
+
+
+                <!-- ====================================
+                     12. CREATE DISCUSSION
+                ==================================== -->
+
+                {% if is_member %}
+
+                    <section
+                        class="workspace-section"
+                        id="create-discussion"
+                    >
+
+                        <h2>
+                            Create a Discussion
+                        </h2>
+
+                        <p class="workspace-section-description">
+                            Ask a question, share an idea,
+                            or start a conversation with your group.
+                        </p>
+
+                        <form
+                            method="POST"
+                            action="{% url 'create_discussion' group.id %}"
+                        >
+
+                            {% csrf_token %}
+
+                            <div class="form-field">
+
+                                <label for="discussion-title">
+                                    Discussion Title
+                                </label>
+
+                                <input
+                                    type="text"
+                                    id="discussion-title"
+                                    name="title"
+                                    class="group-input"
+                                    maxlength="200"
+                                    placeholder="What would you like to discuss?"
+                                    required
+                                >
+
+                            </div>
+
+
+                            <div class="form-field">
+
+                                <label for="discussion-content">
+                                    Your Message
+                                </label>
+
+                                <textarea
+                                    id="discussion-content"
+                                    name="content"
+                                    class="group-textarea"
+                                    rows="5"
+                                    placeholder="Share your thoughts or ask a question..."
+                                    required
+                                ></textarea>
+
+                            </div>
+
+                            <button
+                                type="submit"
+                                class="group-action"
+                            >
+                                Publish Discussion
+                            </button>
+
+                        </form>
+
+                    </section>
+
+                {% endif %}
+
+
+                <!-- ====================================
+                     13. DISCUSSION FEED
+                ==================================== -->
+
+                <section
+                    class="workspace-section"
+                    id="group-discussions"
+                >
+
+                    <h2>
+                        Recent Discussions
+                    </h2>
+
+                    {% for discussion in discussions %}
+
+                        <article
+                            class="discussion-card"
+                            id="discussion-{{ discussion.id }}"
+                        >
+
+                            <!-- Discussion author and date. -->
+                            <div class="discussion-author">
+
+                                <span class="discussion-avatar">
+                                    {{ discussion.author.username|first|upper }}
+                                </span>
+
+                                <span class="discussion-username">
+                                    {{ discussion.author.username }}
+                                </span>
+
+                                <span class="discussion-date">
+                                    {{ discussion.created_at|date:"M d, Y - H:i" }}
+                                </span>
+
+                            </div>
+
+
+                            <!-- Discussion title. -->
+                            <h3 class="discussion-title">
+
+                                <a
+                                    href="{% url 'discussion_detail' group.id discussion.id %}"
+                                >
+                                    {{ discussion.title }}
+                                </a>
+
+                            </h3>
+
+
+                            <!-- Discussion preview. -->
+                            <p class="discussion-content">
+                                {{ discussion.content|truncatewords:50|linebreaksbr }}
+                            </p>
+
+
+                            <!-- ====================================
+                                 14. DISCUSSION STATISTICS
+                            ==================================== -->
+
+                            <div class="discussion-stats">
+
+                                <span>
+                                    💚
+
+                                    <span
+                                        id="like-count-{{ discussion.id }}"
+                                    >
+                                        {{ discussion.like_count }}
+                                    </span>
+
+                                    likes
+                                </span>
+
+                               <!-- Display the discussion's comment count. -->
+
+                        <span id="comment-count-{{ discussion.id }}">
+                            {{ discussion.comment_count }}
+                            </span>
+                            comments
+
+                            </div>
+
+
+                            <!-- ====================================
+                                 15. DISCUSSION ACTIONS
+                            ==================================== -->
+
+                            <div class="discussion-actions">
+
+                                {% if is_member %}
+
+                                    <!-- Like/Unlike using existing JavaScript. -->
+                                    <form
+                                        method="POST"
+                                        action="{% url 'toggle_discussion_like' group.id discussion.id %}"
+                                        class="like-form"
+                                        data-discussion-id="{{ discussion.id }}"
+                                    >
+
+                                        {% csrf_token %}
+
+                                        <button
+                                            type="submit"
+                                            class="like-button {% if discussion.liked_by_user %}liked{% endif %}"
+                                            aria-pressed="{% if discussion.liked_by_user %}true{% else %}false{% endif %}"
+                                        >
+
+                                            <span class="like-label">
+
+                                                {% if discussion.liked_by_user %}
+
+                                                    💚 Liked
+
+                                                {% else %}
+
+                                                    ♡ Like
+
+                                                {% endif %}
+
+                                            </span>
+
+                                        </button>
+
+                                    </form>
+
+                                {% endif %}
+
+
+                                <!-- Open the full discussion and comments. -->
+                                <a
+                                    href="{% url 'discussion_detail' group.id discussion.id %}"
+                                    class="comment-button"
+                                >
+                                    💬 Comment
+                                </a>
+
+
+                                {% if is_member %}
+
+                                    <!-- Hide discussion from this user's feed. -->
+                                    <form
+                                        method="POST"
+                                        action="{% url 'hide_discussion' group.id discussion.id %}"
+                                    >
+
+                                        {% csrf_token %}
+
+                                        <button
+                                            type="submit"
+                                            class="hide-button"
+                                        >
+                                            Hide Post
+                                        </button>
+
+                                    </form>
+
+                                {% endif %}
+
+                            </div>
+
+
+                            <!-- Like request error message. -->
+                            <p
+                                class="like-error"
+                                id="like-error-{{ discussion.id }}"
+                                role="alert"
+                                hidden
+                            ></p>
+
+                        </article>
+
+                    {% empty %}
+
+                        <p class="workspace-section-description">
+                            No discussions have been published yet.
+                        </p>
+
+                        {% if is_member %}
+
+                            <p class="workspace-section-description">
+                                Be the first to start a conversation!
+                            </p>
+
+                        {% endif %}
+
+                    {% endfor %}
+
+                </section>
+                <!-- ========================================
+     GROUP CHAT PANEL
+     Visible to group members only.
+======================================== -->
+
+{% if is_member %}
+
+    <section
+        class="workspace-section workspace-panel"
+        id="group-chat"
+        data-workspace-panel="chat"
+        hidden
+    >
+
+        <!-- CHAT HEADER -->
+
+        <header class="chat-header">
+
+            <div>
+                <h2>
+                    # {{ group.name }}
+                </h2>
+
+                <p class="workspace-section-description">
+                    Chat, share code, and collaborate
+                    with your group members.
+                </p>
+            </div>
+
+        </header>
+
+<!-- ====================================
+     CHAT MESSAGE HISTORY
+     Display messages from group members.
+==================================== -->
+<div
+    id="chat-messages"
+    class="chat-messages"
+    data-group-id="{{ group.id }}"
+    aria-label="Group chat messages"
+>
+
+    {% for chat_message in chat_messages %}
+
+        <article
+            class="chat-message"
+            id="message-{{ chat_message.id }}"
+            data-message-id="{{ chat_message.id }}"
+        >
+
+            <!-- ====================================
+                 SENDER AVATAR
+            ==================================== -->
+
+            <div class="message-avatar">
+                {{ chat_message.sender.username|first|upper }}
+            </div>
+
+            <div class="message-body">
+
+                <!-- ====================================
+                     SENDER INFORMATION
+                ==================================== -->
+
+                <div class="message-header">
+
+                    <strong class="message-author">
+                        {{ chat_message.sender.username }}
+                    </strong>
+
+                    <time class="message-time">
+                        {{ chat_message.created_at|date:"M d, Y - H:i" }}
+                    </time>
+
+                </div>
+
+
+                <!-- ====================================
+                     REPLY PREVIEW
+                     Show the original message.
+                ==================================== -->
+
+                {% if chat_message.reply_to %}
+
+                    <div class="message-reply">
+
+                        ↳ Replying to
+
+                        <strong>
+                            {{ chat_message.reply_to.sender.username }}
+                        </strong>
+
+                        {% if chat_message.reply_to.content %}
+
+                            <p>
+                                {{ chat_message.reply_to.content|truncatechars:100 }}
+                            </p>
+
+                        {% endif %}
+
+                    </div>
+
+                {% endif %}
+
+
+                <!-- ====================================
+                     TEXT MESSAGES
+                     Normal group conversations.
+                ==================================== -->
+
+                {% if chat_message.message_type == "text" %}
+
+                 <div class="message-content chat-message-content">
+                        {{ chat_message.content|linebreaksbr }}
+                    </div>
+
+                {% endif %}
+
+
+                <!-- ====================================
+                     EXISTING CODE MESSAGES
+                     Keep older code messages visible.
+                     No language selector is required.
+                ==================================== -->
+
+                {% if chat_message.message_type == "code" %}
+
+                    <pre class="message-code"><code>{{ chat_message.content }}</code></pre>
+
+                {% endif %}
+
+
+                <!-- ====================================
+                     VOICE MESSAGES
+                     Play previously uploaded audio.
+                ==================================== -->
+
+                {% if chat_message.message_type == "voice" %}
+
+                    {% if chat_message.attachment %}
+
+                        <audio
+                            controls
+                            preload="none"
+                            class="message-audio"
+                            src="{{ chat_message.attachment.url }}"
+                        ></audio>
+
+                    {% endif %}
+
+                    {% if chat_message.content %}
+
+                        <p class="message-content">
+                            {{ chat_message.content|linebreaksbr }}
+                        </p>
+
+                    {% endif %}
+
+                {% endif %}
+
+
+                <!-- ====================================
+                     FILE MESSAGES
+                     Show message and attachment.
+                ==================================== -->
+
+                {% if chat_message.message_type == "file" %}
+
+                    {% if chat_message.content %}
+
+                        <p class="message-content">
+                            {{ chat_message.content|linebreaksbr }}
+                        </p>
+
+                    {% endif %}
+
+                    {% if chat_message.attachment %}
+
+                        <a
+                            href="{{ chat_message.attachment.url }}"
+                            class="message-attachment"
+                            download
+                        >
+                            📎 Download Attachment
+                        </a>
+
+                    {% endif %}
+
+                {% endif %}
+
+
+                <!-- ====================================
+                     MESSAGE ACTIONS AND FORMS
+                ==================================== -->
+
+                <div class="message-actions">
+                    <button
+                        type="button"
+                        class="reply-button"
+                        data-message-id="{{ chat_message.id }}"
+                        data-sender="{{ chat_message.sender.username }}"
+                    >↩ Reply</button>
+
+                    {% if chat_message.sender_id == request.user.id %}
+                        {% if chat_message.message_type == "text" %}
+                            <button
+                                type="button"
+                                class="edit-button"
+                                data-message-id="{{ chat_message.id }}"
+                            >✏️ Edit</button>
+                        {% endif %}
+
+                        <button
+                            type="button"
+                            class="delete-button"
+                            data-message-id="{{ chat_message.id }}"
+                        >🗑 Delete</button>
+                    {% endif %}
+                </div>
+
+                {% if chat_message.sender_id == request.user.id %}
+                    <!-- Edit only normal text messages. -->
+                    {% if chat_message.message_type == "text" %}
+                        <form
+                            method="POST"
+                            action="{% url 'edit_group_message' group.id chat_message.id %}"
+                            class="message-edit-form"
+                            id="edit-form-{{ chat_message.id }}"
+                            hidden
+                        >
+                            {% csrf_token %}
+                            <textarea
+                                name="content"
+                                class="message-edit-input"
+                                rows="3"
+                                required
+                            >{{ chat_message.content }}</textarea>
+                            <div class="message-edit-actions">
+                                <button type="submit" class="edit-save-button">Save</button>
+                                <button type="button" class="edit-cancel-button">Cancel</button>
+                            </div>
+                        </form>
+                    {% endif %}
+
+                    <!-- Confirm deletion before sending the POST request. -->
+                    <form
+                        method="POST"
+                        action="{% url 'delete_group_message' group.id chat_message.id %}"
+                        class="message-delete-form"
+                        id="delete-form-{{ chat_message.id }}"
+                        hidden
+                    >
+                        {% csrf_token %}
+                        <p>Are you sure you want to delete this message?</p>
+                        <div class="message-edit-actions">
+                            <button type="submit" class="delete-confirm-button">Yes, Delete</button>
+                            <button type="button" class="delete-cancel-button">Cancel</button>
+                        </div>
+                    </form>
+                {% endif %}
+
+            </div>
+
+        </article>
+
+    {% empty %}
+
+        <!-- Display when the group has no messages. -->
+        <p class="chat-empty">
+            No messages yet. Start the conversation!
+        </p>
+
+    {% endfor %}
+
+</div>
+
+
+
+        <!-- ====================================
+             SIMPLE CHAT MESSAGE COMPOSER
+             No visible Type or Language fields.
+        ==================================== -->
+
+        <div class="chat-composer">
+            <!-- ========================================
+     REPLY PREVIEW
+======================================== -->
+
+<div class="chat-reply-preview" id="chat-reply-preview" hidden>
+
+    <!-- Display the developer being replied to -->
+    <div class="reply-preview-details">
+
+        <strong id="reply-preview-sender"></strong>
+
+        <!-- Display the original message -->
+        <p id="reply-preview-content"></p>
+
+    </div>
+
+    <!-- Cancel the reply -->
+    <button
+        type="button"
+        id="cancel-reply-button"
+        aria-label="Cancel reply"
+    >
+        ✕
+    </button>
+
+</div>
+            <form
+                method="POST"
+                action="{% url 'send_group_message' group.id %}"
+                enctype="multipart/form-data"
+                id="chat-form"
+            >
+                {% csrf_token %}
+
+                <!-- JavaScript changes text to file when needed. -->
+                <input type="hidden" name="message_type" value="text">
+                <input type="hidden" name="reply_to_id" id="reply-to-id" value="">
+
+                {% if chat_form.errors %}
+                    <div class="composer-error">{{ chat_form.errors }}</div>
+                {% endif %}
+
+                <div class="composer-box">
+                    <button
+                        type="button"
+                        class="composer-button"
+                        id="attach-file-button"
+                        title="Attach a file"
+                        aria-label="Attach a file"
+                    >📎</button>
+
+                    <!-- Keep the Django file input in the form, but hide it. -->
+                    <div class="composer-file-input" hidden>
+                        {{ chat_form.attachment }}
+                    </div>
+
+                    <textarea
+                        name="content"
+                        id="id_content"
+                        class="composer-textarea"
+                        rows="2"
+                        placeholder="Message #{{ group.name }}"
+                    >{{ chat_form.content.value|default_if_none:"" }}</textarea>
+
+                    <button
+                        type="button"
+                        class="composer-button"
+                        id="record-voice-button"
+                        title="Voice notes coming soon"
+                        disabled
+                    >🎤</button>
+
+                    <button
+                        type="submit"
+                        class="composer-button composer-send"
+                        title="Send message"
+                    >➤</button>
+                </div>
+
+                <p class="selected-file-name" id="selected-file-name" hidden></p>
+            </form>
+        </div>
+
+    </section>
+
+{% endif %}
+
+
+                <!-- ====================================
+                     16. GROUP MEMBERS
+                ==================================== -->
+
+                {% if is_member %}
+
+                    <section
+                        class="workspace-section"
+                        id="group-members"
+                    >
+
+                        <h2>
+                            Group Members ({{ members|length }})
+                        </h2>
+
+                        <div class="workspace-members">
+
+{% for membership in members %}
+
+    <div class="workspace-member">
+
+        <!-- Member avatar -->
+        <span class="discussion-avatar">
+            {{ membership.user.username|first|upper }}
+        </span>
+
+        <!-- Member username and role -->
+        <div>
+            <strong>
+                {{ membership.user.username }}
+            </strong>
+
+            <small>
+                {% if membership.user_id == group.owner_id %}
+                    Owner
+                {% else %}
+                    {{ membership.get_role_display }}
+                {% endif %}
+            </small>
+        </div>
+
+        <!-- MEMBER MANAGEMENT BUTTONS -->
+        {% if is_admin and membership.user_id != group.owner_id %}
+
+            <div class="member-actions">
+
+                <!-- Only the owner can promote or demote -->
+                {% if request.user.id == group.owner_id %}
+
+                    <form
+                        method="POST"
+                        action="{% url 'change_group_member_role' group.id membership.id %}"
+                    >
+                        {% csrf_token %}
+
+                        {% if membership.role == "member" %}
+
+                            <input type="hidden" name="role" value="admin">
+
+                            <button type="submit" class="member-role-btn">
+                                Make Admin
+                            </button>
+
+                        {% else %}
+
+                            <input type="hidden" name="role" value="member">
+
+                            <button type="submit" class="member-role-btn">
+                                Remove Admin
+                            </button>
+
+                        {% endif %}
+
+                    </form>
+
+                {% endif %}
+
+                <!-- Owner can remove admins and members.
+                     Admins can remove ordinary members only. -->
+                {% if request.user.id == group.owner_id or membership.role == "member" %}
+<!-- Remove developer form -->
+<form
+    method="POST"
+    action="{% url 'remove_group_member' group.id membership.id %}"
+    class="remove-member-form"
+>
+    {% csrf_token %}
+
+    <!-- Open the custom confirmation modal -->
+    <button type="submit" class="member-remove-btn">
+        Remove
+    </button>
+</form>
+
+                {% endif %}
+
+            </div>
+
+        {% endif %}
+
+    </div>
+
+{% empty %}
+                                <p>
+                                    No members yet.
+                                </p>
+
+                            {% endfor %}
+
+                            <!-- LEAVE GROUP BUTTON -->
+
+{% if is_member and request.user.id != group.owner_id %}
+
+    <div class="leave-group-section">
+
+<!-- Form for adding developers without refreshing the page -->
+<form
+    id="add-member-form"
+    method="POST"
+    action="{% url 'add_group_member' group.id %}"
+>
+    {% csrf_token %}
+
+    <button type="submit" class="leave-group-btn">
+        Leave Group
+    </button>
+</form>
+
+    </div>
+
+{% endif %}
+
+
+                           <!-- ADD DEVELOPER: ADMIN ONLY -->
+{% if is_admin and group.join_policy != "invite" %}
+
+<div class="add-member-section">
+
+    <h3>Add Developer</h3>
+
+    <form
+        method="POST"
+        action="{% url 'add_group_member' group.id %}"
+    >
+        {% csrf_token %}
+
+       <!-- Container for live developer search -->
+<div class="developer-search-container">
+
+    <!-- Search registered developers -->
+    <input
+        type="text"
+        id="developer-search"
+        name="username"
+        data-search-url="{% url 'search_group_developers' group.id %}"
+        placeholder="Search developer username..."
+        autocomplete="off"
+        required
+    >
+
+    <!-- JavaScript will display matching developers here -->
+    <div
+        id="developer-search-results"
+        class="developer-search-results"
+    ></div>
+
+</div>
+
+        <button type="submit">
+            Add Member
+        </button>
+
+    </form>
+
+</div>
+
+{% endif %}
+                        </div>
+
+                    </section>
+
+                {% endif %}
+
+            </div>
+
+        </main>
+
+    </div>
+    <!-- ========================================
+     REMOVE DEVELOPER CONFIRMATION MODAL
+======================================== -->
+
+<div
+    id="remove-member-modal"
+    class="codeview-modal"
+    hidden
+>
+    <div class="codeview-modal-overlay"></div>
+
+    <div
+        class="codeview-modal-content"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="remove-modal-title"
+        aria-describedby="remove-modal-description"
+    >
+
+        <h2 id="remove-modal-title">
+            Remove Developer?
+        </h2>
+
+        <p id="remove-modal-description">
+            Are you sure you want to remove this developer from the group?
+        </p>
+
+        <div class="codeview-modal-actions">
+
+            <button
+                type="button"
+                id="cancel-remove-member"
+                class="modal-cancel-btn"
+            >
+                Cancel
+            </button>
+
+            <button
+                type="button"
+                id="confirm-remove-member"
+                class="modal-remove-btn"
+            >
+                Remove Member
+            </button>
+
+        </div>
+
+    </div>
+</div>
+<!-- ========================================
+     LEAVE GROUP CONFIRMATION MODAL
+======================================== -->
+
+<div id="leave-group-modal" class="codeview-modal" hidden>
+
+    <div class="codeview-modal-overlay"></div>
+
+    <div
+        class="codeview-modal-content"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="leave-modal-title"
+        aria-describedby="leave-modal-description"
+    >
+
+        <h2 id="leave-modal-title">
+            Leave Group?
+        </h2>
+
+        <p id="leave-modal-description">
+            Are you sure you want to leave this group?
+            You will lose access to member-only features.
+        </p>
+
+        <div class="codeview-modal-actions">
+
+            <button
+                type="button"
+                id="cancel-leave-group"
+                class="modal-cancel-btn"
+            >
+                Cancel
+            </button>
+
+            <button
+                type="button"
+                id="confirm-leave-group"
+                class="modal-remove-btn"
+            >
+                Leave Group
+            </button>
+
+        </div>
+
+    </div>
+</div>
+
+
+    <!-- ========================================
+         17. EXISTING JAVASCRIPT
+    ========================================= -->
+
+    <!--
+        This JavaScript handles:
+        1. Like/Unlike requests.
+        2. Updating discussion like counts.
+        3. Displaying errors.
+
+        We are keeping the existing file.
+    -->
+<!-- Existing discussion interactions. -->
+<script src="{% static 'community/group_detail/discussions.js' %}" defer></script>
+
+<script src="{% static 'community/group_detail/group_workspace.js' %}" defer></script>
+
+<script src="{% static 'community/group_detail/group_chat.js' %}" defer></script>
+
+<script src="{% static 'community/group_detail/developer_search.js' %}" defer></script>
+
+<body>
+</html>

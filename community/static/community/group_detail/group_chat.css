@@ -1,0 +1,498 @@
+/* ==========================================
+   10. GROUP CHAT WORKSPACE
+   Keep the original CodeView chat design.
+========================================== */
+
+/*
+   When Group Chat is active:
+   - Remove the discussion card appearance.
+   - Use the available workspace height.
+   - Keep the message composer at the bottom.
+*/
+
+.workspace-main:has(#group-chat:not([hidden])) {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    padding: 0;
+}
+
+.workspace-main:has(#group-chat:not([hidden])) .workspace-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    width: 100%;
+    max-width: none;
+    min-height: 0;
+    margin: 0;
+}
+
+/* Main chat container. */
+#group-chat {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    background: #17181b;
+    border: none;
+    border-radius: 0;
+}
+
+/* ==========================================
+   11. CHAT HEADER
+========================================== */
+
+#group-chat .chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    padding: 20px 25px;
+    border-bottom: 1px solid #35363b;
+    flex-shrink: 0;
+}
+
+#group-chat .chat-header h2 {
+    margin: 0;
+    font-size: 19px;
+    color: #f3f4f6;
+}
+
+#group-chat .chat-header p {
+    margin: 6px 0 0;
+    color: #9ca3af;
+    font-size: 13px;
+}
+
+/* ==========================================
+   12. CHAT MESSAGE HISTORY
+========================================== */
+
+#group-chat .chat-messages {
+    flex: 1;
+    min-height: 0;
+    padding: 25px;
+    overflow-y: auto;
+}
+
+/* Individual message. */
+#group-chat .chat-message {
+    display: flex;
+    align-items: flex-start;
+    gap: 13px;
+    padding: 13px 10px;
+    margin-bottom: 5px;
+    border-radius: 8px;
+}
+
+#group-chat .chat-message:hover {
+    background: #202126;
+}
+
+/* Developer avatar. */
+#group-chat .message-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 39px;
+    height: 39px;
+    flex-shrink: 0;
+    background: #244c38;
+    color: #86efac;
+    border-radius: 50%;
+    font-weight: 700;
+}
+
+/* Message content container. */
+#group-chat .message-body {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Developer name and message time. */
+#group-chat .message-header {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 7px;
+}
+
+#group-chat .message-author {
+    color: #4ade80;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+#group-chat .message-time {
+    color: #858994;
+    font-size: 12px;
+}
+
+/* Normal text messages. */
+#group-chat .message-content {
+    color: #e5e7eb;
+    font-size: 14px;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+}
+
+/* ==========================================
+   13. MESSAGE REPLIES
+========================================== */
+
+#group-chat .message-reply {
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    background: #25272d;
+    border-left: 3px solid #22c55e;
+    border-radius: 5px;
+    color: #d1d5db;
+    font-size: 12px;
+}
+
+#group-chat .message-reply p {
+    margin: 5px 0 0;
+}
+
+/* ==========================================
+   14. CODE MESSAGES
+========================================== */
+
+#group-chat .message-code {
+    padding: 16px;
+    margin-top: 10px;
+    background: #0f1117;
+    border: 1px solid #343842;
+    border-radius: 8px;
+    color: #d1fae5;
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-x: auto;
+}
+
+#group-chat .code-language {
+    margin-bottom: 8px;
+    color: #4ade80;
+    font-size: 12px;
+}
+
+/* ==========================================
+   15. FILE AND VOICE MESSAGES
+========================================== */
+
+#group-chat .message-attachment {
+    display: inline-block;
+    margin-top: 10px;
+    color: #86efac;
+}
+
+#group-chat .message-audio {
+    display: block;
+    max-width: 100%;
+    margin-top: 10px;
+}
+
+/* ==========================================
+   16. MESSAGE ACTIONS
+========================================== */
+
+#group-chat .message-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+#group-chat .message-actions button {
+    padding: 0;
+    background: transparent;
+    border: none;
+    color: #9296a1;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+#group-chat .message-actions button:hover {
+    color: #4ade80;
+}
+
+/* Empty chat message. */
+#group-chat .chat-empty {
+    padding: 60px 20px;
+    color: #9ca3af;
+    text-align: center;
+}
+
+/* ==========================================
+   17. MESSAGE COMPOSER
+========================================== */
+
+/*
+   The composer stays at the bottom because
+   the chat uses a flex-column layout.
+
+   Only the message history scrolls.
+*/
+
+#group-chat .chat-composer {
+    padding: 18px 25px 25px;
+    background: #17181b;
+    border-top: 1px solid #35363b;
+    flex-shrink: 0;
+}
+
+
+/* Main message input box. */
+#group-chat .composer-box {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    padding: 12px;
+    background: #26282d;
+    border: 1px solid #41434a;
+    border-radius: 12px;
+}
+
+/* Message textarea. */
+#group-chat .composer-textarea {
+    flex: 1;
+    min-width: 0;
+    min-height: 44px;
+    max-height: 150px;
+    padding: 12px 5px;
+    resize: vertical;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #ffffff;
+    font-family: inherit;
+    font-size: 14px;
+}
+
+#group-chat .composer-textarea::placeholder {
+    color: #9ca3af;
+}
+
+/* Hide the file input; the attachment button opens it. */
+#group-chat .composer-file-input {
+    display: none !important;
+}
+
+/* Microphone and send buttons. */
+#group-chat .composer-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 39px;
+    height: 39px;
+    flex-shrink: 0;
+    background: #383b42;
+    border: none;
+    border-radius: 9px;
+    color: #e5e7eb;
+    font-size: 19px;
+    cursor: pointer;
+}
+
+#group-chat .composer-button:hover {
+    background: #4b5563;
+}
+
+/* Send message button. */
+#group-chat .composer-send {
+    background: #16a34a;
+    color: #ffffff;
+}
+
+#group-chat .composer-send:hover {
+    background: #15803d;
+}
+
+/* Disabled microphone button. */
+#group-chat .composer-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Form validation errors. */
+#group-chat .composer-error {
+    margin-bottom: 12px;
+    color: #fca5a5;
+    font-size: 13px;
+}
+
+/* ==========================================
+   18. CHAT RESPONSIVE DESIGN
+========================================== */
+
+
+
+/* ==========================================
+   19. SIMPLE CHAT COMPOSER
+========================================== */
+
+/* Hide the actual file input from the interface. */
+#group-chat .composer-file-input {
+    display: none;
+}
+
+/* Style the attachment button. */
+#group-chat #attach-file-button {
+    background: transparent;
+    font-size: 22px;
+}
+
+#group-chat #attach-file-button:hover {
+    background: #383b42;
+}
+
+/* Display the name of the selected file. */
+#group-chat .selected-file-name {
+    margin: 10px 0 0;
+    color: #86efac;
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+
+/* Highlight the message box when typing. */
+#group-chat .composer-box:focus-within {
+    border-color: #16a34a;
+}
+/* Responsive chat layout */
+@media (max-width: 750px) {
+
+    /* Reduce spacing on smaller screens. */
+    #group-chat .chat-header,
+    #group-chat .chat-messages,
+    #group-chat .chat-composer {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    /* Allow composer elements to wrap. */
+    #group-chat .composer-box {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    /* Reduce button size. */
+    #group-chat .composer-button {
+        width: 35px;
+        height: 35px;
+    }
+
+    /* Adjust message input spacing. */
+    #group-chat .composer-textarea {
+        padding: 9px 4px;
+    }
+}
+
+
+
+/* ==========================================
+   20. DARK MESSAGE EDIT AND DELETE PANELS
+   Matches the CodeView workspace colors.
+========================================== */
+
+/* Hide inactive panels even if another style defines display. */
+#group-chat .message-edit-form[hidden],
+#group-chat .message-delete-form[hidden] {
+    display: none !important;
+}
+
+#group-chat .message-edit-form,
+#group-chat .message-delete-form {
+    margin-top: 12px;
+    padding: 15px;
+    background: #202227;
+    color: #e7e9ed;
+    border: 1px solid #353942;
+    border-radius: 10px;
+}
+
+/* Match the dark chat composer rather than browser-white inputs. */
+#group-chat .message-edit-input {
+    display: block;
+    width: 100%;
+    min-height: 85px;
+    padding: 12px;
+    background: #17191d;
+    color: #f4f5f7;
+    border: 1px solid #414650;
+    border-radius: 8px;
+    font: inherit;
+    line-height: 1.5;
+    resize: vertical;
+}
+
+#group-chat .message-edit-input:focus {
+    outline: none;
+    border-color: #22c76a;
+    box-shadow: 0 0 0 3px rgba(34, 199, 106, 0.15);
+}
+
+#group-chat .message-edit-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+#group-chat .edit-save-button,
+#group-chat .edit-cancel-button,
+#group-chat .delete-confirm-button,
+#group-chat .delete-cancel-button {
+    padding: 9px 16px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+#group-chat .edit-save-button {
+    background: #159a51;
+    color: #fff;
+}
+
+#group-chat .edit-cancel-button,
+#group-chat .delete-cancel-button {
+    background: #32363e;
+    color: #e5e7eb;
+    border-color: #474c55;
+}
+
+#group-chat .delete-confirm-button {
+    background: #b73540;
+    color: #fff;
+}
+
+#group-chat .edit-save-button:hover,
+#group-chat .edit-cancel-button:hover,
+#group-chat .delete-confirm-button:hover,
+#group-chat .delete-cancel-button:hover {
+    filter: brightness(1.12);
+}
+
+#group-chat .message-delete-form p {
+    margin: 0;
+    color: #f0d4d7;
+}
+
+#group-chat .message-deleted {
+    color: #9da3ae;
+    font-style: italic;
+}
+
+/* Hidden attachment field is triggered by the paperclip button. */
+#group-chat .composer-file-input {
+    display: none !important;
+}
+
+#group-chat .selected-file-name[hidden] {
+    display: none !important;
+}

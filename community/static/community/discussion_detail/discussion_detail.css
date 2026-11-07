@@ -1,0 +1,128 @@
+/* Container for discussion action buttons. */
+        .discussion-actions {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .discussion-actions form {
+            margin: 0;
+        }
+
+        /* Default Like button. */
+        .like-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 11px 18px;
+            background: #ffffff;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            border-radius: 9px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        /* Green button when the discussion is liked. */
+        .like-button.liked {
+            background: #16a34a;
+            color: #ffffff;
+            border-color: #16a34a;
+        }
+
+        .like-button.liked:hover {
+            background: #15803d;
+        }
+
+        /* Prevent repeated clicks while saving. */
+        .like-button:disabled {
+            opacity: 0.7;
+            cursor: wait;
+        }
+
+        /* Comment navigation button. */
+        .comment-button {
+            display: inline-flex;
+            align-items: center;
+            padding: 11px 18px;
+            background: #f3f4f6;
+            color: #111827;
+            border: 1px solid #d1d5db;
+            border-radius: 9px;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .comment-button:hover {
+            background: #e5e7eb;
+        }
+
+        /* Hide discussion button. */
+        .hide-button {
+            padding: 11px 18px;
+            background: #ffffff;
+            color: #6b7280;
+            border: 1px solid #d1d5db;
+            border-radius: 9px;
+            cursor: pointer;
+        }
+
+        .hide-button:hover {
+            background: #fef2f2;
+            color: #b91c1c;
+        }
+
+        /* Back navigation button. */
+        .page-back-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            margin-bottom: 22px;
+            background: #ffffff;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .page-back-button:hover {
+            background: #f3f4f6;
+        }
+
+        /* Discussion statistics. */
+        .discussion-stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-top: 16px;
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        /* Individual comment container. */
+        .discussion-comment {
+            margin-bottom: 18px;
+        }
+
+        /* Show when a comment is replying to another comment. */
+        .reply-indicator {
+            color: #16a34a;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+
+        /* Error message for failed Like requests. */
+        .like-error {
+            color: #b91c1c;
+            font-size: 13px;
+            margin-top: 10px;
+        }

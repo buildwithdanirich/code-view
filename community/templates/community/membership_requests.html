@@ -1,0 +1,295 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <!-- ========================================
+         1. PAGE SETTINGS
+    ========================================= -->
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Membership Requests | CodeView</title>
+
+    <!-- Use the existing CodeView group stylesheet. -->
+  <!-- Shared CodeView styles -->
+<link
+    rel="stylesheet"
+    href="{% static 'community/sheared.css' %}"
+>
+
+<!-- Membership Requests styles -->
+<link
+    rel="stylesheet"
+    href="{% static 'community/membership_requests/membership_requests.css' %}"
+>
+
+</head>
+
+<body>
+
+    <!-- ========================================
+         2. TOP NAVIGATION
+    ========================================= -->
+
+    <header class="navbar">
+
+        <!-- CodeView logo. -->
+        <a href="{% url 'groups' %}" class="brand">
+            &lt;/&gt; CodeView
+        </a>
+
+        <!-- Navigation links. -->
+        <nav class="top-links">
+
+            <a href="{% url 'groups' %}">
+                Groups
+            </a>
+
+            <a href="{% url 'create_group' %}">
+                Create Group
+            </a>
+
+        </nav>
+
+        <!-- Logged-in administrator profile. -->
+        <div class="profile">
+
+            <span class="avatar">
+                {{ request.user.username|first|upper }}
+            </span>
+
+            <span>
+                {{ request.user.username }}
+            </span>
+
+        </div>
+
+    </header>
+
+
+    <!-- ========================================
+         3. MAIN CONTENT
+    ========================================= -->
+
+    <main class="page-container">
+
+        <!-- Return to the group workspace. -->
+        <a
+            href="{% url 'group_detail' group.id %}"
+            class="back-link"
+        >
+            ← Back to Group
+        </a>
+
+
+        <!-- ========================================
+             4. PAGE HEADING
+        ========================================= -->
+
+        <section class="page-heading">
+
+            <div>
+
+                <h1>Membership Requests</h1>
+
+                <p>
+                    Review developers requesting to join
+                    <strong>{{ group.name }}</strong>.
+                </p>
+
+            </div>
+
+        </section>
+
+
+        <!-- ========================================
+             5. NOTIFICATION MESSAGES
+        ========================================= -->
+
+        {% if messages %}
+
+            <section
+                class="notifications"
+                aria-live="polite"
+            >
+
+                {% for message in messages %}
+
+                    <div
+                        class="notification notification-{{ message.tags }}"
+                        role="status"
+                    >
+
+                        {% if "success" in message.tags %}
+
+                            <span aria-hidden="true">✅</span>
+
+                        {% elif "error" in message.tags %}
+
+                            <span aria-hidden="true">❌</span>
+
+                        {% else %}
+
+                            <span aria-hidden="true">ℹ️</span>
+
+                        {% endif %}
+
+                        <span>{{ message }}</span>
+
+                    </div>
+
+                {% endfor %}
+
+            </section>
+
+        {% endif %}
+
+
+        <!-- ========================================
+             6. PENDING REQUESTS
+        ========================================= -->
+
+        <section class="members-section">
+
+            <h2>
+                Pending Requests
+            </h2>
+
+            <!-- Loop through pending membership requests. -->
+            {% for membership_request in pending_requests %}
+
+                <article class="group-card">
+
+                    <!-- ====================================
+                         7. DEVELOPER INFORMATION
+                    ==================================== -->
+
+                    <div class="group-card-content">
+
+                        <div class="member-item">
+
+                            <!-- Developer avatar. -->
+                            <span class="avatar">
+
+                                {{ membership_request.user.username|first|upper }}
+
+                            </span>
+
+                            <!-- Developer username. -->
+                            <div>
+
+                                <strong>
+                                    @{{ membership_request.user.username }}
+                                </strong>
+
+                                <small>
+                                    Requested on
+                                    {{ membership_request.created_at|date:"M d, Y" }}
+                                </small>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- Developer introduction message. -->
+                        <div class="form-field">
+
+                            <strong>
+                                Introduction:
+                            </strong>
+
+                            {% if membership_request.message %}
+
+                                <p class="group-description">
+                                    {{ membership_request.message|linebreaksbr }}
+                                </p>
+
+                            {% else %}
+
+                                <p class="group-description">
+                                    No introduction provided.
+                                </p>
+
+                            {% endif %}
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- ====================================
+                         8. APPROVE / REJECT ACTIONS
+                    ==================================== -->
+
+                    <div class="group-card-footer">
+
+                        <!-- Approve membership request. -->
+                        <form
+                            method="POST"
+                            action="{% url 'approve_membership' group.id membership_request.id %}"
+                        >
+
+                            {% csrf_token %}
+
+                            <button
+                                type="submit"
+                                class="primary-button"
+                            >
+                                Approve
+                            </button>
+
+                        </form>
+
+
+                        <!-- Reject membership request. -->
+                        <form
+                            method="POST"
+                            action="{% url 'reject_membership' group.id membership_request.id %}"
+                        >
+
+                            {% csrf_token %}
+
+                            <button
+                                type="submit"
+                                class="secondary-button"
+                            >
+                                Reject
+                            </button>
+
+                        </form>
+
+                    </div>
+
+                </article>
+
+            {% empty %}
+
+                <!-- No requests waiting for approval. -->
+                <div class="empty-state">
+
+                    <h2>No Pending Requests</h2>
+
+                    <p>
+                        There are currently no developers
+                        waiting for membership approval.
+                    </p>
+
+                </div>
+
+            {% endfor %}
+
+        </section>
+
+    </main>
+
+</body>
+
+</html>

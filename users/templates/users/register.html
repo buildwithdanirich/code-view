@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up | CodeView</title>
+</head>
+<body>
+
+    <h1>Join CodeView</h1>
+    <p>Create your account and connect with programmers.</p>
+
+    <!-- Display errors that are not specific to one field. -->
+    {{ form.non_field_errors }}
+
+    <!-- Send registration information to Django. -->
+    <form method="POST">
+
+        <!-- Protect the form against CSRF attacks. -->
+        {% csrf_token %}
+
+        <!-- Username -->
+        <label for="{{ form.username.id_for_label }}">Username</label>
+        {{ form.username }}
+        {{ form.username.errors }}
+
+        <br><br>
+
+        <!-- Email -->
+        <label for="{{ form.email.id_for_label }}">Email</label>
+        {{ form.email }}
+        {{ form.email.errors }}
+
+        <br><br>
+
+        <!-- Password -->
+        <label for="{{ form.password1.id_for_label }}">Password</label>
+        {{ form.password1 }}
+        {{ form.password1.errors }}
+
+        <br><br>
+
+        <!-- Confirm password -->
+        <label for="{{ form.password2.id_for_label }}">Confirm Password</label>
+        {{ form.password2 }}
+        {{ form.password2.errors }}
+
+        <br><br>
+
+        <!-- Submit registration -->
+        <button type="submit">Create Account</button>
+
+    </form>
+
+    <p>Already have an account? Login will be available soon.</p>
+
+</body>
+</html>

@@ -1,0 +1,335 @@
+/* ==========================================================
+   CODEVIEW — ADD DEVELOPER & LIVE SEARCH
+   ========================================================== */
+
+/* Main section */
+.add-member-section {
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid #38383e;
+}
+
+.add-member-section h3 {
+    color: #f5f5f5;
+    font-size: 17px;
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+/* Form layout */
+.add-member-section form {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+/* Search container */
+.developer-search-container {
+    position: relative;
+    flex: 1;
+    min-width: 180px;
+    max-width: 400px;
+}
+
+/* Search input */
+#developer-search {
+    width: 100%;
+    height: 44px;
+    padding: 0 14px;
+
+    background: #19191d;
+    color: #ffffff;
+
+    border: 1px solid #414149;
+    border-radius: 8px;
+
+    font-size: 14px;
+    outline: none;
+
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+/* Placeholder */
+#developer-search::placeholder {
+    color: #8f9099;
+}
+
+/* Input focus */
+#developer-search:focus {
+    border-color: #22c55e;
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.12);
+}
+
+/* Search results dropdown */
+.developer-search-results {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+
+    z-index: 1000;
+
+    background: #242428;
+    border: 1px solid #414149;
+    border-radius: 10px;
+
+    max-height: 220px;
+    overflow-y: auto;
+
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+}
+
+/* Hide dropdown when empty */
+.developer-search-results:empty {
+    display: none;
+}
+
+/* Individual developer result */
+.developer-search-option {
+    display: flex;
+    align-items: center;
+
+    width: 100%;
+    min-height: 44px;
+    padding: 12px 14px;
+
+    background: transparent;
+    color: #f5f5f5;
+
+    border: none;
+    border-bottom: 1px solid #35353b;
+
+    font-size: 14px;
+    text-align: left;
+    cursor: pointer;
+
+    transition: background 0.2s;
+}
+
+/* Remove last border */
+.developer-search-option:last-child {
+    border-bottom: none;
+}
+
+/* Hover and keyboard focus */
+.developer-search-option:hover,
+.developer-search-option:focus-visible {
+    background: #174c37;
+    color: #ffffff;
+    outline: none;
+}
+
+/* Add Member button */
+.add-member-section form > button[type="submit"] {
+    height: 44px;
+    padding: 0 20px;
+
+    background: #16a34a;
+    color: #ffffff;
+
+    border: none;
+    border-radius: 8px;
+
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+
+    transition: background 0.2s, transform 0.2s;
+}
+
+/* Button hover */
+.add-member-section form > button[type="submit"]:hover {
+    background: #15803d;
+    transform: translateY(-1px);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 600px) {
+
+    .add-member-section form {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .developer-search-container {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .add-member-section form > button[type="submit"] {
+        width: 100%;
+    }
+}
+
+/* ==========================================================
+   CODEVIEW — MEMBER MANAGEMENT
+   ========================================================== */
+
+.member-role-btn,
+.member-remove-btn,
+.leave-group-btn {
+    padding: 8px 12px;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+/* Promote/demote */
+.member-role-btn {
+    background: #174c37;
+    color: #4ade80;
+    border: 1px solid #256b4c;
+}
+
+.member-role-btn:hover {
+    background: #206447;
+}
+
+/* Remove member */
+.member-remove-btn {
+    background: #3b2025;
+    color: #fca5a5;
+    border: 1px solid #71343d;
+}
+
+.member-remove-btn:hover {
+    background: #572b33;
+}
+
+/* Leave group */
+.leave-group-section {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #38383e;
+}
+
+.leave-group-btn {
+    background: transparent;
+    color: #fca5a5;
+    border: 1px solid #71343d;
+}
+
+.leave-group-btn:hover {
+    background: #3b2025;
+}
+/* ========================================
+   CODEVIEW REMOVE MEMBER MODAL
+======================================== */
+
+.codeview-modal[hidden] {
+    display: none !important;
+}
+
+.codeview-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 20px;
+}
+
+.codeview-modal-overlay {
+    position: absolute;
+    inset: 0;
+
+    background: rgba(0, 0, 0, 0.75);
+}
+
+.codeview-modal-content {
+    position: relative;
+    z-index: 1;
+
+    width: 100%;
+    max-width: 420px;
+
+    background: #15191f;
+    border: 1px solid #30363d;
+    border-radius: 14px;
+
+    padding: 28px;
+
+    color: #e6edf3;
+
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.codeview-modal-content h2 {
+    margin: 0 0 14px;
+    font-size: 22px;
+    font-weight: 600;
+}
+
+.codeview-modal-content p {
+    margin: 0;
+    color: #9ca3af;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.codeview-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+
+    margin-top: 28px;
+}
+
+.modal-cancel-btn,
+.modal-remove-btn {
+    border: none;
+    border-radius: 8px;
+
+    padding: 11px 18px;
+
+    font-size: 14px;
+    font-weight: 600;
+
+    cursor: pointer;
+}
+
+.modal-cancel-btn {
+    background: #30363d;
+    color: #e6edf3;
+}
+
+.modal-cancel-btn:hover {
+    background: #414852;
+}
+
+.modal-remove-btn {
+    background: #dc2626;
+    color: white;
+}
+
+.modal-remove-btn:hover {
+    background: #b91c1c;
+}
+/* ==========================================
+   MOBILE REMOVE MEMBER MODAL
+========================================== */
+
+@media (max-width: 600px) {
+
+    /* Reduce modal spacing on smaller screens. */
+    .codeview-modal-content {
+        padding: 20px;
+    }
+
+    /* Stack confirmation buttons vertically. */
+    .codeview-modal-actions {
+        flex-direction: column;
+    }
+
+    /* Make buttons fill the available width. */
+    .modal-cancel-btn,
+    .modal-remove-btn {
+        width: 100%;
+    }
+}

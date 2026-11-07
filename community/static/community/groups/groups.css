@@ -1,0 +1,499 @@
+/* ============================================================
+   CODEVIEW — GROUPS PAGE
+
+   This file controls:
+   1. Search existing groups
+   2. Select Group and Create Group cards
+   3. Existing group cards
+   4. Group privacy and membership information
+   5. Responsive layout
+
+   Shared styling comes from sheared.css.
+============================================================ */
+
+
+/* ============================================================
+   1. GROUPS PAGE
+============================================================ */
+
+.cv-groups-page {
+    max-width: 1450px;
+}
+
+/* Page heading */
+
+.cv-groups-page .page-heading {
+    margin-bottom: 25px;
+}
+
+.cv-groups-page .page-heading h1 {
+    font-size: 30px;
+    color: var(--text);
+}
+
+.cv-groups-page .page-heading p {
+    font-size: 14px;
+    color: var(--muted);
+}
+
+
+/* ============================================================
+   2. SEARCH EXISTING GROUPS
+============================================================ */
+
+.cv-group-search {
+    padding: 22px;
+    margin-bottom: 25px;
+
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+
+.cv-group-search label {
+    display: block;
+    margin-bottom: 12px;
+
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.cv-search-field {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    padding: 0 15px;
+
+    background: #081426;
+    border: 1px solid #345071;
+    border-radius: 8px;
+}
+
+.cv-search-field span {
+    font-size: 23px;
+    color: var(--muted);
+}
+
+.cv-search-field input {
+    flex: 1;
+    min-width: 0;
+
+    padding: 14px 0;
+
+    background: transparent;
+    color: var(--text);
+
+    border: none;
+    outline: none;
+
+    font-size: 14px;
+}
+
+.cv-search-field input::placeholder {
+    color: #8295b2;
+}
+
+.cv-search-field:focus-within {
+    border-color: var(--accent);
+}
+
+.cv-group-search > p {
+    margin: 10px 0 0;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+
+/* ============================================================
+   3. SELECT GROUP AND CREATE GROUP
+============================================================ */
+
+.cv-group-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    gap: 20px;
+    margin-bottom: 35px;
+}
+
+/* Both action cards */
+
+.cv-action-card {
+    display: flex;
+    flex-direction: column;
+
+    min-width: 0;
+    padding: 24px;
+
+    background: linear-gradient(
+        145deg,
+        #11223b,
+        #0b1729
+    );
+
+    border: 1px solid #28476c;
+    border-radius: 12px;
+}
+
+/* Card heading */
+
+.cv-action-heading {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 24px;
+}
+
+.cv-action-heading h2 {
+    margin: 0 0 6px;
+
+    color: var(--text);
+    font-size: 19px;
+}
+
+.cv-action-heading p {
+    margin: 0;
+
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+/* Action icons */
+
+.cv-action-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    flex-shrink: 0;
+
+    width: 50px;
+    height: 50px;
+
+    border-radius: 10px;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.cv-blue-icon {
+    background: #163b6b;
+    color: #93c5fd;
+    border: 1px solid #2563eb;
+}
+
+.cv-green-icon {
+    background: #064e3b;
+    color: #6ee7b7;
+    border: 1px solid var(--accent);
+}
+
+/* Group selection */
+
+.cv-action-card label {
+    margin-bottom: 9px;
+
+    color: #cbd5e1;
+    font-size: 13px;
+}
+
+.cv-action-card select {
+    width: 100%;
+    padding: 13px;
+
+    background: #081426;
+    color: var(--text);
+
+    border: 1px solid #345071;
+    border-radius: 8px;
+
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.cv-action-card select:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+/* Action buttons */
+
+.cv-action-card > .primary-button {
+    width: 100%;
+    margin-top: 14px;
+}
+
+.cv-action-card .primary-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Create Group description */
+
+.cv-create-description {
+    flex: 1;
+
+    margin: 0 0 15px;
+
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.7;
+}
+
+.cv-action-note {
+    margin: 10px 0 0;
+
+    color: #8295b2;
+    font-size: 12px;
+}
+
+
+/* ============================================================
+   4. EXISTING GROUPS SECTION
+============================================================ */
+
+.cv-section-heading {
+    margin-bottom: 20px;
+}
+
+.cv-section-heading h2 {
+    margin: 0 0 5px;
+
+    color: var(--text);
+    font-size: 23px;
+}
+
+.cv-section-heading p {
+    margin: 0;
+
+    color: var(--muted);
+    font-size: 14px;
+}
+
+/* Group cards layout */
+
+.cv-groups-page .groups-grid {
+    display: grid;
+
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+
+    gap: 16px;
+}
+
+/* Individual group card */
+
+.cv-groups-page .group-card {
+    display: flex;
+    flex-direction: column;
+
+    min-width: 0;
+    padding: 18px;
+
+    background: linear-gradient(
+        145deg,
+        #11213a,
+        #0c182b
+    );
+
+    border: 1px solid #28405e;
+    border-radius: 12px;
+
+    transition:
+        border-color 0.2s ease,
+        transform 0.2s ease;
+}
+
+.cv-groups-page .group-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+}
+
+/* Icon and privacy badge */
+
+.cv-groups-page .group-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.cv-groups-page .group-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 45px;
+    height: 45px;
+
+    background: #173a66;
+    color: #93c5fd;
+
+    border: 1px solid #285c9b;
+    border-radius: 10px;
+
+    font-size: 20px;
+    font-weight: bold;
+}
+
+/* Privacy badges */
+
+.cv-groups-page .privacy-badge {
+    padding: 5px 10px;
+
+    border-radius: 20px;
+
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.cv-groups-page .privacy-badge.public {
+    background: #064e3b;
+    color: #6ee7b7;
+}
+
+.cv-groups-page .privacy-badge.private {
+    background: #192b45;
+    color: #cbd5e1;
+}
+
+/* Group information */
+
+.cv-groups-page .group-card-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+
+    min-width: 0;
+}
+
+.cv-groups-page .group-name {
+    margin: 0 0 6px;
+
+    color: var(--text);
+    font-size: 18px;
+    font-weight: 700;
+
+    overflow-wrap: anywhere;
+}
+
+.cv-groups-page .group-owner {
+    margin: 0 0 8px;
+
+    color: #93c5fd;
+    font-size: 12px;
+}
+
+.cv-groups-page .cv-group-policy {
+    margin: 0;
+
+    color: var(--muted);
+    font-size: 12px;
+}
+
+/* Group footer */
+
+.cv-groups-page .group-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+
+    gap: 12px;
+    margin-top: 20px;
+    padding-top: 14px;
+
+    border-top: 1px solid #28405e;
+}
+
+.cv-groups-page .group-date {
+    color: #8295b2;
+    font-size: 12px;
+}
+
+.cv-groups-page .group-card-footer form {
+    margin: 0;
+}
+
+/* Compact group buttons */
+
+.cv-groups-page .group-card-footer .primary-button {
+    padding: 9px 13px;
+    font-size: 12px;
+}
+
+
+/* ============================================================
+   5. EMPTY GROUP LIST AND SEARCH RESULTS
+============================================================ */
+
+.cv-groups-page .empty-state {
+    grid-column: 1 / -1;
+
+    padding: 50px 20px;
+
+    text-align: center;
+
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+
+.cv-groups-page .empty-state p {
+    color: var(--muted);
+}
+
+.cv-search-empty {
+    padding: 25px;
+
+    background: var(--surface);
+    color: var(--muted);
+
+    border: 1px solid var(--border);
+    border-radius: 10px;
+
+    text-align: center;
+}
+
+/* Keep filtered cards hidden */
+
+.cv-groups-page [data-group-card][hidden],
+.cv-search-empty[hidden] {
+    display: none !important;
+}
+
+
+/* ============================================================
+   6. RESPONSIVE DESIGN
+============================================================ */
+
+@media (max-width: 1000px) {
+
+    .cv-groups-page .groups-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+}
+
+@media (max-width: 750px) {
+
+    .cv-group-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .cv-groups-page .groups-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .cv-action-card {
+        padding: 18px;
+    }
+
+    .cv-group-search {
+        padding: 18px;
+    }
+
+}

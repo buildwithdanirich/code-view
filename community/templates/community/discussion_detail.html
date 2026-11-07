@@ -1,0 +1,541 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <!-- ========================================
+         1. PAGE SETTINGS
+    ========================================= -->
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>{{ discussion.title }} | CodeView</title>
+
+    <!-- Reuse the existing group stylesheet. -->
+   <!-- Shared styles -->
+<link rel="stylesheet" href="{% static 'community/sheared.css' %}">
+
+<!-- Discussion Detail styles -->
+<link rel="stylesheet" href="{% static 'community/discussion_detail/discussion_detail.css' %}">
+
+    <!-- ========================================
+         2. DISCUSSION PAGE STYLES
+    ========================================= -->
+
+    
+
+</head>
+
+<!-- Connect this discussion page to real-time updates. -->
+<body
+    data-discussion-socket-url="{% if request.is_secure %}wss{% else %}ws{% endif %}://{{ request.get_host }}/ws/groups/{{ group.id }}/discussions/"
+>
+    <!-- ========================================
+         3. TOP NAVIGATION
+    ========================================= -->
+
+    <header class="navbar">
+
+        <a href="{% url 'groups' %}" class="brand">
+            &lt;/&gt; CodeView
+        </a>
+
+        <nav class="top-links">
+
+            <a href="{% url 'groups' %}">
+                Groups
+            </a>
+
+            <a
+                href="{% url 'group_detail' group.id %}"
+                class="active"
+            >
+                {{ group.name }}
+            </a>
+
+        </nav>
+
+        <div class="profile">
+
+            <span class="avatar">
+                {{ request.user.username|first|upper }}
+            </span>
+
+            <span>
+                {{ request.user.username }}
+            </span>
+
+        </div>
+
+    </header>
+
+
+    <!-- ========================================
+         4. MAIN CONTENT
+    ========================================= -->
+
+    <main class="page-container">
+
+        <!-- ========================================
+             5. DJANGO NOTIFICATIONS
+        ========================================= -->
+
+        {% if messages %}
+
+            <section
+                class="notifications"
+                aria-live="polite"
+            >
+
+                {% for message in messages %}
+
+                    <div
+                        class="notification notification-{{ message.tags }}"
+                        role="status"
+                    >
+                        {{ message }}
+                    </div>
+
+                {% endfor %}
+
+            </section>
+
+        {% endif %}
+
+
+        <!-- ========================================
+             6. BACK NAVIGATION
+        ========================================= -->
+
+        <!--
+            Return to the previous page when possible.
+
+            If there is no suitable previous page,
+            return to this group's main page.
+        -->
+
+        <button
+            type="button"
+            class="page-back-button"
+            data-fallback-url="{% url 'group_detail' group.id %}"
+        >
+            ← Back
+        </button>
+
+
+        <!-- ========================================
+             7. FULL DISCUSSION POST
+        ========================================= -->
+
+        <section class="members-section">
+
+            <!-- Discussion title. -->
+            <h1>{{ discussion.title }}</h1>
+
+            <!-- Author and publication date. -->
+            <p class="group-owner">
+
+                Posted by
+
+                <strong>
+                    {{ discussion.author.username }}
+                </strong>
+
+                ·
+
+                {{ discussion.created_at|date:"M d, Y - H:i" }}
+
+            </p>
+
+
+            <!-- Full discussion content. -->
+            <p class="workspace-description">
+                {{ discussion.content|linebreaksbr }}
+            </p>
+
+
+            <!-- ====================================
+                 DISCUSSION STATISTICS
+            ==================================== -->
+
+            <div class="discussion-stats">
+
+                <!-- Current number of likes. -->
+                <span>
+                    💚
+
+                    <span id="like-count">
+                        {{ discussion.likes.count }}
+                    </span>
+
+                    likes
+                </span>
+
+                <!-- Current number of comments and replies. -->
+                <span>
+                    💬 {{ comments|length }} comments
+                </span>
+
+            </div>
+
+
+            <!-- ====================================
+                 DISCUSSION ACTION BUTTONS
+            ==================================== -->
+
+            <div class="discussion-actions">
+
+                {% if is_member %}
+
+                    <!--
+                        Like or Unlike without refreshing.
+
+                        The existing Django view returns:
+                        {
+                            "liked": true,
+                            "like_count": 12
+                        }
+                    -->
+
+                    <form
+                        id="like-form"
+                        method="POST"
+                        action="{% url 'toggle_discussion_like' group.id discussion.id %}"
+                    >
+
+                        {% csrf_token %}
+
+                        <button
+                            type="submit"
+                            id="like-button"
+                            class="like-button {% if liked_by_user %}liked{% endif %}"
+                            aria-pressed="{% if liked_by_user %}true{% else %}false{% endif %}"
+                        >
+                    
+
+                            <span
+                                id="like-label"
+                                class="like-label"
+                            >
+
+                                {% if liked_by_user %}
+                                    💚 Liked
+                                {% else %}
+                                    ♡ Like
+                                {% endif %}
+
+                            </span>
+
+                        </button>
+
+                    </form>
+
+                {% endif %}
+
+
+                <!--
+                    Comment button scrolls to the comment section.
+
+                    This keeps the actual conversation
+                    on the discussion detail page.
+                -->
+
+                <a
+                    href="#comments-section"
+                    class="comment-button"
+                >
+                    💬 Comments
+                </a>
+
+
+                {% if is_member %}
+
+                    <!-- Hide this discussion for the current user. -->
+                    <form
+                        method="POST"
+                        action="{% url 'hide_discussion' group.id discussion.id %}"
+                    >
+
+                        {% csrf_token %}
+
+                        <button
+                            type="submit"
+                            class="hide-button"
+                        >
+                            Hide Discussion
+                        </button>
+
+                    </form>
+
+                {% endif %}
+
+            </div>
+
+
+            <!-- Display errors if a Like request fails. -->
+            <p
+                id="like-error"
+                class="like-error"
+                role="alert"
+                hidden
+            ></p>
+
+        </section>
+
+
+        <!-- ========================================
+             8. ADD A COMMENT
+        ========================================= -->
+
+        {% if is_member %}
+
+            <section
+                id="comments-section"
+                class="members-section"
+            >
+
+                <h2>Join the Discussion</h2>
+
+                <p class="group-description">
+                    Share your thoughts with other group members.
+                </p>
+
+                <!--
+                    This form creates a normal comment.
+
+                    No parent_id is supplied because
+                    the comment is not a reply.
+                -->
+
+                <form
+                    method="POST"
+                    action="{% url 'add_discussion_comment' group.id discussion.id %}"
+                >
+
+                    {% csrf_token %}
+
+                    <div class="form-field">
+
+                        <label for="new-comment">
+                            Your Comment
+                        </label>
+
+                        <textarea
+                            id="new-comment"
+                            name="content"
+                            class="group-textarea"
+                            rows="4"
+                            maxlength="2000"
+                            placeholder="Write your comment..."
+                            required
+                        ></textarea>
+
+                    </div>
+
+                    <button
+                        type="submit"
+                        class="group-action"
+                    >
+                        Post Comment
+                    </button>
+
+                </form>
+
+            </section>
+
+        {% endif %}
+
+
+        <!-- ========================================
+             9. COMMENTS AND REPLIES
+        ========================================= -->
+
+        <section
+            id="discussion-comments"
+            class="members-section"
+        >
+
+<!-- Display the total number of comments and replies. -->
+<h2>
+    Comments &amp; Replies
+    (<span id="comment-count-{{ discussion.id }}">{{ comments|length }}</span>)
+</h2>
+            <!--
+                Each comment contains:
+
+                - id
+                - author
+                - content
+                - parent_id
+                - created_at
+
+                parent_id=None:
+                    Normal comment.
+
+                parent_id=<number>:
+                    Reply to another comment.
+            -->
+
+            {% for comment in comments %}
+
+                <article
+                    class="group-card discussion-comment"
+                    id="comment-{{ comment.id }}"
+                >
+
+                    <!-- ====================================
+                         REPLY INDICATOR
+                    ==================================== -->
+
+                    {% if comment.parent_id %}
+
+                        <p class="reply-indicator">
+
+                            ↳ Replying to
+
+                            <strong>
+                                {{ comment.parent.author.username }}
+                            </strong>
+
+                        </p>
+
+                    {% endif %}
+
+
+                    <!-- ====================================
+                         COMMENT AUTHOR
+                    ==================================== -->
+
+                    <p class="group-owner">
+
+                        <strong>
+                            {{ comment.author.username }}
+                        </strong>
+
+                        ·
+
+                        {{ comment.created_at|date:"M d, Y - H:i" }}
+
+                    </p>
+
+
+                    <!-- ====================================
+                         COMMENT CONTENT
+                    ==================================== -->
+
+                    <p class="group-description">
+                        {{ comment.content|linebreaksbr }}
+                    </p>
+
+
+                    <!-- ====================================
+                         REPLY TO COMMENT
+                    ==================================== -->
+
+                    {% if is_member %}
+
+                        <!--
+                            This form creates a reply.
+
+                            The hidden parent_id tells Django
+                            which comment is being replied to.
+
+                            Replies can also receive replies.
+                        -->
+
+                        <form
+                            method="POST"
+                            action="{% url 'add_discussion_comment' group.id discussion.id %}"
+                        >
+
+                            {% csrf_token %}
+
+                            <!-- ID of the comment being replied to. -->
+                            <input
+                                type="hidden"
+                                name="parent_id"
+                                value="{{ comment.id }}"
+                            >
+
+                            <div class="form-field">
+
+                                <label for="reply-{{ comment.id }}">
+                                    Reply to {{ comment.author.username }}
+                                </label>
+
+                                <textarea
+                                    id="reply-{{ comment.id }}"
+                                    name="content"
+                                    class="group-textarea"
+                                    rows="2"
+                                    maxlength="2000"
+                                    placeholder="Write a reply..."
+                                    required
+                                ></textarea>
+
+                            </div>
+
+                            <button
+                                type="submit"
+                                class="group-action"
+                            >
+                                Reply
+                            </button>
+
+                        </form>
+
+                    {% endif %}
+
+                </article>
+
+            {% empty %}
+
+                <p class="group-description">
+                    No comments yet.
+                </p>
+
+                {% if is_member %}
+
+                    <p class="group-description">
+                        Be the first to comment!
+                    </p>
+
+                {% endif %}
+
+            {% endfor %}
+
+        </section>
+
+    </main>
+
+
+    <!-- ========================================
+         10. JAVASCRIPT
+    ========================================= -->
+
+    <!--
+        Reuse the JavaScript already used by group_detail.html.
+
+        Responsibilities:
+        1. Handle Back navigation.
+        2. Send Like/Unlike requests to Django.
+        3. Update the Like button without refreshing.
+        4. Update the Like count.
+        5. Display errors when requests fail.
+    -->
+
+    <script
+       src="{% static 'community/group_detail/discussions.js' %}"
+        defer
+    ></script>
+
+
+</body>
+
+</html>

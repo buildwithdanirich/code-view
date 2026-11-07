@@ -1,0 +1,739 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>{{ group.name }} Meeting Room | CodeView</title>
+
+    <!-- Existing stylesheets -->
+<link rel="stylesheet" href="{% static 'community/sheared.css' %}">
+<link rel="stylesheet" href="{% static 'community/meeting_room/meeting_room.css' %}">    <!-- Syntax highlighting -->
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css"
+    >
+</head>
+
+<body
+    data-chat-socket-url="/ws/groups/{{ group.id }}/chat/"
+    data-current-user-id="{{ request.user.id }}"
+    data-edit-url-template="{% url 'edit_group_message' group.id 0 %}"
+    data-delete-url-template="{% url 'delete_group_message' group.id 0 %}"
+>
+    <!-- ========================================
+         TOP NAVIGATION
+    ========================================= -->
+
+    <header class="navbar cv-topbar">
+
+        <a href="{% url 'groups' %}" class="brand">
+            &lt;/&gt; CodeView
+        </a>
+
+        <nav class="top-links">
+            <a href="{% url 'groups' %}">Groups</a>
+
+            <a href="{% url 'group_detail' group.id %}">
+                Group Workspace
+            </a>
+        </nav>
+
+        <div class="profile">
+            <span class="avatar">
+                {{ request.user.username|first|upper }}
+            </span>
+
+            <span>{{ request.user.username }}</span>
+        </div>
+
+    </header>
+
+    <!-- ========================================
+         MAIN DEVELOPMENT LAYOUT
+    ========================================= -->
+
+    <main class="cv-layout">
+
+        <!-- ====================================
+             LEFT SIDEBAR
+        ===================================== -->
+
+        <aside class="codeview-sidebar">
+
+            <div class="sidebar-group-info">
+
+                <div class="sidebar-group-avatar">
+                    {{ group.name|first|upper }}
+                </div>
+
+                <h2>{{ group.name }}</h2>
+
+                <p>🔒 Private Development Group</p>
+
+            </div>
+
+           <!-- ========================================
+     MEETING ROOM SIDEBAR NAVIGATION
+======================================== -->
+<!-- Meeting Room sidebar navigation -->
+<nav class="sidebar-navigation">
+
+    <!-- Meeting Room -->
+    <a
+        href="{% url 'meeting_room' group.id %}"
+        class="sidebar-link active"
+    >
+        ◈ Meeting Room
+    </a>
+
+    <!-- Group Workspace -->
+    <a
+        href="{% url 'group_detail' group.id %}"
+        class="sidebar-link"
+    >
+        ▦ Group Discussions
+    </a>
+
+</nav>
+
+            <p class="cv-sidebar-note">
+                GitHub permissions determine who can push code.
+            </p>
+
+        </aside>
+
+        <!-- ====================================
+             MAIN CONTENT
+        ===================================== -->
+
+        <div class="cv-main">
+
+            <!-- Django messages -->
+            {% if messages %}
+
+                <div class="development-room-messages">
+
+                    {% for message in messages %}
+
+                        <div class="message {{ message.tags }}">
+                            {{ message }}
+                        </div>
+
+                    {% endfor %}
+
+                </div>
+
+            {% endif %}
+
+            <!-- Page heading -->
+            <section class="cv-page-heading">
+
+                <div>
+
+                    <a
+                        href="{% url 'group_detail' group.id %}"
+                        class="back-link"
+                    >
+                        ← Back to Group
+                    </a>
+
+                    <h1>
+                        {{ group.name }} — Meeting Room
+                    </h1>
+
+                    <p>
+                        Your team's private collaboration workspace.
+                    </p>
+
+                </div>
+                    <!-- Meeting Room communication buttons -->
+    <div class="cv-meeting-actions">
+
+        <!-- Video Call -->
+        <button type="button" class="cv-call-button" disabled>
+            📹 Video Call
+        </button>
+
+        <!-- Voice Call -->
+        <button type="button" class="cv-call-button" disabled>
+            🎙 Voice Call
+        </button>
+
+        <!-- Team Chat -->
+        <button
+            type="button"
+            id="header-chat-toggle"
+            class="cv-chat-toggle"
+            aria-controls="team-chat-panel"
+        >
+            💬 Team Chat
+        </button>
+
+    </div>
+
+</section>
+
+                <!-- Chat visibility button -->
+                <button
+                    type="button"
+                    id="header-chat-toggle"
+                    class="cv-chat-toggle"
+                    aria-controls="team-chat-panel"
+                >
+                    💬 Team Chat
+
+                    <span
+                        class="chat-unread-count"
+                        data-unread-count
+                        hidden
+                    ></span>
+                </button>
+
+            </section>
+
+            <!-- ====================================
+                 GITHUB REPOSITORY CARD
+            ===================================== -->
+
+            <section class="github-repository-section">
+
+                <div class="repository-card-header">
+
+                    <h2>GitHub Repository</h2>
+
+                    {% if repository %}
+
+                        <span class="repository-status">
+                            ● Connected
+                        </span>
+
+                    {% else %}
+
+                        <span class="cv-disconnected">
+                            ● Not Connected
+                        </span>
+
+                    {% endif %}
+
+                </div>
+
+                {% if repository %}
+
+                    <div class="connected-repository">
+
+                        <p>
+                            <strong>Repository:</strong>
+
+                            <a
+                                href="https://github.com/{{ repository.github_owner }}/{{ repository.repository_name }}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                {{ repository.github_owner }}/{{ repository.repository_name }}
+                            </a>
+                        </p>
+
+                        <p>
+                            <strong>Default Branch:</strong>
+                            {{ repository.default_branch }}
+                        </p>
+
+                    </div>
+
+                {% else %}
+
+                    <p>
+                        No GitHub repository connected yet.
+                    </p>
+
+                {% endif %}
+
+                <!-- Only owners/admins can change the repository -->
+                {% if can_manage_repository %}
+
+                    <form
+                        method="POST"
+                        action="{% url 'connect_group_repository' group.id %}"
+                        class="repository-form"
+                    >
+
+                        {% csrf_token %}
+
+                        <label for="{{ repository_form.repository_url.id_for_label }}">
+                            GitHub Repository URL
+                        </label>
+
+                        {{ repository_form.repository_url }}
+
+                        <button type="submit">
+
+                            {% if repository %}
+                                Change Repository
+                            {% else %}
+                                Connect Repository
+                            {% endif %}
+
+                        </button>
+
+                    </form>
+
+                {% endif %}
+
+            </section>
+
+            <!-- ====================================
+                 DEVELOPMENT WORKSPACE + CHAT
+            ===================================== -->
+
+            <div
+                class="cv-workspace-with-chat"
+                id="workspace-with-chat"
+            >
+
+                <!-- Main workspace column -->
+                <div class="cv-workspace-main">
+
+                    {% if repository %}
+
+                        <section class="development-workspace">
+
+                            <!-- File explorer -->
+                            <aside class="development-explorer">
+
+                                <div class="explorer-header">
+
+                                    <h2>Explorer</h2>
+
+                                    <span>
+                                        {{ repository.repository_name }}
+                                    </span>
+
+                                </div>
+
+                                <div
+                                    id="github-file-tree"
+                                    data-files-url="{% url 'group_repository_files' group.id %}"
+                                >
+                                    Loading repository files...
+                                </div>
+
+                            </aside>
+                                            <!-- ====================================
+                     NEW MESSAGE NOTIFICATION
+                ===================================== -->
+
+                <div
+                    id="meeting-chat-notification"
+                    class="cv-chat-notification"
+                    role="status"
+                    hidden
+                >
+
+                    <!-- Developer who sent the message. -->
+                    <strong id="notification-sender"></strong>
+
+                    <!-- Preview of the new message. -->
+                    <p id="notification-message"></p>
+
+                    <!-- Notification actions. -->
+                    <div class="cv-chat-notification-actions">
+
+                        <button
+                            type="button"
+                            id="notification-reply"
+                        >
+                            Reply
+                        </button>
+
+                        <button
+                            type="button"
+                            id="notification-dismiss"
+                        >
+                            Dismiss
+                        </button>
+
+                    </div>
+
+                </div>
+
+                            <!-- Source code viewer -->
+                            <section class="development-editor">
+
+                                <div class="editor-header">
+
+                                    <span id="active-file-name">
+                                        Select a file
+                                    </span>
+
+                                    <span class="cv-readonly-badge">
+                                        Read Only
+                                    </span>
+
+                                </div>
+
+                                <div
+                                    class="editor-content"
+                                    id="editor-content"
+                                    data-file-url="{% url 'group_repository_file_content' group.id %}"
+                                >
+
+                                    <p id="editor-placeholder">
+                                        Select a file from the explorer to open it.
+                                    </p>
+
+                                    <div
+                                        id="source-code"
+                                        class="code-viewer"
+                                        hidden
+                                    >
+
+                                        <pre
+                                            id="line-numbers"
+                                            class="line-numbers"
+                                        ></pre>
+
+                                        <pre class="code-content"><code id="source-code-text"></code></pre>
+
+                                    </div>
+
+                                </div>
+
+                            </section>
+
+                        </section>
+
+                    {% else %}
+
+                        <section class="cv-empty-workspace">
+
+                            <h2>Connect a GitHub Repository</h2>
+
+                            <p>
+                                Connect a repository to explore project files
+                                and review source code with your team.
+                            </p>
+
+                        </section>
+
+                    {% endif %}
+
+                </div>
+
+                <!-- ====================================
+                     TEAM CHAT PANEL
+                ===================================== -->
+
+                <aside
+                    class="cv-chat-panel"
+                    id="team-chat-panel"
+                    aria-label="Team Chat"
+                >
+
+
+    <!-- ============================================
+         CHAT HEADER
+    ============================================= -->
+
+    <div class="cv-chat-header">
+
+        <h3>Group Chat</h3>
+
+        <button
+            type="button"
+            id="close-chat"
+            aria-label="Close chat"
+        >
+            &times;
+        </button>
+
+    </div>
+
+
+    <!-- ============================================
+         GROUP CHAT MESSAGE HISTORY
+    ============================================= -->
+
+    <div
+        class="cv-chat-messages"
+        id="chat-messages"
+        aria-live="polite"
+    >
+
+        {% if chat_messages %}
+
+            <!-- Display existing messages from PostgreSQL. -->
+            {% for chat_message in chat_messages %}
+
+                <article
+                    class="cv-chat-message"
+                    id="message-{{ chat_message.id }}"
+                    data-message-id="{{ chat_message.id }}"
+                    data-edit-url="{% url 'edit_group_message' group.id chat_message.id %}"
+                    data-delete-url="{% url 'delete_group_message' group.id chat_message.id %}"
+                >
+
+                    <!-- ====================================
+                         MESSAGE HEADER
+                    ===================================== -->
+
+                    <div class="cv-chat-message-header">
+
+                        <!-- Message sender. -->
+                        <strong class="cv-chat-message-author">
+
+                            {% if chat_message.sender %}
+                                {{ chat_message.sender.username }}
+                            {% else %}
+                                Deleted user
+                            {% endif %}
+
+                        </strong>
+
+                        <!-- Message time. -->
+                        <small class="cv-chat-message-time">
+                            {{ chat_message.created_at|date:"H:i" }}
+                        </small>
+
+                    </div>
+
+
+                    <!-- ====================================
+                         REPLY INFORMATION
+                    ===================================== -->
+
+                    {% if chat_message.reply_to %}
+
+                        <div class="cv-chat-message-reply">
+
+                            Replying to
+
+                            {% if chat_message.reply_to.sender %}
+                                {{ chat_message.reply_to.sender.username }}
+                            {% else %}
+                                Deleted user
+                            {% endif %}
+
+                            {% if chat_message.reply_to.content %}
+
+                                <p>
+                                    {{ chat_message.reply_to.content|truncatechars:80 }}
+                                </p>
+
+                            {% endif %}
+
+                        </div>
+
+                    {% endif %}
+
+
+                    <!-- ====================================
+                         MESSAGE CONTENT
+                    ===================================== -->
+
+                    <!-- Text and code messages. -->
+                    {% if chat_message.message_type == "text" or chat_message.message_type == "code" %}
+
+                        <p class="cv-chat-message-content">
+                            {{ chat_message.content|linebreaksbr }}
+                        </p>
+
+                    {% endif %}
+
+                    <!-- Voice messages. -->
+                    {% if chat_message.message_type == "voice" and chat_message.attachment %}
+
+                        <audio controls>
+                            <source src="{{ chat_message.attachment.url }}">
+                        </audio>
+
+                    {% endif %}
+
+                    <!-- File attachments. -->
+                    {% if chat_message.message_type == "file" and chat_message.attachment %}
+
+                        <a
+                            href="{{ chat_message.attachment.url }}"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            View attachment
+                        </a>
+
+                    {% endif %}
+
+
+                    <!-- ====================================
+                         MESSAGE ACTION BUTTONS
+                    ===================================== -->
+
+                    <div class="cv-chat-message-actions">
+
+                        <!-- Group members can reply. -->
+                        <button
+                            type="button"
+                            class="cv-chat-reply-button"
+                            data-message-id="{{ chat_message.id }}"
+                            data-author="{% if chat_message.sender %}{{ chat_message.sender.username }}{% else %}Deleted user{% endif %}"
+                        >
+                            Reply
+                        </button>
+
+                        <!-- Only the message sender can edit or delete. -->
+                        {% if chat_message.sender_id == request.user.id %}
+
+                            <!-- Edit text messages only. -->
+                            {% if chat_message.message_type == "text" %}
+
+                                <button
+                                    type="button"
+                                    class="cv-chat-edit-button"
+                                    data-message-id="{{ chat_message.id }}"
+                                >
+                                    Edit
+                                </button>
+
+                            {% endif %}
+
+                            <!-- Delete own message. -->
+                            <button
+                                type="button"
+                                class="cv-chat-delete-button"
+                                data-message-id="{{ chat_message.id }}"
+                            >
+                                Delete
+                            </button>
+
+                        {% endif %}
+
+                    </div>
+
+                </article>
+
+            {% endfor %}
+
+        {% else %}
+
+            <!-- Show when no messages exist. -->
+            <div class="cv-chat-empty">
+                No messages yet. Start the conversation!
+            </div>
+
+        {% endif %}
+
+    </div>
+
+
+    <!-- ============================================
+         REPLY PREVIEW
+    ============================================= -->
+
+    <div
+        id="chat-reply-preview"
+        class="cv-chat-reply-preview"
+        hidden
+    >
+
+        <span id="chat-reply-description"></span>
+
+        <button
+            type="button"
+            id="cancel-chat-reply"
+        >
+            Cancel
+        </button>
+
+    </div>
+
+
+    <!-- ============================================
+         MESSAGE COMPOSER — BELOW MESSAGES
+    ============================================= -->
+
+    <div class="cv-chat-composer">
+
+        <form
+            id="meeting-chat-form"
+            action="{% url 'send_group_message' group.id %}"
+            method="post"
+        >
+
+            {% csrf_token %}
+
+            <!-- Message type. -->
+            <input
+                type="hidden"
+                name="message_type"
+                value="text"
+            >
+
+            <!-- Store the message being replied to. -->
+            <input
+                type="hidden"
+                name="reply_to_id"
+                id="meeting-chat-reply-id"
+                value=""
+            >
+
+            <!-- Message input. -->
+            <label for="chat-message-input">
+                Message
+            </label>
+
+            <textarea
+                id="chat-message-input"
+                name="content"
+                placeholder="Type a message..."
+                rows="3"
+                required
+            ></textarea>
+
+            <!-- Send button. -->
+            <button
+                type="submit"
+                class="cv-send-message"
+                id="send-chat-message"
+            >
+                Send Message
+            </button>
+
+        </form>
+
+        <p class="cv-chat-help">
+            Messages are shared with your group's chat.
+        </p>
+
+    </div>
+
+</aside>
+
+
+    </main>
+
+    <!-- ========================================
+         JAVASCRIPT
+    ========================================= -->
+
+    <!-- Prism.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-go.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-css.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+
+    <!-- Load our existing JavaScript only once -->
+<script src="{% static 'community/meeting_room/meeting_room.js' %}" defer></script>
+</body>
+
+</html>
