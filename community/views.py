@@ -347,7 +347,6 @@ def join_group(request, group_id):
 # ============================================================
 # 4. GROUP DETAILS
 # ============================================================
-
 @login_required
 def group_detail(request, group_id):
     """
@@ -356,28 +355,40 @@ def group_detail(request, group_id):
     Includes:
     - Group members
     - Discussions
-    - Chat messages
+    - Active chat messages
+    - Saved emoji reactions
     """
+
+    # ========================================================
+    # 1. FIND THE GROUP
+    # ========================================================
 
     group = get_object_or_404(
         ProjectGroup.objects.select_related("owner"),
         id=group_id,
     )
 
+    # Check whether the developer can view this group.
     if not can_view_group(group, request.user):
         return HttpResponseForbidden(
             "You must be a member to access this private group."
         )
 
+    # Check group membership.
     is_member = is_group_member(
         group,
         request.user,
     )
 
+    # Check group ownership.
     is_owner = is_group_owner(
         group,
         request.user,
     )
+
+    # ========================================================
+    # 2. LOAD GROUP MEMBERS
+    # ========================================================
 
     members = (
         GroupMember.objects
@@ -386,14 +397,16 @@ def group_detail(request, group_id):
         .order_by("joined_at")
     )
 
-    # --------------------------------------------------------
-    # DISCUSSIONS
-    # --------------------------------------------------------
+    # ========================================================
+    # 3. LOAD DISCUSSIONS
+    # ========================================================
 
+    # Find discussions hidden by the current developer.
     hidden_discussion_ids = HiddenDiscussion.objects.filter(
         user=request.user,
     ).values_list("discussion_id", flat=True)
 
+    # Load visible discussions.
     discussions = list(
         GroupDiscussion.objects
         .filter(group=group)
@@ -406,6 +419,7 @@ def group_detail(request, group_id):
         .order_by("-created_at")[:20]
     )
 
+    # Find discussions liked by the current developer.
     liked_discussion_ids = set(
         GroupDiscussionLike.objects
         .filter(
@@ -415,34 +429,79 @@ def group_detail(request, group_id):
         .values_list("discussion_id", flat=True)
     )
 
+    # Mark discussions liked by the developer.
     for discussion in discussions:
         discussion.liked_by_user = (
             discussion.id in liked_discussion_ids
         )
 
-    # --------------------------------------------------------
-    # GROUP CHAT
-    # --------------------------------------------------------
+    # ========================================================
+    # 4. LOAD GROUP CHAT
+    # ========================================================
 
     chat_messages = []
     chat_form = None
 
+    # Only group members can access chat messages.
     if is_member:
 
+        # Load the latest 50 messages that are not deleted.
         chat_messages = list(
             GroupChatMessage.objects
-            .filter(group=group)
+            .filter(
+                group=group,
+                deleted_at__isnull=True,
+            )
             .select_related(
                 "sender",
                 "reply_to",
                 "reply_to__sender",
             )
+            .prefetch_related(
+                "reactions",
+            )
             .order_by("-created_at", "-id")[:50]
         )
 
+        # Display messages from oldest to newest.
         chat_messages.reverse()
 
+        # ====================================================
+        # 5. PREPARE EMOJI REACTIONS
+        # ====================================================
+
+        for chat_message in chat_messages:
+
+            # Count each emoji reaction.
+            reaction_summary = {}
+
+            # Store the current developer's reaction.
+            my_reaction = None
+
+            # Read saved reactions.
+            for reaction in chat_message.reactions.all():
+
+                emoji = reaction.emoji
+
+                # Increase the count for this emoji.
+                reaction_summary[emoji] = (
+                    reaction_summary.get(emoji, 0) + 1
+                )
+
+                # Identify the current developer's reaction.
+                if reaction.user_id == request.user.id:
+                    my_reaction = emoji
+
+            # Make reaction data available in HTML.
+            chat_message.reaction_summary = reaction_summary
+            chat_message.my_reaction = my_reaction
+
+        # Create the chat message form.
         chat_form = GroupChatMessageForm()
+
+    # ========================================================
+    # 6. DISPLAY THE GROUP WORKSPACE
+    # ========================================================
 
     return render(
         request,
@@ -453,14 +512,16 @@ def group_detail(request, group_id):
             "is_member": is_member,
             "is_owner": is_owner,
 
-            # Existing templates may still use is_admin.
             # Only the owner has administrator permissions.
             "is_admin": is_owner,
 
             # Old approval requests no longer exist.
             "pending_request": False,
 
+            # Group discussions.
             "discussions": discussions,
+
+            # Group chat.
             "chat_messages": chat_messages,
             "chat_form": chat_form,
         },
@@ -642,7 +703,6 @@ def search_group_developers(request, group_id):
 # ============================================================
 # 8. PRIVATE DEVELOPMENT MEETING ROOM
 # ============================================================
-
 @login_required
 def meeting_room(request, group_id):
     """
@@ -651,20 +711,30 @@ def meeting_room(request, group_id):
     LiveKit meeting functionality will be connected later.
     """
 
+    # ========================================================
+    # 1. FIND THE GROUP
+    # ========================================================
+
     group = get_object_or_404(
         ProjectGroup,
         id=group_id,
     )
 
+    # Only private groups have meeting rooms.
     if not group.is_private:
         return HttpResponseForbidden(
             "Meeting rooms are only available to private groups."
         )
 
+    # Only group members can enter the meeting room.
     if not is_group_member(group, request.user):
         return HttpResponseForbidden(
             "You must belong to this group to enter its meeting room."
         )
+
+    # ========================================================
+    # 2. LOAD THE GROUP REPOSITORY
+    # ========================================================
 
     repository = GroupRepository.objects.filter(
         group=group,
@@ -672,9 +742,17 @@ def meeting_room(request, group_id):
 
     repository_form = GroupRepositoryForm()
 
+    # ========================================================
+    # 3. LOAD CHAT MESSAGES
+    # ========================================================
+
+    # Exclude messages that have been soft-deleted.
     recent_messages = list(
         GroupChatMessage.objects
-        .filter(group=group)
+        .filter(
+            group=group,
+            deleted_at__isnull=True,
+        )
         .select_related(
             "sender",
             "reply_to",
@@ -683,7 +761,12 @@ def meeting_room(request, group_id):
         .order_by("-created_at", "-id")[:50]
     )
 
+    # Display messages from oldest to newest.
     recent_messages.reverse()
+
+    # ========================================================
+    # 4. DISPLAY THE MEETING ROOM
+    # ========================================================
 
     return render(
         request,
@@ -699,7 +782,6 @@ def meeting_room(request, group_id):
             "chat_messages": recent_messages,
         },
     )
-
 
 # ============================================================
 # 9. CREATE DISCUSSION
@@ -1056,17 +1138,15 @@ def hide_discussion(request, group_id, discussion_id):
 # ============================================================
 # GROUP CHAT PAGE
 # ============================================================
-
 @login_required
 def group_chat(request, group_id):
     """
     Display chat history to authorized group members.
 
-    Features:
-        - Load the latest 50 messages.
-        - Load saved emoji reactions.
-        - Count reactions for each message.
-        - Identify the logged-in developer's reaction.
+    - Load the latest 50 active messages.
+    - Exclude deleted messages.
+    - Load saved emoji reactions.
+    - Identify the current user's reaction.
     """
 
     # ========================================================
@@ -1078,20 +1158,22 @@ def group_chat(request, group_id):
         id=group_id,
     )
 
-    # Only authorized group members can access the chat.
+    # Only group members can access the chat.
     if not is_group_member(group, request.user):
-
         return HttpResponseForbidden(
             "You must be a group member to access its chat."
         )
 
     # ========================================================
-    # 2. LOAD THE LATEST 50 MESSAGES
+    # 2. LOAD ONLY ACTIVE MESSAGES
     # ========================================================
 
     recent_messages = list(
         GroupChatMessage.objects
-        .filter(group=group)
+        .filter(
+            group=group,
+            deleted_at__isnull=True,
+        )
         .select_related(
             "sender",
             "reply_to",
@@ -1107,42 +1189,33 @@ def group_chat(request, group_id):
     recent_messages.reverse()
 
     # ========================================================
-    # 3. PREPARE SAVED EMOJI REACTIONS
+    # 3. PREPARE EMOJI REACTIONS
     # ========================================================
 
     for chat_message in recent_messages:
 
-        # Store reaction totals for this message.
         reaction_summary = {}
-
-        # Store the logged-in developer's selected emoji.
         my_reaction = None
 
-        # Deleted messages should not display reactions.
-        if chat_message.deleted_at is None:
+        # Count saved emoji reactions.
+        for reaction in chat_message.reactions.all():
 
-            # Read prefetched reactions without extra queries.
-            for reaction in chat_message.reactions.all():
+            emoji = reaction.emoji
 
-                emoji = reaction.emoji
+            reaction_summary[emoji] = (
+                reaction_summary.get(emoji, 0) + 1
+            )
 
-                # Count how many developers selected this emoji.
-                reaction_summary[emoji] = (
-                    reaction_summary.get(emoji, 0) + 1
-                )
+            # Find the current developer's reaction.
+            if reaction.user_id == request.user.id:
+                my_reaction = emoji
 
-                # Identify the logged-in developer's reaction.
-                if reaction.user_id == request.user.id:
-
-                    my_reaction = emoji
-
-        # Make these values available in the HTML template.
+        # Make reaction information available to HTML.
         chat_message.reaction_summary = reaction_summary
-
         chat_message.my_reaction = my_reaction
 
     # ========================================================
-    # 4. DISPLAY THE CHAT PAGE
+    # 4. DISPLAY GROUP CHAT
     # ========================================================
 
     return render(

@@ -395,3 +395,78 @@
             }
 
         }
+
+        /* ==========================================
+   GROUP CHAT EMOJI REACTIONS
+========================================== */
+
+/* React button beside each message */
+.react-button {
+    padding: 6px 10px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.react-button:hover {
+    background: rgba(128, 128, 128, 0.15);
+}
+
+/* Emoji selection container */
+.reaction-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px;
+    margin-top: 6px;
+    border-radius: 10px;
+    background: rgba(128, 128, 128, 0.12);
+}
+
+/* Hide picker until React is clicked */
+.reaction-picker[hidden] {
+    display: none;
+}
+
+/* Individual emoji buttons */
+.reaction-option {
+    padding: 6px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.reaction-option:hover {
+    background: rgba(128, 128, 128, 0.2);
+    transform: scale(1.1);
+}
+
+/* Reaction counts below messages */
+.reaction-counts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+/* Individual reaction count */
+.reaction-count-button {
+    padding: 5px 10px;
+    border: 1px solid rgba(128, 128, 128, 0.2);
+    border-radius: 20px;
+    background: rgba(128, 128, 128, 0.1);
+    color: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+/* Highlight your selected reaction */
+.reaction-count-button.my-reaction {
+    background: rgba(59, 130, 246, 0.2);
+    border-color: #3b82f6;
+}
