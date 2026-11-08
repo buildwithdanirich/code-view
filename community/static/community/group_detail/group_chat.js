@@ -126,6 +126,11 @@ const recordVoiceButton = document.getElementById(
                     handleDeletedMessage(data);
                     break;
 
+                    // Update reactions when another developer reacts.
+                case "message_reaction":
+                    handleMessageReaction(data);
+                    break;
+
                 default:
                     console.log("Unknown chat event:", data.type);
             }
@@ -478,6 +483,16 @@ async function submitForm(form) {
 
         actions.appendChild(replyButton);
 
+                // Allow developers to react to any message.
+        const reactButton = document.createElement("button");
+
+        reactButton.type = "button";
+        reactButton.className = "react-button";
+        reactButton.dataset.messageId = data.message_id;
+        reactButton.textContent = "😊 React";
+
+        actions.appendChild(reactButton);
+
         // Edit and Delete buttons — owner only.
         if (isOwnMessage) {
 
@@ -505,6 +520,21 @@ async function submitForm(form) {
 
         body.appendChild(actions);
 
+
+                // Container for the emoji picker.
+        const reactionPicker = document.createElement("div");
+
+        reactionPicker.className = "reaction-picker";
+        reactionPicker.hidden = true;
+
+        body.appendChild(reactionPicker);
+
+        // Container for reaction counts.
+        const reactionCounts = document.createElement("div");
+
+        reactionCounts.className = "reaction-counts";
+
+        body.appendChild(reactionCounts);
         // ====================================
         // DYNAMIC EDIT AND DELETE FORMS
         // ====================================
@@ -1870,6 +1900,366 @@ form.hidden = true;
         } finally {
             processingAction = false;
         }
+    });
+
+        // ========================================
+    // GROUP CHAT EMOJI REACTIONS
+    // ========================================
+
+    // Emojis supported by the Django backend.
+    const reactionEmojis = [
+        "👍",
+        "❤️",
+        "😂",
+        "🔥",
+        "😮",
+        "😢"
+    ];
+
+    // Track the logged-in developer's reactions.
+    const myReactions = new Map();
+
+    // Track messages currently submitting reactions.
+    const pendingReactions = new Set();
+
+    // Build the reaction endpoint.
+    function getReactionUrl(messageId) {
+
+        const chatBaseUrl = chatForm.action.replace(
+            /send\/?$/,
+            ""
+        );
+
+        return `${chatBaseUrl}${messageId}/react/`;
+    }
+
+    // Ensure every message has reaction containers.
+    function ensureReactionElements(messageElement) {
+
+        const actions = messageElement.querySelector(
+            ".message-actions"
+        );
+
+        if (!actions) {
+            return null;
+        }
+
+        let button = actions.querySelector(".react-button");
+
+        if (!button) {
+
+            button = document.createElement("button");
+
+            button.type = "button";
+            button.className = "react-button";
+            button.textContent = "😊 React";
+
+            actions.appendChild(button);
+        }
+
+        button.dataset.messageId =
+            messageElement.dataset.messageId;
+
+        const body = messageElement.querySelector(".message-body");
+
+        if (!body) {
+            return null;
+        }
+
+        let picker = body.querySelector(".reaction-picker");
+
+        if (!picker) {
+
+            picker = document.createElement("div");
+
+            picker.className = "reaction-picker";
+            picker.hidden = true;
+
+            body.appendChild(picker);
+        }
+
+        let counts = body.querySelector(".reaction-counts");
+
+        if (!counts) {
+
+            counts = document.createElement("div");
+
+            counts.className = "reaction-counts";
+
+            body.appendChild(counts);
+        }
+
+        return {
+            button,
+            picker,
+            counts
+        };
+    }
+
+    // Display the emoji selection buttons.
+    function showReactionPicker(messageElement) {
+
+        const elements = ensureReactionElements(messageElement);
+
+        if (!elements) {
+            return;
+        }
+
+        const picker = elements.picker;
+
+        // Clicking React again closes the picker.
+        if (!picker.hidden) {
+
+            picker.hidden = true;
+            return;
+        }
+
+        // Close other open reaction pickers.
+        chatMessages.querySelectorAll(
+            ".reaction-picker"
+        ).forEach(function (otherPicker) {
+
+            otherPicker.hidden = true;
+        });
+
+        picker.replaceChildren();
+
+        reactionEmojis.forEach(function (emoji) {
+
+            const button = document.createElement("button");
+
+            button.type = "button";
+            button.className = "reaction-option";
+            button.textContent = emoji;
+            button.dataset.emoji = emoji;
+
+            picker.appendChild(button);
+        });
+
+        picker.hidden = false;
+    }
+
+    // Display updated emoji counts.
+    function renderMessageReactions(messageId, reactions) {
+
+        const messageElement = findMessage(messageId);
+
+        if (!messageElement) {
+            return;
+        }
+
+        const elements = ensureReactionElements(messageElement);
+
+        if (!elements) {
+            return;
+        }
+
+        const container = elements.counts;
+
+        container.replaceChildren();
+
+        // Django returns an object such as:
+        // {"❤️": 3, "😂": 2}
+        Object.entries(reactions || {}).forEach(
+            function ([emoji, count]) {
+
+                if (!reactionEmojis.includes(emoji)) {
+                    return;
+                }
+
+                if (!Number.isInteger(count) || count <= 0) {
+                    return;
+                }
+
+                const button = document.createElement("button");
+
+                button.type = "button";
+                button.className = "reaction-count-button";
+
+                button.dataset.emoji = emoji;
+                button.dataset.messageId = messageId;
+
+                button.textContent = `${emoji} ${count}`;
+
+                // Highlight the developer's selected emoji.
+                if (myReactions.get(String(messageId)) === emoji) {
+
+                    button.classList.add("my-reaction");
+                }
+
+                container.appendChild(button);
+            }
+        );
+    }
+
+    // Send a reaction to Django.
+    async function sendMessageReaction(messageId, emoji) {
+
+        const key = String(messageId);
+
+        // Prevent duplicate requests.
+        if (pendingReactions.has(key)) {
+            return;
+        }
+
+        pendingReactions.add(key);
+
+        try {
+
+            const response = await fetch(
+                getReactionUrl(messageId),
+                {
+                    method: "POST",
+
+                    credentials: "same-origin",
+
+                    headers: {
+                        "Content-Type": "application/json",
+
+                        "X-CSRFToken": getCSRFToken(chatForm),
+
+                        "X-Requested-With": "XMLHttpRequest"
+                    },
+
+                    body: JSON.stringify({
+                        emoji: emoji
+                    })
+                }
+            );
+
+            if (!response.ok) {
+
+                throw new Error(
+                    `Reaction failed: ${response.status}`
+                );
+            }
+
+            const result = await response.json();
+
+            if (result.success !== true) {
+
+                throw new Error(
+                    result.error || "Unable to save reaction."
+                );
+            }
+
+            // Store this developer's latest reaction.
+            if (result.current_reaction) {
+
+                myReactions.set(
+                    key,
+                    result.current_reaction
+                );
+
+            } else {
+
+                myReactions.delete(key);
+            }
+
+            // Update immediately without waiting for WebSocket.
+            renderMessageReactions(
+                messageId,
+                result.reactions
+            );
+
+        } catch (error) {
+
+            console.error("Reaction error:", error);
+
+            alert("Unable to react to this message.");
+
+        } finally {
+
+            pendingReactions.delete(key);
+        }
+    }
+
+    // Handle reaction updates received through WebSockets.
+    function handleMessageReaction(data) {
+
+        const messageId = String(data.message_id);
+
+        // Update the current developer's selected emoji
+        // when their own reaction event arrives.
+        if (Number(data.user_id) === currentUserId) {
+
+            if (data.action === "removed") {
+
+                myReactions.delete(messageId);
+
+            } else if (data.emoji) {
+
+                myReactions.set(messageId, data.emoji);
+            }
+        }
+
+        renderMessageReactions(
+            messageId,
+            data.reactions
+        );
+    }
+
+    // Handle reaction button clicks for existing
+    // and newly created messages.
+    chatMessages.addEventListener("click", function (event) {
+
+        const reactButton = event.target.closest(
+            ".react-button"
+        );
+
+        const emojiButton = event.target.closest(
+            ".reaction-option, .reaction-count-button"
+        );
+
+        // Open or close the emoji picker.
+        if (reactButton) {
+
+            const messageElement = reactButton.closest(
+                ".chat-message"
+            );
+
+            if (messageElement) {
+
+                showReactionPicker(messageElement);
+            }
+
+            return;
+        }
+
+        // Submit a selected emoji.
+        if (emojiButton) {
+
+            const messageElement = emojiButton.closest(
+                ".chat-message"
+            );
+
+            if (!messageElement) {
+                return;
+            }
+
+            const messageId = messageElement.dataset.messageId;
+
+            const emoji = emojiButton.dataset.emoji;
+
+            const picker = messageElement.querySelector(
+                ".reaction-picker"
+            );
+
+            if (picker) {
+                picker.hidden = true;
+            }
+
+            sendMessageReaction(messageId, emoji);
+        }
+    });
+
+    // Prepare reaction buttons on messages already
+    // displayed when the page loads.
+    chatMessages.querySelectorAll(
+        ".chat-message"
+    ).forEach(function (messageElement) {
+
+        ensureReactionElements(messageElement);
     });
 
     // ========================================

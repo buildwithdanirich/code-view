@@ -74,6 +74,23 @@ class GroupChatConsumer(AsyncJsonWebsocketConsumer):
 
         await self.send_json(event["data"])
 
+    # ============================================================
+    # REAL-TIME MESSAGE REACTIONS
+    # ============================================================
+
+    async def chat_reaction(self, event):
+        """
+        Send message reaction updates to connected developers.
+
+        Example:
+            Developer A reacts ❤️ to a message.
+            The backend broadcasts the updated reactions.
+            Every connected developer sees the change.
+        """
+
+        # Forward the reaction update to the browser.
+        await self.send_json(event["data"])
+        
     @database_sync_to_async
     def check_group_membership(self):
         """Check group membership using Django's database."""

@@ -811,3 +811,108 @@ class GroupChatMessage(models.Model):
             f"{sender} in {self.group.name} "
             f"({self.message_type})"
         )
+
+
+        # ============================================================
+# 11. GROUP MESSAGE REACTION
+# ============================================================
+
+class GroupMessageReaction(models.Model):
+    """
+    Store emoji reactions to group chat messages.
+
+    Rules:
+        - Each developer can have one reaction per message.
+        - Developers can change their reaction.
+        - Developers can remove their reaction.
+        - Reactions belong to a specific message.
+    """
+
+    # Supported emoji reactions.
+    REACTION_CHOICES = [
+        ("👍", "Like"),
+        ("❤️", "Love"),
+        ("😂", "Laugh"),
+        ("🔥", "Fire"),
+        ("😮", "Surprised"),
+        ("😢", "Sad"),
+    ]
+
+    # Message receiving the reaction.
+    message = models.ForeignKey(
+        GroupChatMessage,
+        on_delete=models.CASCADE,
+        related_name="reactions",
+    )
+
+    # Developer who reacted.
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="group_message_reactions",
+    )
+
+    # Emoji selected by the developer.
+    emoji = models.CharField(
+        max_length=10,
+        choices=REACTION_CHOICES,
+    )
+
+    # When the reaction was created.
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+
+        # Prevent one developer from creating
+        # multiple reactions on the same message.
+        constraints = [
+            models.UniqueConstraint(
+                fields=["message", "user"],
+                name="unique_group_message_reaction",
+            ),
+        ]
+
+    def clean(self):
+        """Validate the reaction before saving."""
+
+        super().clean()
+
+        if not self.message_id or not self.user_id:
+            return
+
+        # Deleted messages cannot receive reactions.
+        if self.message.deleted_at:
+            raise ValidationError(
+                "Cannot react to a deleted message."
+            )
+
+        # Only group members or the owner can react.
+        is_owner = (
+            self.message.group.owner_id == self.user_id
+        )
+
+        is_member = GroupMember.objects.filter(
+            group_id=self.message.group_id,
+            user_id=self.user_id,
+        ).exists()
+
+        if not is_owner and not is_member:
+            raise ValidationError(
+                "Only group members can react to messages."
+            )
+
+    def save(self, *args, **kwargs):
+        """Validate the reaction before saving."""
+
+        self.full_clean()
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+
+        return (
+            f"{self.user} reacted {self.emoji} "
+            f"to message {self.message_id}"
+        )

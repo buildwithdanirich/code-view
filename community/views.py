@@ -61,6 +61,7 @@ from .models import (
     GroupDiscussionLike,
     HiddenDiscussion,
     GroupChatMessage,
+    GroupMessageReaction,
     GroupRepository,
 )
 
@@ -1935,3 +1936,210 @@ def download_group_attachment(request, group_id, message_id):
     response["X-Content-Type-Options"] = "nosniff"
 
     return response
+
+    # ============================================================
+# GROUP CHAT MESSAGE REACTIONS
+# ============================================================
+
+@login_required
+@require_POST
+def toggle_group_message_reaction(request, group_id, message_id):
+    """
+    Add, change, or remove a developer's reaction.
+
+    Rules:
+        1. Only authenticated group members can react.
+        2. Deleted messages cannot receive reactions.
+        3. One developer can have one reaction per message.
+        4. Clicking the same emoji removes the reaction.
+        5. Clicking another emoji changes the reaction.
+        6. Changes are broadcast through WebSockets.
+    """
+
+    # ========================================================
+    # 1. CHECK GROUP MEMBERSHIP
+    # ========================================================
+
+    group = get_object_or_404(
+        ProjectGroup,
+        id=group_id,
+    )
+
+    if not is_group_member(group, request.user):
+
+        return HttpResponseForbidden(
+            "You must be a group member to react to messages."
+        )
+
+    # ========================================================
+    # 2. FIND THE MESSAGE
+    # ========================================================
+
+    # The message must belong to this group and not be deleted.
+    chat_message = get_object_or_404(
+        GroupChatMessage,
+        id=message_id,
+        group=group,
+        deleted_at__isnull=True,
+    )
+
+    # ========================================================
+    # 3. READ THE SELECTED EMOJI
+    # ========================================================
+
+    # The browser will send JSON containing the emoji.
+    try:
+
+        data = json.loads(request.body)
+
+    except (json.JSONDecodeError, UnicodeDecodeError):
+
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "Invalid JSON data.",
+            },
+            status=400,
+        )
+
+    emoji = data.get("emoji")
+
+    # Only allow supported emoji reactions.
+    allowed_emojis = {
+        choice[0]
+        for choice in GroupMessageReaction.REACTION_CHOICES
+    }
+
+    if not isinstance(emoji, str) or emoji not in allowed_emojis:
+
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "Unsupported emoji reaction.",
+            },
+            status=400,
+        )
+
+    # ========================================================
+    # 4. ADD, CHANGE, OR REMOVE REACTION
+    # ========================================================
+
+    with transaction.atomic():
+
+        # Serialize reaction changes for this message.
+        # This also prevents concurrent requests from the same
+        # developer from creating conflicting reactions.
+        chat_message = (
+            GroupChatMessage.objects
+            .select_for_update()
+            .get(
+                pk=chat_message.pk,
+                group=group,
+                deleted_at__isnull=True,
+            )
+        )
+
+        # Find the developer's existing reaction.
+        existing_reaction = (
+            GroupMessageReaction.objects
+            .filter(
+                message=chat_message,
+                user=request.user,
+            )
+            .first()
+        )
+
+        if existing_reaction is None:
+
+            # No previous reaction: create one.
+            GroupMessageReaction.objects.create(
+                message=chat_message,
+                user=request.user,
+                emoji=emoji,
+            )
+
+            action = "added"
+
+        elif existing_reaction.emoji == emoji:
+
+            # Same emoji clicked again: remove it.
+            existing_reaction.delete()
+
+            action = "removed"
+
+        else:
+
+            # Different emoji: replace the previous reaction.
+            existing_reaction.emoji = emoji
+
+            existing_reaction.save(
+                update_fields=["emoji"],
+            )
+
+            action = "changed"
+
+        # ====================================================
+        # 5. COUNT ALL REACTIONS
+        # ====================================================
+
+        reaction_counts = (
+            GroupMessageReaction.objects
+            .filter(message=chat_message)
+            .values("emoji")
+            .annotate(count=Count("id"))
+            .order_by("emoji")
+        )
+
+        # Example: {"❤️": 3, "😂": 2}
+        reactions = {
+            item["emoji"]: item["count"]
+            for item in reaction_counts
+        }
+
+        # Get the developer's current reaction.
+        current_reaction = (
+            GroupMessageReaction.objects
+            .filter(
+                message=chat_message,
+                user=request.user,
+            )
+            .values_list("emoji", flat=True)
+            .first()
+        )
+
+        # ====================================================
+        # 6. PREPARE WEBSOCKET EVENT
+        # ====================================================
+
+        message_data = {
+            "type": "message_reaction",
+            "group_id": group.id,
+            "message_id": chat_message.id,
+            "user_id": request.user.id,
+            "emoji": emoji,
+            "action": action,
+            "reactions": reactions,
+        }
+
+        # Broadcast only after the transaction commits.
+        transaction.on_commit(
+            lambda: broadcast_group_event(
+                f"group_chat_{group.id}",
+                "chat.reaction",
+                message_data,
+            )
+        )
+
+    # ========================================================
+    # 7. RETURN RESULT TO THE BROWSER
+    # ========================================================
+
+    return JsonResponse(
+        {
+            "success": True,
+            "message_id": chat_message.id,
+            "action": action,
+            "reactions": reactions,
+            "current_reaction": current_reaction,
+        }
+    )

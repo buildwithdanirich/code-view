@@ -196,6 +196,17 @@ urlpatterns = [
     ),
 
         # ========================================================
+    # GROUP CHAT MESSAGE REACTIONS
+    # ========================================================
+
+    # Add, change, or remove an emoji reaction.
+    path(
+        "<int:group_id>/chat/<int:message_id>/react/",
+        views.toggle_group_message_reaction,
+        name="toggle_group_message_reaction",
+    ),
+
+        # ========================================================
     # SECURE GROUP CHAT ATTACHMENT DOWNLOAD
     # ========================================================
 
