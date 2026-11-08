@@ -32,7 +32,7 @@ load_dotenv(BASE_DIR / ".env")
 SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get("DJANGO_DEBUG", "False").lower() == "true"
+DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() == "true"
 
 ALLOWED_HOSTS = [host.strip() for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost").split(",") if host.strip()]
 
@@ -190,3 +190,14 @@ MEDIA_URL = "/media/"
 # Folder where uploaded files are stored.
 MEDIA_ROOT = BASE_DIR / "media"
 
+
+
+
+# ============================================================
+# PRIVATE GROUP ATTACHMENTS
+# ============================================================
+
+# Store private group attachments separately from public media.
+# Files in this directory must only be served through
+# authenticated Django views that verify group membership.
+PRIVATE_MEDIA_ROOT = BASE_DIR / "private_media"

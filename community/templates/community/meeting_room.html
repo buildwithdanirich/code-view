@@ -547,7 +547,7 @@
                     {% if chat_message.message_type == "voice" and chat_message.attachment %}
 
                         <audio controls>
-                            <source src="{{ chat_message.attachment.url }}">
+                          <source src="{% url 'download_group_attachment' group.id chat_message.id %}"> 
                         </audio>
 
                     {% endif %}
@@ -556,7 +556,7 @@
                     {% if chat_message.message_type == "file" and chat_message.attachment %}
 
                         <a
-                            href="{{ chat_message.attachment.url }}"
+                           href="{% url 'download_group_attachment' group.id chat_message.id %}"
                             target="_blank"
                             rel="noopener noreferrer"
                         >

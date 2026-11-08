@@ -125,17 +125,24 @@ def send_group_invitation(group, invited_by, invited_user):
 
             return invitation
 
-        # Create a new pending invitation.
+               # Create a new pending invitation.
         try:
-            invitation = GroupInvitation.objects.create(
-                group=group,
-                invited_by=invited_by,
-                invited_user=invited_user,
-                status="pending",
-            )
+
+            # Use a nested transaction so a failed insert
+            # can roll back without breaking the outer transaction.
+            with transaction.atomic():
+
+                invitation = GroupInvitation.objects.create(
+                    group=group,
+                    invited_by=invited_by,
+                    invited_user=invited_user,
+                    status="pending",
+                )
 
         except IntegrityError:
-            # The unique database constraint is a final safeguard.
+
+            # The database unique constraint prevents
+            # duplicate invitations.
             raise ValidationError(
                 "An invitation already exists for this developer."
             )

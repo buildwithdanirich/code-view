@@ -39,6 +39,7 @@ from django.http import (
     HttpResponseForbidden,
     JsonResponse,
 )
+from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -51,10 +52,10 @@ from .forms import (
     GroupChatMessageForm,
     GroupRepositoryForm,
 )
-
 from .models import (
     ProjectGroup,
     GroupMember,
+    GroupInvitation,  # Stores private group invitations.
     GroupDiscussion,
     GroupDiscussionComment,
     GroupDiscussionLike,
@@ -150,18 +151,28 @@ def github_request_json(url):
 # 1. GROUP DASHBOARD
 # ============================================================
 
+# ============================================================
+# 1. GROUP DASHBOARD
+# ============================================================
+
 @login_required
 def groups(request):
     """
-    Show public groups and private groups the user belongs to.
+    Display the CodeView groups dashboard.
 
-    Private groups are not publicly discoverable.
+    Features:
+    1. Show public groups.
+    2. Show private groups the developer belongs to.
+    3. Show groups owned by the developer.
+    4. Count pending private group invitations.
     """
 
+    # Find groups where the logged-in developer is a member.
     member_group_ids = GroupMember.objects.filter(
         user=request.user,
     ).values_list("group_id", flat=True)
 
+    # Display public groups and private groups the user can access.
     project_groups = (
         ProjectGroup.objects
         .filter(
@@ -173,21 +184,40 @@ def groups(request):
         .distinct()
     )
 
+    # Check membership for each displayed group.
     for group in project_groups:
+
         group.is_member = is_group_member(
             group,
             request.user,
         )
 
-        # Temporary template compatibility.
-        # Membership requests are no longer supported.
+        # Temporary compatibility with older templates.
         group.has_pending_request = False
+
+    # ========================================================
+    # COUNT PENDING INVITATIONS
+    # ========================================================
+
+    # Count only invitations received by the logged-in user.
+    # Accepted and declined invitations are excluded.
+    pending_invitation_count = GroupInvitation.objects.filter(
+        invited_user=request.user,
+        status="pending",
+    ).count()
+
+    # ========================================================
+    # RENDER GROUP DASHBOARD
+    # ========================================================
 
     return render(
         request,
         "community/groups.html",
         {
             "groups": project_groups,
+
+            # Used by the My Invitations notification badge.
+            "pending_invitation_count": pending_invitation_count,
         },
     )
 
@@ -532,22 +562,26 @@ def leave_group(request, group_id):
 # ============================================================
 # 7. SEARCH DEVELOPERS FOR INVITATIONS
 # ============================================================
-
 @login_required
 @require_GET
 def search_group_developers(request, group_id):
     """
     Allow private-group owners to search registered developers.
 
-    Searching does not add members.
-    The owner must send an invitation separately.
+    Rules:
+    1. Only private-group owners can search.
+    2. Existing members are excluded.
+    3. Developers with pending invitations are excluded.
+    4. Searching does not automatically add members.
     """
 
+    # Find the requested group.
     group = get_object_or_404(
         ProjectGroup,
         id=group_id,
     )
 
+    # Only the owner of a private group can search developers.
     if not group.is_private or not is_group_owner(
         group,
         request.user,
@@ -557,24 +591,40 @@ def search_group_developers(request, group_id):
             status=403,
         )
 
+    # Get the developer's search text.
     query = request.GET.get("q", "").strip()
 
+    # Require at least two characters.
     if len(query) < 2:
         return JsonResponse({"users": []})
 
     User = get_user_model()
 
+    # Find developers who already belong to this group.
     existing_members = GroupMember.objects.filter(
         group=group,
     ).values_list("user_id", flat=True)
 
+    # Find developers who already have pending invitations.
+    pending_invitees = GroupInvitation.objects.filter(
+        group=group,
+        status="pending",
+    ).values_list("invited_user_id", flat=True)
+
+    # Search registered developers.
     developers = (
         User.objects
-        .filter(username__icontains=query)
+        .filter(
+            username__icontains=query,
+            is_active=True,
+        )
         .exclude(id__in=existing_members)
+        .exclude(id__in=pending_invitees)
+        .exclude(id=group.owner_id)
         .order_by("username")[:10]
     )
 
+    # Prepare results for developer_search.js.
     results = [
         {
             "id": developer.id,
@@ -583,7 +633,9 @@ def search_group_developers(request, group_id):
         for developer in developers
     ]
 
-    return JsonResponse({"users": results})
+    return JsonResponse({
+        "users": results,
+    })
 
 
 # ============================================================
@@ -1042,26 +1094,35 @@ def group_chat(request, group_id):
 # ============================================================
 # 15. SEND GROUP CHAT MESSAGE
 # ============================================================
-
 @login_required
 @require_POST
 def send_group_message(request, group_id):
     """
     Save a chat message and broadcast it through WebSockets.
 
-    Supports text, code, voice notes, files, and replies.
+    Supports:
+        - Text messages
+        - Code snippets
+        - Voice notes
+        - File attachments
+        - Replies
+
+    Attachments use protected download URLs.
     """
 
+    # Find the group receiving the message.
     group = get_object_or_404(
         ProjectGroup,
         id=group_id,
     )
 
+    # Only group members can send messages.
     if not is_group_member(group, request.user):
         return HttpResponseForbidden(
             "You must be a group member to send messages."
         )
 
+    # Validate the submitted message and uploaded files.
     form = GroupChatMessageForm(
         request.POST,
         request.FILES,
@@ -1069,6 +1130,7 @@ def send_group_message(request, group_id):
 
     if not form.is_valid():
 
+        # Return validation errors for JavaScript requests.
         if is_ajax_request(request):
             return JsonResponse(
                 {
@@ -1079,6 +1141,7 @@ def send_group_message(request, group_id):
                 status=400,
             )
 
+        # Show an error for normal form submissions.
         messages.error(
             request,
             "Your message is invalid. Check the content or attachment.",
@@ -1086,11 +1149,14 @@ def send_group_message(request, group_id):
 
         return redirect(group_chat_url(group.id))
 
+    # Create the message object without saving it yet.
     chat_message = form.save(commit=False)
 
+    # Associate the message with its group and sender.
     chat_message.group = group
     chat_message.sender = request.user
 
+    # Check whether the message is replying to another message.
     reply_to_id = request.POST.get(
         "reply_to_id",
         "",
@@ -1098,18 +1164,36 @@ def send_group_message(request, group_id):
 
     if reply_to_id:
 
+        # Replies must reference messages in the same group.
         reply_to_message = get_object_or_404(
             GroupChatMessage,
             id=reply_to_id,
             group=group,
+            deleted_at__isnull=True,
         )
 
         chat_message.reply_to = reply_to_message
 
+    # Save the message inside a database transaction.
     with transaction.atomic():
 
         chat_message.save()
 
+        # Default to no attachment.
+        attachment_url = None
+
+        # Generate a protected URL when an attachment exists.
+        if chat_message.attachment:
+
+            attachment_url = reverse(
+                "download_group_attachment",
+                args=[
+                    group.id,
+                    chat_message.id,
+                ],
+            )
+
+        # Prepare the message for WebSocket broadcasting.
         message_data = {
             "type": "message_created",
             "message_id": chat_message.id,
@@ -1120,13 +1204,10 @@ def send_group_message(request, group_id):
             "message_type": chat_message.message_type,
             "created_at": chat_message.created_at.isoformat(),
             "reply_to_id": chat_message.reply_to_id,
-            "attachment_url": (
-                chat_message.attachment.url
-                if chat_message.attachment
-                else None
-            ),
+            "attachment_url": attachment_url,
         }
 
+        # Broadcast only after the database transaction succeeds.
         transaction.on_commit(
             lambda: broadcast_group_event(
                 f"group_chat_{group.id}",
@@ -1135,6 +1216,7 @@ def send_group_message(request, group_id):
             )
         )
 
+    # Return JSON for JavaScript requests.
     if is_ajax_request(request):
         return JsonResponse(
             {
@@ -1145,6 +1227,7 @@ def send_group_message(request, group_id):
             status=201,
         )
 
+    # Redirect normal form submissions back to the group chat.
     return redirect(group_chat_url(group.id))
 
 
@@ -1197,7 +1280,7 @@ def edit_group_message(request, group_id, message_id):
         return redirect(group_chat_url(group.id))
 
     # Do not allow editing a deleted message.
-    if chat_message.is_deleted:
+    if chat_message.deleted_at is not None:
         return HttpResponseBadRequest(
             "Deleted messages cannot be edited."
         )
@@ -1309,12 +1392,15 @@ def delete_group_message(request, group_id, message_id):
 
     with transaction.atomic():
 
-        if not chat_message.is_deleted:
+        # Check whether the message has already been deleted.
+        if chat_message.deleted_at is None:
 
-            chat_message.is_deleted = True
+            # Record when the message was deleted.
+            chat_message.deleted_at = timezone.now()
 
+            # Save only the deletion timestamp.
             chat_message.save(
-                update_fields=["is_deleted"],
+                update_fields=["deleted_at"],
             )
 
         message_data = {
@@ -1749,3 +1835,103 @@ def group_repository_file_content(request, group_id):
             "branch": repository.default_branch,
         }
     )
+
+@login_required
+def download_group_attachment(request, group_id, message_id):
+    """
+    Securely serve group chat attachments.
+
+    Security rules:
+    1. The developer must be logged in.
+    2. The developer must belong to the group.
+    3. The message must belong to that group.
+    4. Deleted messages cannot expose attachments.
+
+    File behavior:
+    - Voice notes play inside the browser.
+    - Other attachments are downloaded.
+    """
+
+    # Find the requested group.
+    group = get_object_or_404(
+        ProjectGroup,
+        id=group_id,
+    )
+
+    # Only group members can access attachments.
+    if not is_group_member(group, request.user):
+        raise Http404("Attachment not found.")
+
+    # Find the message inside the requested group.
+    chat_message = get_object_or_404(
+        GroupChatMessage,
+        id=message_id,
+        group=group,
+    )
+
+    # Deleted messages must not expose attachments.
+    if chat_message.deleted_at is not None:
+        raise Http404("Attachment not found.")
+
+    # Confirm that the message contains a file.
+    if not chat_message.attachment:
+        raise Http404("This message has no attachment.")
+
+    # Get the original filename.
+    filename = chat_message.attachment.name.rsplit("/", 1)[-1]
+
+    # Identify whether this attachment is a voice note.
+    is_voice_note = chat_message.message_type == "voice"
+
+    # Supported browser audio formats.
+    audio_content_types = {
+        ".mp3": "audio/mpeg",
+        ".wav": "audio/wav",
+        ".ogg": "audio/ogg",
+        ".webm": "audio/webm",
+        ".m4a": "audio/mp4",
+    }
+
+    # Get the file extension.
+    extension = (
+        "." + filename.rsplit(".", 1)[-1].lower()
+        if "." in filename
+        else ""
+    )
+
+    # Open the private attachment.
+    try:
+        attachment_file = chat_message.attachment.open("rb")
+
+    except (FileNotFoundError, OSError):
+        raise Http404("Attachment file not found.")
+
+    # Voice notes should play directly inside the browser.
+    if is_voice_note:
+
+        # Only allow supported audio extensions for inline playback.
+        if extension not in audio_content_types:
+            attachment_file.close()
+            raise Http404("Unsupported voice note format.")
+
+        response = FileResponse(
+            attachment_file,
+            as_attachment=False,
+            content_type=audio_content_types[extension],
+        )
+
+    else:
+
+        # Other attachments should download normally.
+        response = FileResponse(
+            attachment_file,
+            as_attachment=True,
+            filename=filename,
+            content_type="application/octet-stream",
+        )
+
+    # Prevent browsers and shared caches from storing private files.
+    response["Cache-Control"] = "private, no-store"
+    response["X-Content-Type-Options"] = "nosniff"
+
+    return response

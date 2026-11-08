@@ -13,6 +13,9 @@
 
     <title>{{ group.name }} | CodeView</title>
 
+    {% load static %}
+
+
     <!-- Keep the existing CodeView styles. -->
     <link rel="stylesheet" href="{% static 'community/sheared.css' %}">
     <link rel="stylesheet" href="{% static 'community/group_detail/group_detail.css' %}">
@@ -762,7 +765,7 @@
                                                     controls
                                                     preload="none"
                                                     class="message-audio"
-                                                    src="{{ chat_message.attachment.url }}"
+                                                    src="{% url 'download_group_attachment' group.id chat_message.id %}"
                                                 ></audio>
 
                                             {% endif %}
@@ -793,7 +796,7 @@
                                             {% if chat_message.attachment %}
 
                                                 <a
-                                                    href="{{ chat_message.attachment.url }}"
+                                                    href="{% url 'download_group_attachment' group.id chat_message.id %}"
                                                     class="message-attachment"
                                                     download
                                                 >

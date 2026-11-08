@@ -3,6 +3,8 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+/private_media/
+
 # C extensions
 *.so
 
@@ -168,6 +170,7 @@ venv.bak/
 
 # mkdocs/Zensical documentation
 /site
+
 
 # mypy
 .mypy_cache/

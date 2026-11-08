@@ -6,7 +6,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 
-
+from .storage import PrivateGroupStorage
 # ============================================================
 # 1. PROJECT GROUP
 # ============================================================
@@ -385,9 +385,10 @@ class GroupInvitation(models.Model):
 
     def clean(self):
         """Validate the invitation before saving it."""
+
         super().clean()
 
-        # Wait until the required relationships are available.
+        # Make sure the required relationships exist.
         if (
             not self.group_id
             or not self.invited_by_id
@@ -395,27 +396,25 @@ class GroupInvitation(models.Model):
         ):
             return
 
-        # Normal chat groups do not use invitations.
+        # Only private groups can send invitations.
         if not self.group.is_private:
             raise ValidationError(
                 "Only private development groups use invitations."
             )
 
-        # Only the owner can send invitations.
+        # Only the group owner can send invitations.
         if self.invited_by_id != self.group.owner_id:
             raise ValidationError(
                 "Only the group owner can send invitations."
             )
 
-        # Owners cannot invite themselves.
+        # The owner cannot invite themselves.
         if self.invited_user_id == self.group.owner_id:
             raise ValidationError(
                 "The group owner cannot invite themselves."
             )
 
-        # Check existing membership for pending invitations.
-        # An accepted invitation may already have a member record,
-        # so we must not reject it just because it was accepted.
+        # Prevent inviting an existing member.
         if self.status == "pending":
 
             already_member = GroupMember.objects.filter(
@@ -715,10 +714,11 @@ class GroupChatMessage(models.Model):
         max_length=30,
         blank=True,
     )
-
-    # Uploaded voice notes and files.
+    # Store chat attachments privately.
+    # Access is controlled by download_group_attachment().
     attachment = models.FileField(
         upload_to="group_chat/attachments/%Y/%m/",
+        storage=PrivateGroupStorage(),
         blank=True,
     )
 

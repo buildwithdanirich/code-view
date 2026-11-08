@@ -263,145 +263,115 @@
                             </div>
 
 
-                            <!-- Reply preview. -->
+                            <!-- Reply preview: never show deleted content. -->
                             {% if chat_message.reply_to %}
-
                                 <div class="message-reply">
-
                                     ↳ Replying to
-
                                     <strong>
-                                        {{ chat_message.reply_to.sender.username }}
+                                        {{ chat_message.reply_to.sender.username|default:"Deleted user" }}
                                     </strong>
 
-                                    {% if chat_message.reply_to.content %}
-
+                                    {% if chat_message.reply_to.deleted_at %}
+                                        <p><em>This message was deleted.</em></p>
+                                    {% elif chat_message.reply_to.content %}
                                         <p>
                                             {{ chat_message.reply_to.content|truncatechars:100 }}
                                         </p>
-
                                     {% endif %}
-
                                 </div>
-
                             {% endif %}
 
-
-                            <!-- TEXT MESSAGE -->
-
-                            {% if chat_message.message_type == "text" %}
-
+                            <!-- Deleted messages do not display content or actions. -->
+                            {% if chat_message.deleted_at %}
                                 <div class="message-content">
-                                    {{ chat_message.content|linebreaksbr }}
+                                    <em>This message was deleted.</em>
                                 </div>
+                            {% else %}
 
-                            {% endif %}
-
-
-                            <!-- CODE MESSAGE -->
-
-                            {% if chat_message.message_type == "code" %}
-
-                                {% if chat_message.code_language %}
-
-                                    <div class="code-language">
-                                        {{ chat_message.code_language }}
-                                    </div>
-
-                                {% endif %}
-
-                                <pre class="message-code"><code>{{ chat_message.content }}</code></pre>
-
-                            {% endif %}
-
-
-                            <!-- VOICE MESSAGE -->
-
-                            {% if chat_message.message_type == "voice" %}
-
-                                {% if chat_message.attachment %}
-
-                                    <audio
-                                        controls
-                                        preload="none"
-                                        class="message-audio"
-                                        src="{{ chat_message.attachment.url }}"
-                                    ></audio>
-
-                                {% endif %}
-
-                                {% if chat_message.content %}
-
-                                    <p class="message-content">
-                                        {{ chat_message.content }}
-                                    </p>
-
-                                {% endif %}
-
-                            {% endif %}
-
-
-                            <!-- FILE MESSAGE -->
-
-                            {% if chat_message.message_type == "file" %}
-
-                                {% if chat_message.content %}
-
-                                    <p class="message-content">
+                                <!-- Text message. -->
+                                {% if chat_message.message_type == "text" %}
+                                    <div class="message-content">
                                         {{ chat_message.content|linebreaksbr }}
-                                    </p>
-
+                                    </div>
                                 {% endif %}
 
-                                {% if chat_message.attachment %}
+                                <!-- Code message. -->
+                                {% if chat_message.message_type == "code" %}
+                                    {% if chat_message.code_language %}
+                                        <div class="code-language">
+                                            {{ chat_message.code_language }}
+                                        </div>
+                                    {% endif %}
+                                    <pre class="message-code"><code>{{ chat_message.content }}</code></pre>
+                                {% endif %}
 
-                                    <a
-                                        href="{{ chat_message.attachment.url }}"
-                                        class="message-attachment"
-                                        download
+                                <!-- Voice note: use the authorized download route. -->
+                                {% if chat_message.message_type == "voice" %}
+                                    {% if chat_message.attachment %}
+                                        <audio
+                                            controls
+                                            preload="none"
+                                            class="message-audio"
+                                            src="{% url 'download_group_attachment' group.id chat_message.id %}"
+                                        ></audio>
+                                    {% endif %}
+                                    {% if chat_message.content %}
+                                        <p class="message-content">
+                                            {{ chat_message.content|linebreaksbr }}
+                                        </p>
+                                    {% endif %}
+                                {% endif %}
+
+                                <!-- File: use the authorized download route. -->
+                                {% if chat_message.message_type == "file" %}
+                                    {% if chat_message.content %}
+                                        <p class="message-content">
+                                            {{ chat_message.content|linebreaksbr }}
+                                        </p>
+                                    {% endif %}
+                                    {% if chat_message.attachment %}
+                                        <a
+                                            href="{% url 'download_group_attachment' group.id chat_message.id %}"
+                                            class="message-attachment"
+                                            download
+                                        >
+                                            📎 Download Attachment
+                                        </a>
+                                    {% endif %}
+                                {% endif %}
+
+                                <!-- Actions for messages that have not been deleted. -->
+                                <div class="message-actions">
+                                    <button
+                                        type="button"
+                                        class="reply-button"
+                                        data-message-id="{{ chat_message.id }}"
+                                        data-sender="{{ chat_message.sender.username }}"
                                     >
-                                        📎 Download Attachment
-                                    </a>
+                                        ↩ Reply
+                                    </button>
 
-                                {% endif %}
+                                    {% if chat_message.sender_id == request.user.id %}
+                                        {% if chat_message.message_type == "text" %}
+                                            <button
+                                                type="button"
+                                                class="edit-button"
+                                                data-message-id="{{ chat_message.id }}"
+                                            >
+                                                ✏️ Edit
+                                            </button>
+                                        {% endif %}
 
+                                        <button
+                                            type="button"
+                                            class="delete-button"
+                                            data-message-id="{{ chat_message.id }}"
+                                        >
+                                            🗑 Delete
+                                        </button>
+                                    {% endif %}
+                                </div>
                             {% endif %}
-
-
-                            <!-- MESSAGE ACTIONS -->
-
-                            <div class="message-actions">
-
-                                <button
-                                    type="button"
-                                    class="reply-button"
-                                    data-message-id="{{ chat_message.id }}"
-                                    data-sender="{{ chat_message.sender.username }}"
-                                >
-                                    ↩ Reply
-                                </button>
-
-                                {% if chat_message.sender_id == request.user.id %}
-
-                                    <button
-                                        type="button"
-                                        class="edit-button"
-                                        data-message-id="{{ chat_message.id }}"
-                                    >
-                                        ✏️ Edit
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        class="delete-button"
-                                        data-message-id="{{ chat_message.id }}"
-                                    >
-                                        🗑 Delete
-                                    </button>
-
-                                {% endif %}
-
-                            </div>
 
                         </div>
 

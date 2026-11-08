@@ -366,25 +366,103 @@ class GroupChatMessageForm(forms.ModelForm):
 
     def clean_attachment(self):
         """
-        Reject attachments larger than 20 MB.
+        Validate files uploaded to CodeView group chats.
 
-        This is a basic size limit.
+        Rules:
+        1. Maximum file size is 20 MB.
+        2. Only supported file extensions are allowed.
+        3. Voice notes must use supported audio formats.
 
-        File-type verification, malware scanning, and secure
-        file-serving rules must also be implemented before
-        production deployment.
+        Note:
+            File extensions alone do not prove a file is safe.
+            Additional security checks are required before production.
         """
 
+        # Get the uploaded file.
         attachment = self.cleaned_data.get("attachment")
 
-        if attachment:
+        # No attachment was provided.
+        if not attachment:
+            return attachment
 
-            # Convert 20 megabytes into bytes.
-            maximum_size = 20 * 1024 * 1024
+        # Maximum upload size: 20 MB.
+        maximum_size = 20 * 1024 * 1024
 
-            if attachment.size > maximum_size:
+        if attachment.size > maximum_size:
+            raise forms.ValidationError(
+                "Files cannot exceed 20 MB."
+            )
+
+        # File types supported by CodeView.
+        allowed_extensions = {
+            # Programming files.
+            ".py",
+            ".go",
+            ".js",
+            ".ts",
+            ".jsx",
+            ".tsx",
+            ".html",
+            ".css",
+            ".json",
+            ".sql",
+            ".java",
+            ".c",
+            ".cpp",
+            ".h",
+            ".rs",
+            ".php",
+            ".sh",
+
+            # Documents.
+            ".pdf",
+            ".txt",
+            ".md",
+            ".docx",
+            ".csv",
+
+            # Images.
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".gif",
+            ".webp",
+
+            # Voice notes.
+            ".mp3",
+            ".wav",
+            ".ogg",
+            ".webm",
+            ".m4a",
+        }
+
+        # Extract the file extension.
+        filename = attachment.name.lower()
+
+        extension = "." + filename.rsplit(".", 1)[-1]
+
+        # Reject unsupported file extensions.
+        if extension not in allowed_extensions:
+            raise forms.ValidationError(
+                "This file type is not supported."
+            )
+
+        # Voice messages must contain audio files.
+        message_type = self.data.get("message_type")
+
+        if message_type == "voice":
+
+            allowed_audio_extensions = {
+                ".mp3",
+                ".wav",
+                ".ogg",
+                ".webm",
+                ".m4a",
+            }
+
+            if extension not in allowed_audio_extensions:
                 raise forms.ValidationError(
-                    "Files cannot exceed 20 MB."
+                    "Voice notes must contain an audio file."
                 )
 
         return attachment

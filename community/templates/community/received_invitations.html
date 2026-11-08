@@ -13,7 +13,7 @@
 
     <title>My Invitations | CodeView</title>
 
-    <!-- Existing shared CodeView styling. -->
+    <!-- Shared CodeView styling. -->
     <link
         rel="stylesheet"
         href="{% static 'community/sheared.css' %}"
@@ -24,6 +24,7 @@
         rel="stylesheet"
         href="{% static 'community/invitations/received_invitations.css' %}"
     >
+
 </head>
 
 <body>
@@ -51,6 +52,7 @@
             <a
                 href="{% url 'received_group_invitations' %}"
                 class="active"
+                aria-current="page"
             >
                 My Invitations
             </a>
@@ -215,12 +217,25 @@
 
                         <div class="invitation-actions">
 
+                            <!--
+                                The form remains a normal Django POST form.
+
+                                JavaScript will intercept its submission
+                                to display the custom confirmation modal.
+
+                                If JavaScript is unavailable, the form
+                                can still submit normally.
+                            -->
+
                             <!-- Accept invitation. -->
 
                             <form
                                 method="POST"
                                 action="{% url 'accept_group_invitation' invitation.id %}"
                                 class="accept-invitation-form"
+                                data-invitation-form
+                                data-invitation-action="accept"
+                                data-group-name="{{ invitation.group.name }}"
                             >
 
                                 {% csrf_token %}
@@ -241,6 +256,9 @@
                                 method="POST"
                                 action="{% url 'decline_group_invitation' invitation.id %}"
                                 class="decline-invitation-form"
+                                data-invitation-form
+                                data-invitation-action="decline"
+                                data-group-name="{{ invitation.group.name }}"
                             >
 
                                 {% csrf_token %}
@@ -331,9 +349,118 @@
 
 
     <!-- =====================================================
-         7. EXTERNAL JAVASCRIPT
-         No JavaScript is written inside this HTML file.
+         7. CUSTOM CONFIRMATION MODAL
     ====================================================== -->
+
+    <!--
+        This modal replaces the browser's window.confirm().
+
+        JavaScript will:
+        1. Open the modal when a developer submits a form.
+        2. Update its title and description.
+        3. Submit the selected Django form after confirmation.
+        4. Close it when the developer cancels.
+
+        The hidden attribute keeps the modal invisible
+        until JavaScript opens it.
+    -->
+
+    <div
+        id="invitation-confirm-modal"
+        class="invitation-modal"
+        hidden
+    >
+
+        <!-- Modal backdrop. -->
+
+        <div
+            class="invitation-modal-backdrop"
+            data-modal-close
+            aria-hidden="true"
+        ></div>
+
+
+        <!-- Accessible dialog. -->
+
+        <section
+            class="invitation-modal-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="invitation-modal-title"
+            aria-describedby="invitation-modal-description"
+            tabindex="-1"
+        >
+
+            <!-- Close button. -->
+
+            <button
+                type="button"
+                class="invitation-modal-close"
+                data-modal-close
+                aria-label="Close confirmation"
+            >
+                &times;
+            </button>
+
+
+            <!-- Modal icon. -->
+
+            <div
+                class="invitation-modal-icon"
+                id="invitation-modal-icon"
+                aria-hidden="true"
+            >
+                ?
+            </div>
+
+
+            <!-- Modal heading. -->
+
+            <h2 id="invitation-modal-title">
+                Confirm Invitation
+            </h2>
+
+
+            <!-- Modal description. -->
+
+            <p id="invitation-modal-description">
+                Are you sure you want to continue?
+            </p>
+
+
+            <!-- Modal actions. -->
+
+            <div class="invitation-modal-actions">
+
+                <button
+                    type="button"
+                    class="invitation-modal-cancel"
+                    id="invitation-modal-cancel"
+                    data-modal-close
+                >
+                    Cancel
+                </button>
+
+                <button
+                    type="button"
+                    class="invitation-modal-confirm"
+                    id="invitation-modal-confirm"
+                >
+                    Confirm
+                </button>
+
+            </div>
+
+        </section>
+
+    </div>
+
+
+    <!-- =====================================================
+         8. EXTERNAL JAVASCRIPT
+    ====================================================== -->
+
+    <!-- All JavaScript stays in its separate file. -->
 
     <script
         src="{% static 'community/invitations/received_invitations.js' %}"

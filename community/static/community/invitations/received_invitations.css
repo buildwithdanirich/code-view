@@ -3,24 +3,47 @@
    ============================================================
 
    Purpose:
-   1. Style the invitations page.
-   2. Display invitation cards.
+   1. Style the invitations page using CodeView's dark theme.
+   2. Display pending invitation cards.
    3. Style Accept and Decline buttons.
-   4. Support desktop and mobile screens.
+   4. Style the custom confirmation modal.
+   5. Support desktop and mobile screens.
+   6. Improve keyboard accessibility.
 
-   This file contains CSS only.
+   HTML, CSS, and JavaScript remain in separate files.
    ============================================================ */
 
 
 /* ============================================================
-   1. PAGE LAYOUT
+   1. PAGE COLORS
    ============================================================ */
 
 .invitations-page {
+    --invite-background: #0b1120;
+    --invite-surface: #111827;
+    --invite-surface-light: #1e293b;
+    --invite-border: #334155;
+
+    --invite-text: #f1f5f9;
+    --invite-muted: #94a3b8;
+
+    --invite-primary: #6366f1;
+    --invite-primary-hover: #4f46e5;
+
+    --invite-success: #22c55e;
+    --invite-danger: #ef4444;
+
     min-height: calc(100vh - 80px);
     padding: 40px 24px;
-    background-color: #f5f7fb;
+
+    background-color: var(--invite-background);
+    color: var(--invite-text);
 }
+
+
+/* ============================================================
+   2. PAGE LAYOUT
+   ============================================================ */
 
 .invitations-container {
     width: 100%;
@@ -30,54 +53,69 @@
 
 
 /* ============================================================
-   2. PAGE HEADING
+   3. PAGE HEADING
    ============================================================ */
 
 .invitations-heading {
     display: flex;
     justify-content: space-between;
     align-items: center;
+
     gap: 24px;
     margin-bottom: 32px;
 }
 
 .invitations-heading h1 {
     margin: 0 0 12px;
+
     font-size: 30px;
     font-weight: 700;
-    color: #172033;
+
+    color: #f8fafc;
 }
 
 .invitations-heading p {
     margin: 0;
+
     font-size: 15px;
     line-height: 1.7;
-    color: #64748b;
+
+    color: #94a3b8;
 }
 
 .back-to-groups {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+
     flex-shrink: 0;
+
     padding: 12px 18px;
-    border: 1px solid #dbe2ea;
+
+    border: 1px solid #334155;
     border-radius: 8px;
-    background-color: #ffffff;
-    color: #334155;
+
+    background-color: #1e293b;
+    color: #e2e8f0;
+
     font-size: 14px;
     font-weight: 600;
+
     text-decoration: none;
-    transition: background-color 0.2s ease;
+
+    transition:
+        background-color 0.2s ease,
+        border-color 0.2s ease;
 }
 
 .back-to-groups:hover {
-    background-color: #f1f5f9;
+    background-color: #334155;
+    border-color: #64748b;
 }
 
 
 /* ============================================================
-   3. DJANGO NOTIFICATIONS
+   4. DJANGO NOTIFICATIONS
    ============================================================ */
 
 .invitations-container .notifications {
@@ -87,38 +125,48 @@
 .invitations-container .notification {
     padding: 14px 18px;
     margin-bottom: 12px;
+
     border-radius: 8px;
+
     font-size: 14px;
     line-height: 1.6;
 }
 
 .invitations-container .notification-success {
-    background-color: #dcfce7;
-    border: 1px solid #86efac;
-    color: #166534;
+    background-color: #052e16;
+    border: 1px solid #166534;
+    color: #86efac;
 }
 
 .invitations-container .notification-error {
-    background-color: #fee2e2;
-    border: 1px solid #fca5a5;
-    color: #991b1b;
+    background-color: #450a0a;
+    border: 1px solid #991b1b;
+    color: #fca5a5;
 }
 
 .invitations-container .notification-warning {
-    background-color: #fef3c7;
-    border: 1px solid #fcd34d;
-    color: #92400e;
+    background-color: #451a03;
+    border: 1px solid #92400e;
+    color: #fcd34d;
+}
+
+.invitations-container .notification-info {
+    background-color: #172554;
+    border: 1px solid #1d4ed8;
+    color: #bfdbfe;
 }
 
 
 /* ============================================================
-   4. INVITATIONS SECTION
+   5. INVITATIONS SECTION
    ============================================================ */
 
 .invitations-section {
     padding: 28px;
-    background-color: #ffffff;
-    border: 1px solid #e2e8f0;
+
+    background-color: #111827;
+
+    border: 1px solid #334155;
     border-radius: 14px;
 }
 
@@ -126,42 +174,53 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+
     gap: 16px;
     margin-bottom: 24px;
 }
 
 .invitations-section-heading h2 {
     margin: 0;
+
     font-size: 21px;
     font-weight: 700;
-    color: #172033;
+
+    color: #f8fafc;
 }
 
 .invitation-count {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+
     min-width: 36px;
     height: 36px;
+
     padding: 0 10px;
+
     border-radius: 50px;
-    background-color: #e0e7ff;
-    color: #3730a3;
+
+    background-color: #312e81;
+    color: #c7d2fe;
+
     font-size: 14px;
     font-weight: 700;
 }
 
 
 /* ============================================================
-   5. INVITATION CARDS
+   6. INVITATION CARDS
    ============================================================ */
 
 .invitation-card {
     padding: 24px;
     margin-bottom: 20px;
-    border: 1px solid #e2e8f0;
+
+    border: 1px solid #334155;
     border-radius: 12px;
-    background-color: #ffffff;
+
+    background-color: #1e293b;
+
     transition:
         border-color 0.2s ease,
         box-shadow 0.2s ease;
@@ -172,13 +231,16 @@
 }
 
 .invitation-card:hover {
-    border-color: #a5b4fc;
-    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
+    border-color: #6366f1;
+
+    box-shadow:
+        0 6px 24px rgba(0, 0, 0, 0.18);
 }
 
 .invitation-card-header {
     display: flex;
     align-items: center;
+
     gap: 14px;
     margin-bottom: 18px;
 }
@@ -187,12 +249,17 @@
     display: flex;
     align-items: center;
     justify-content: center;
+
     flex-shrink: 0;
+
     width: 54px;
     height: 54px;
+
     border-radius: 12px;
+
     background-color: #4f46e5;
     color: #ffffff;
+
     font-size: 22px;
     font-weight: 700;
 }
@@ -203,65 +270,81 @@
 
 .invitation-group-details h3 {
     margin: 0 0 8px;
+
     font-size: 19px;
     font-weight: 700;
-    color: #172033;
+
+    color: #f8fafc;
+
     overflow-wrap: anywhere;
 }
 
 .invitation-status {
     display: inline-block;
+
     padding: 5px 10px;
+
     border-radius: 20px;
-    background-color: #fef3c7;
-    color: #92400e;
+
+    background-color: #422006;
+    color: #fcd34d;
+
     font-size: 12px;
     font-weight: 600;
 }
 
 
 /* ============================================================
-   6. INVITATION DETAILS
+   7. INVITATION DETAILS
    ============================================================ */
 
 .invitation-description {
     margin: 0 0 20px;
-    color: #475569;
+
+    color: #cbd5e1;
+
     font-size: 14px;
     line-height: 1.8;
+
     overflow-wrap: anywhere;
 }
 
 .invitation-meta {
     display: flex;
     flex-wrap: wrap;
+
     gap: 12px 24px;
     margin-bottom: 24px;
 }
 
 .invitation-meta p {
     margin: 0;
-    color: #64748b;
+
+    color: #94a3b8;
+
     font-size: 13px;
     line-height: 1.6;
 }
 
 .invitation-meta strong {
-    color: #334155;
+    color: #e2e8f0;
 }
 
 
 /* ============================================================
-   7. INVITATION ACTIONS
+   8. INVITATION ACTIONS
    ============================================================ */
 
 .invitation-actions {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
+
     gap: 12px;
+
     padding-top: 20px;
-    border-top: 1px solid #e2e8f0;
+
+    border-top: 1px solid #334155;
 }
 
 .invitation-actions form {
@@ -273,54 +356,76 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+
     min-height: 42px;
+
     padding: 11px 20px;
+
     border-radius: 8px;
+
     font-size: 14px;
     font-weight: 600;
+
     cursor: pointer;
+
     transition:
         background-color 0.2s ease,
+        border-color 0.2s ease,
         transform 0.2s ease;
 }
 
+
+/* ACCEPT BUTTON */
+
 .accept-invitation-button {
     border: 1px solid #4f46e5;
+
     background-color: #4f46e5;
     color: #ffffff;
 }
 
 .accept-invitation-button:hover {
     background-color: #4338ca;
+    border-color: #4338ca;
 }
 
+
+/* DECLINE BUTTON */
+
 .decline-invitation-button {
-    border: 1px solid #fecaca;
-    background-color: #ffffff;
-    color: #b91c1c;
+    border: 1px solid #7f1d1d;
+
+    background-color: #2b1116;
+    color: #fca5a5;
 }
 
 .decline-invitation-button:hover {
-    background-color: #fef2f2;
+    background-color: #450a0a;
+    border-color: #ef4444;
 }
 
-.accept-invitation-button:focus-visible,
-.decline-invitation-button:focus-visible,
-.back-to-groups:focus-visible {
-    outline: 3px solid #818cf8;
-    outline-offset: 3px;
+
+/* DISABLED BUTTONS */
+
+.accept-invitation-button:disabled,
+.decline-invitation-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 
 /* ============================================================
-   8. EMPTY INVITATIONS STATE
+   9. EMPTY INVITATIONS STATE
    ============================================================ */
 
 .invitations-empty {
     padding: 48px 24px;
+
     text-align: center;
-    background-color: #f8fafc;
-    border: 1px dashed #cbd5e1;
+
+    background-color: #0f172a;
+
+    border: 1px dashed #475569;
     border-radius: 12px;
 }
 
@@ -331,14 +436,18 @@
 
 .invitations-empty h3 {
     margin: 0 0 12px;
-    color: #172033;
+
+    color: #f8fafc;
     font-size: 21px;
 }
 
 .invitations-empty p {
     max-width: 500px;
+
     margin: 0 auto 12px;
-    color: #64748b;
+
+    color: #94a3b8;
+
     font-size: 14px;
     line-height: 1.8;
 }
@@ -347,13 +456,18 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+
     margin-top: 18px;
     padding: 12px 22px;
+
     border-radius: 8px;
+
     background-color: #4f46e5;
     color: #ffffff;
+
     font-size: 14px;
     font-weight: 600;
+
     text-decoration: none;
 }
 
@@ -363,27 +477,33 @@
 
 
 /* ============================================================
-   9. INFORMATION SECTION
+   10. INFORMATION SECTION
    ============================================================ */
 
 .invitations-info {
     margin-top: 28px;
     padding: 28px;
-    background-color: #eef2ff;
-    border: 1px solid #c7d2fe;
+
+    background-color: #172554;
+
+    border: 1px solid #1e40af;
     border-radius: 12px;
 }
 
 .invitations-info h2 {
     margin: 0 0 18px;
+
     font-size: 19px;
     font-weight: 700;
-    color: #312e81;
+
+    color: #dbeafe;
 }
 
 .invitations-info p {
     margin: 0 0 12px;
-    color: #4338ca;
+
+    color: #bfdbfe;
+
     font-size: 14px;
     line-height: 1.8;
 }
@@ -394,7 +514,271 @@
 
 
 /* ============================================================
-   10. MOBILE RESPONSIVENESS
+   11. CUSTOM CONFIRMATION MODAL
+   ============================================================ */
+
+/*
+   The modal is hidden by default.
+
+   JavaScript removes the hidden attribute when the
+   developer clicks Accept or Decline.
+*/
+
+.invitation-modal[hidden] {
+    display: none !important;
+}
+
+.invitation-modal {
+    position: fixed;
+    inset: 0;
+
+    z-index: 10000;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 20px;
+}
+
+
+/* DARK BACKDROP */
+
+.invitation-modal-backdrop {
+    position: absolute;
+    inset: 0;
+
+    background-color: rgba(2, 6, 23, 0.82);
+    backdrop-filter: blur(5px);
+}
+
+
+/* MODAL DIALOG */
+
+.invitation-modal-dialog {
+    position: relative;
+    z-index: 1;
+
+    width: 100%;
+    max-width: 440px;
+
+    padding: 32px;
+
+    background-color: #111827;
+
+    border: 1px solid #334155;
+    border-radius: 16px;
+
+    box-shadow:
+        0 24px 70px rgba(0, 0, 0, 0.5);
+
+    color: #f8fafc;
+
+    animation: invitation-modal-appear 0.2s ease-out;
+}
+
+
+/* CLOSE BUTTON */
+
+.invitation-modal-close {
+    position: absolute;
+    top: 14px;
+    right: 16px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 34px;
+    height: 34px;
+
+    padding: 0;
+
+    background-color: transparent;
+
+    border: 1px solid transparent;
+    border-radius: 8px;
+
+    color: #94a3b8;
+
+    font-size: 25px;
+    line-height: 1;
+
+    cursor: pointer;
+}
+
+.invitation-modal-close:hover {
+    background-color: #1e293b;
+    color: #ffffff;
+}
+
+
+/* MODAL ICON */
+
+.invitation-modal-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 58px;
+    height: 58px;
+
+    margin-bottom: 22px;
+
+    border-radius: 16px;
+
+    background-color: #312e81;
+    color: #c7d2fe;
+
+    font-size: 27px;
+    font-weight: 700;
+}
+
+.invitation-modal-icon.is-decline {
+    background-color: #450a0a;
+    color: #fca5a5;
+}
+
+
+/* MODAL TEXT */
+
+.invitation-modal-dialog h2 {
+    margin: 0 0 12px;
+
+    font-size: 23px;
+    font-weight: 700;
+
+    color: #f8fafc;
+}
+
+.invitation-modal-dialog p {
+    margin: 0 0 28px;
+
+    color: #cbd5e1;
+
+    font-size: 15px;
+    line-height: 1.7;
+
+    overflow-wrap: anywhere;
+}
+
+
+/* MODAL ACTION BUTTONS */
+
+.invitation-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+
+    gap: 12px;
+}
+
+.invitation-modal-cancel,
+.invitation-modal-confirm {
+    min-height: 44px;
+
+    padding: 11px 20px;
+
+    border-radius: 9px;
+
+    font-size: 14px;
+    font-weight: 600;
+
+    cursor: pointer;
+
+    transition:
+        background-color 0.2s ease,
+        border-color 0.2s ease;
+}
+
+
+/* CANCEL */
+
+.invitation-modal-cancel {
+    background-color: #1e293b;
+
+    border: 1px solid #475569;
+
+    color: #e2e8f0;
+}
+
+.invitation-modal-cancel:hover {
+    background-color: #334155;
+}
+
+
+/* CONFIRM ACCEPT */
+
+.invitation-modal-confirm {
+    background-color: #4f46e5;
+
+    border: 1px solid #4f46e5;
+
+    color: #ffffff;
+}
+
+.invitation-modal-confirm:hover {
+    background-color: #4338ca;
+}
+
+
+/* CONFIRM DECLINE */
+
+.invitation-modal-confirm.is-decline {
+    background-color: #b91c1c;
+    border-color: #b91c1c;
+}
+
+.invitation-modal-confirm.is-decline:hover {
+    background-color: #991b1b;
+}
+
+
+/* DISABLED CONFIRM */
+
+.invitation-modal-confirm:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+
+/* ============================================================
+   12. MODAL ANIMATION
+   ============================================================ */
+
+@keyframes invitation-modal-appear {
+
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+
+}
+
+
+/* ============================================================
+   13. KEYBOARD ACCESSIBILITY
+   ============================================================ */
+
+.accept-invitation-button:focus-visible,
+.decline-invitation-button:focus-visible,
+.back-to-groups:focus-visible,
+.browse-groups-button:focus-visible,
+.invitation-modal-close:focus-visible,
+.invitation-modal-cancel:focus-visible,
+.invitation-modal-confirm:focus-visible {
+    outline: 3px solid #818cf8;
+    outline-offset: 3px;
+}
+
+
+/* ============================================================
+   14. MOBILE RESPONSIVENESS
    ============================================================ */
 
 @media (max-width: 768px) {
@@ -429,6 +813,10 @@
         padding: 20px;
     }
 
+    .invitation-modal-dialog {
+        padding: 26px 22px;
+    }
+
 }
 
 @media (max-width: 480px) {
@@ -453,6 +841,38 @@
 
     .invitations-section-heading h2 {
         font-size: 18px;
+    }
+
+    .invitation-modal-actions {
+        flex-direction: column-reverse;
+        align-items: stretch;
+    }
+
+    .invitation-modal-cancel,
+    .invitation-modal-confirm {
+        width: 100%;
+    }
+
+}
+
+
+/* ============================================================
+   15. REDUCED MOTION
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+
+    .invitation-modal-dialog {
+        animation: none;
+    }
+
+    .invitation-card,
+    .back-to-groups,
+    .accept-invitation-button,
+    .decline-invitation-button,
+    .invitation-modal-cancel,
+    .invitation-modal-confirm {
+        transition: none;
     }
 
 }

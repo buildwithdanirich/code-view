@@ -195,6 +195,18 @@ urlpatterns = [
         name="delete_group_message",
     ),
 
+        # ========================================================
+    # SECURE GROUP CHAT ATTACHMENT DOWNLOAD
+    # ========================================================
+
+    # Allow authorized group members to download attachments.
+    # The view checks membership before returning the file.
+    path(
+        "<int:group_id>/chat/<int:message_id>/attachment/",
+        views.download_group_attachment,
+        name="download_group_attachment",
+    ),
+
     # ========================================================
     # 9. GITHUB REPOSITORY INTEGRATION
     # ========================================================

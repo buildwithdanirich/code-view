@@ -5,26 +5,34 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>Project Groups | CodeView</title>
 
-  <!-- Shared CodeView styling -->
-<link
-    rel="stylesheet"
-    href="{% static 'community/sheared.css' %}"
->
+    <!-- Shared CodeView styles -->
+    <link
+        rel="stylesheet"
+        href="{% static 'community/sheared.css' %}"
+    >
 
-<!-- Groups page styling -->
-<link
-    rel="stylesheet"
-    href="{% static 'community/groups/groups.css' %}"
->
+    <!-- Groups dashboard styles -->
+    <link
+        rel="stylesheet"
+        href="{% static 'community/groups/groups.css' %}"
+    >
+
 </head>
 
 <body>
 
-    <!-- TOP NAVIGATION -->
+    <!-- =====================================================
+         1. TOP NAVIGATION
+    ====================================================== -->
+
     <header class="navbar">
 
         <a href="{% url 'groups' %}" class="brand">
@@ -32,62 +40,169 @@
         </a>
 
         <nav class="top-links">
-            <a href="{% url 'groups' %}" class="active" aria-current="page">
+
+            <a
+                href="{% url 'groups' %}"
+                class="active"
+                aria-current="page"
+            >
                 Groups
             </a>
 
             <a href="{% url 'create_group' %}">
                 Create Group
             </a>
+
+            <!-- Available to every logged-in developer. -->
+            <a
+                href="{% url 'received_group_invitations' %}"
+                class="invitations-nav-link"
+            >
+                ✉ My Invitations
+
+                {% if pending_invitation_count %}
+                    <span class="invitation-count">
+                        {{ pending_invitation_count }}
+                    </span>
+                {% endif %}
+
+            </a>
+
         </nav>
 
         <div class="profile">
+
             <span class="avatar">
                 {{ request.user.username|first|upper }}
             </span>
 
-            <span>{{ request.user.username }}</span>
+            <span>
+                {{ request.user.username }}
+            </span>
+
         </div>
 
     </header>
 
-    <!-- GROUPS PAGE -->
+
+    <!-- =====================================================
+         2. GROUPS DASHBOARD
+    ====================================================== -->
+
     <main class="page-container cv-groups-page">
 
         <!-- Django notifications -->
+
         {% if messages %}
-            <section class="notifications" aria-live="polite">
+
+            <section
+                class="notifications"
+                aria-live="polite"
+            >
 
                 {% for message in messages %}
+
                     <div
                         class="notification notification-{{ message.tags }}"
                         role="status"
                     >
                         {{ message }}
                     </div>
+
                 {% endfor %}
 
             </section>
+
         {% endif %}
 
-        <!-- PAGE HEADER -->
+
+        <!-- =================================================
+             3. PAGE HEADING
+        ================================================== -->
+
         <section class="page-heading">
 
             <div>
+
                 <h1>Groups</h1>
 
                 <p>
                     Find, create, and manage your development groups.
                 </p>
+
             </div>
 
-            <a href="{% url 'create_group' %}" class="primary-button">
+            <a
+                href="{% url 'create_group' %}"
+                class="primary-button"
+            >
                 + Create Group
             </a>
 
         </section>
 
-        <!-- SEARCH EXISTING GROUPS -->
+
+        <!-- =================================================
+             4. MY INVITATIONS
+        ================================================== -->
+
+        <section
+            class="cv-invitations-banner"
+            aria-labelledby="invitations-heading"
+        >
+
+            <div class="cv-invitations-banner-content">
+
+                <span
+                    class="cv-invitations-icon"
+                    aria-hidden="true"
+                >
+                    ✉
+                </span>
+
+                <div>
+
+                    <h2 id="invitations-heading">
+                        My Group Invitations
+                    </h2>
+
+                    {% if pending_invitation_count %}
+
+                        <p>
+                            You have
+                            <strong>
+                                {{ pending_invitation_count }}
+                            </strong>
+                            pending group invitation{{ pending_invitation_count|pluralize }}.
+                        </p>
+
+                    {% else %}
+
+                        <p>
+                            Invitations to private development groups
+                            will appear here.
+                        </p>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+            <a
+                href="{% url 'received_group_invitations' %}"
+                class="secondary-button"
+            >
+                View Invitations
+            </a>
+
+        </section>
+
+
+        <!-- =================================================
+             5. SEARCH EXISTING GROUPS
+        ================================================== -->
+
         <section class="cv-group-search">
 
             <label for="group-search">
@@ -95,7 +210,10 @@
             </label>
 
             <div class="cv-search-field">
-                <span aria-hidden="true">⌕</span>
+
+                <span aria-hidden="true">
+                    ⌕
+                </span>
 
                 <input
                     type="search"
@@ -103,6 +221,7 @@
                     placeholder="Search groups by name..."
                     autocomplete="off"
                 >
+
             </div>
 
             <p>
@@ -111,10 +230,15 @@
 
         </section>
 
-        <!-- GROUP ACTIONS -->
+
+        <!-- =================================================
+             6. GROUP ACTIONS
+        ================================================== -->
+
         <section class="cv-group-actions">
 
             <!-- SELECT EXISTING GROUP -->
+
             <article class="cv-action-card">
 
                 <div class="cv-action-heading">
@@ -124,11 +248,15 @@
                     </span>
 
                     <div>
-                        <h2>Select Group</h2>
+
+                        <h2>
+                            Select Group
+                        </h2>
 
                         <p>
                             Choose an existing group to view its workspace.
                         </p>
+
                     </div>
 
                 </div>
@@ -138,18 +266,22 @@
                 </label>
 
                 <select id="group-select">
+
                     <option value="">
                         Select a group...
                     </option>
 
                     {% for group in groups %}
+
                         <option
                             value="{% url 'group_detail' group.id %}"
                             data-group-name="{{ group.name }}"
                         >
                             {{ group.name }}
                         </option>
+
                     {% endfor %}
+
                 </select>
 
                 <button
@@ -167,7 +299,9 @@
 
             </article>
 
+
             <!-- CREATE GROUP -->
+
             <article class="cv-action-card">
 
                 <div class="cv-action-heading">
@@ -177,19 +311,24 @@
                     </span>
 
                     <div>
-                        <h2>Create Group</h2>
+
+                        <h2>
+                            Create Group
+                        </h2>
 
                         <p>
                             Start a development group and collaborate
                             with other developers.
                         </p>
+
                     </div>
 
                 </div>
 
                 <p class="cv-create-description">
-                    Set your group name, privacy, and joining options
-                    on the group creation page.
+                    Create a public community that developers can
+                    join freely, or a private development group
+                    that requires an invitation.
                 </p>
 
                 <a
@@ -203,18 +342,30 @@
 
         </section>
 
-        <!-- GROUP LIST -->
+
+        <!-- =================================================
+             7. EXISTING GROUPS
+        ================================================== -->
+
         <section class="cv-groups-section">
 
             <div class="cv-section-heading">
-                <h2>Existing Groups</h2>
+
+                <h2>
+                    Existing Groups
+                </h2>
 
                 <p>
                     Explore groups and access the ones you've joined.
                 </p>
+
             </div>
 
-            <div class="groups-grid" id="groups-grid">
+
+            <div
+                class="groups-grid"
+                id="groups-grid"
+            >
 
                 {% for group in groups %}
 
@@ -225,6 +376,7 @@
                     >
 
                         <!-- GROUP ICON AND PRIVACY -->
+
                         <div class="group-card-top">
 
                             <div class="group-icon">
@@ -247,7 +399,9 @@
 
                         </div>
 
+
                         <!-- GROUP DETAILS -->
+
                         <div class="group-card-content">
 
                             <h2 class="group-name">
@@ -260,28 +414,33 @@
 
                             <p class="cv-group-policy">
 
-                                {% if group.join_policy == "open" %}
+                                {% if group.is_private %}
+
+                                    Invitation Only
+
+                                {% else %}
+
                                     Anyone Can Join
 
-                                {% elif group.join_policy == "approval" %}
-                                    Admin Approval Required
-
-                                {% elif group.join_policy == "invite" %}
-                                    Invitation Only
                                 {% endif %}
 
                             </p>
 
                         </div>
 
+
                         <!-- MEMBERSHIP ACTIONS -->
+
                         <div class="group-card-footer">
 
                             <span class="group-date">
                                 {{ group.created_at|date:"M d, Y" }}
                             </span>
 
+
                             {% if group.is_member %}
+
+                                <!-- Existing members open their workspace. -->
 
                                 <a
                                     href="{% url 'group_detail' group.id %}"
@@ -290,21 +449,25 @@
                                     Open Workspace
                                 </a>
 
-                            {% elif group.has_pending_request %}
 
-                                <span
-                                    class="coming-soon"
-                                    title="Waiting for administrator approval"
-                                >
-                                    ⏳ Request Pending
+                            {% elif group.is_private %}
+
+                                <!-- Private groups require an invitation. -->
+
+                                <span class="coming-soon">
+                                    Invitation Only
                                 </span>
 
-                            {% elif group.join_policy == "open" and not group.is_private %}
+
+                            {% else %}
+
+                                <!-- Public groups allow direct joining. -->
 
                                 <form
                                     method="POST"
                                     action="{% url 'join_group' group.id %}"
                                 >
+
                                     {% csrf_token %}
 
                                     <button
@@ -313,22 +476,8 @@
                                     >
                                         Join Group
                                     </button>
+
                                 </form>
-
-                            {% elif group.join_policy == "approval" and not group.is_private %}
-
-                                <a
-                                    href="{% url 'group_detail' group.id %}"
-                                    class="primary-button"
-                                >
-                                    Request to Join
-                                </a>
-
-                            {% elif group.join_policy == "invite" %}
-
-                                <span class="coming-soon">
-                                    Invitation Only
-                                </span>
 
                             {% endif %}
 
@@ -336,11 +485,14 @@
 
                     </article>
 
+
                 {% empty %}
 
                     <div class="empty-state">
 
-                        <h2>No project groups yet</h2>
+                        <h2>
+                            No project groups yet
+                        </h2>
 
                         <p>
                             Create the first project group
@@ -360,18 +512,30 @@
 
             </div>
 
-            <!-- Displayed when a search has no matches -->
-            <p id="group-search-empty" class="cv-search-empty" hidden>
+
+            <!-- Displayed when a search has no matches. -->
+
+            <p
+                id="group-search-empty"
+                class="cv-search-empty"
+                hidden
+            >
                 No groups match your search.
             </p>
 
         </section>
 
     </main>
-<!-- Load the Groups page JavaScript -->
-<script
-    src="{% static 'community/groups/groups.js' %}"
-    defer
-></script>
+
+
+    <!-- =====================================================
+         8. EXTERNAL JAVASCRIPT
+    ====================================================== -->
+
+    <script
+        src="{% static 'community/groups/groups.js' %}"
+        defer
+    ></script>
+
 </body>
 </html>
