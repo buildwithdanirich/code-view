@@ -618,45 +618,102 @@ class HiddenDiscussion(models.Model):
 # ============================================================
 # 9. GROUP REPOSITORY
 # ============================================================
-
 class GroupRepository(models.Model):
-    """Store GitHub repository details for private groups."""
+    """
+    Store GitHub repository information for private groups.
 
+    Supports:
+    - Existing public repository connections
+    - GitHub App-authorized private repositories
+    """
+
+    # Each private development group can connect one repository.
     group = models.OneToOneField(
         ProjectGroup,
         on_delete=models.CASCADE,
         related_name="repository",
     )
 
-    github_owner = models.CharField(max_length=100)
+    # GitHub username or organization that owns the repository.
+    github_owner = models.CharField(
+        max_length=100,
+    )
 
-    repository_name = models.CharField(max_length=100)
+    # Repository name.
+    repository_name = models.CharField(
+        max_length=100,
+    )
 
+    # Repository's default branch.
     default_branch = models.CharField(
         max_length=100,
         default="main",
     )
 
-    connected_at = models.DateTimeField(auto_now_add=True)
+    # GitHub's unique repository ID.
+    # Null supports existing repository records.
+    github_repository_id = models.BigIntegerField(
+        null=True,
+        blank=True,
+    )
+
+    # GitHub App installation ID.
+    # Null means no installation is linked to this record.
+    github_installation_id = models.BigIntegerField(
+        null=True,
+        blank=True,
+    )
+
+    # Whether GitHub identifies this repository as private.
+    is_private = models.BooleanField(
+        default=False,
+    )
+
+    # Date when the repository was connected.
+    connected_at = models.DateTimeField(
+        auto_now_add=True,
+    )
 
     def clean(self):
-        """Allow repositories only in private development groups."""
+        """
+        Validate repository information.
+        """
+
         super().clean()
 
+        # Only private development groups can connect repositories.
         if self.group_id and not self.group.is_private:
             raise ValidationError(
                 "Only private development groups can connect repositories."
             )
 
+        # Private repositories require a GitHub App installation.
+        if self.is_private and not self.github_installation_id:
+            raise ValidationError(
+                "Private repositories require GitHub App authorization."
+            )
+
+        # An authorized private repository must have a stable GitHub ID.
+        if self.is_private and not self.github_repository_id:
+            raise ValidationError(
+                "Private repositories require a GitHub repository ID."
+            )
+
     def save(self, *args, **kwargs):
-        """Validate repository information before saving."""
+        """
+        Validate repository information before saving.
+        """
+
         self.full_clean()
+
         super().save(*args, **kwargs)
 
     def __str__(self):
+        """
+        Display the repository's owner and name.
+        """
+
         return f"{self.github_owner}/{self.repository_name}"
-
-
 # ============================================================
 # 10. GROUP CHAT MESSAGE
 # ============================================================
