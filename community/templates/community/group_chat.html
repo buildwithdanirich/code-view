@@ -30,7 +30,7 @@
 
 </head>
 
-<body>
+<body data-current-user-id="{{ request.user.id }}">
 
     <!-- ========================================
          3. TOP NAVIGATION
@@ -231,6 +231,7 @@
 
             <section
                 class="chat-messages"
+                data-group-id="{{ group.id }}"
                 id="chat-messages"
                 aria-label="Group chat messages"
             >
@@ -239,6 +240,7 @@
 
                     <article
                         class="chat-message"
+                        data-message-id="{{ chat_message.id }}"
                         id="message-{{ chat_message.id }}"
                     >
 
@@ -351,6 +353,16 @@
                                         ↩ Reply
                                     </button>
 
+                                    <!-- Emoji reaction button. -->
+                                    <button
+                                        type="button"
+                                        class="react-button"
+                                        data-message-id="{{ chat_message.id }}"
+                                        aria-label="React to message"
+                                    >
+                                        😊 React
+                                    </button>
+
                                     {% if chat_message.sender_id == request.user.id %}
                                         {% if chat_message.message_type == "text" %}
                                             <button
@@ -371,6 +383,37 @@
                                         </button>
                                     {% endif %}
                                 </div>
+
+                                <!-- ====================================
+                                     EMOJI REACTION PICKER
+                                ===================================== -->
+
+                                <div
+                                    class="reaction-picker"
+                                    hidden
+                                ></div>
+
+                                <!-- ====================================
+                                     SAVED MESSAGE REACTIONS
+                                ===================================== -->
+
+                                <div class="reaction-counts">
+
+                                    {% for emoji, count in chat_message.reaction_summary.items %}
+
+                                        <button
+                                            type="button"
+                                            class="reaction-count-button"
+                                            data-message-id="{{ chat_message.id }}"
+                                            data-emoji="{{ emoji }}"
+                                        >
+                                            {{ emoji }} {{ count }}
+                                        </button>
+
+                                    {% endfor %}
+
+                                </div>
+
                             {% endif %}
 
                         </div>
@@ -493,6 +536,10 @@
         </main>
 
     </div>
+    <script
+    src="{% static 'community/group_detail/group_chat.js' %}"
+    defer
+></script>
 
 </body>
 

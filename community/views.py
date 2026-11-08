@@ -1053,20 +1053,41 @@ def hide_discussion(request, group_id, discussion_id):
 # ============================================================
 # 14. GROUP CHAT ROOM
 # ============================================================
+# ============================================================
+# GROUP CHAT PAGE
+# ============================================================
 
 @login_required
 def group_chat(request, group_id):
-    """Display chat history to authorized group members."""
+    """
+    Display chat history to authorized group members.
+
+    Features:
+        - Load the latest 50 messages.
+        - Load saved emoji reactions.
+        - Count reactions for each message.
+        - Identify the logged-in developer's reaction.
+    """
+
+    # ========================================================
+    # 1. FIND THE GROUP
+    # ========================================================
 
     group = get_object_or_404(
         ProjectGroup,
         id=group_id,
     )
 
+    # Only authorized group members can access the chat.
     if not is_group_member(group, request.user):
+
         return HttpResponseForbidden(
             "You must be a group member to access its chat."
         )
+
+    # ========================================================
+    # 2. LOAD THE LATEST 50 MESSAGES
+    # ========================================================
 
     recent_messages = list(
         GroupChatMessage.objects
@@ -1076,10 +1097,53 @@ def group_chat(request, group_id):
             "reply_to",
             "reply_to__sender",
         )
+        .prefetch_related(
+            "reactions",
+        )
         .order_by("-created_at", "-id")[:50]
     )
 
+    # Display oldest messages first.
     recent_messages.reverse()
+
+    # ========================================================
+    # 3. PREPARE SAVED EMOJI REACTIONS
+    # ========================================================
+
+    for chat_message in recent_messages:
+
+        # Store reaction totals for this message.
+        reaction_summary = {}
+
+        # Store the logged-in developer's selected emoji.
+        my_reaction = None
+
+        # Deleted messages should not display reactions.
+        if chat_message.deleted_at is None:
+
+            # Read prefetched reactions without extra queries.
+            for reaction in chat_message.reactions.all():
+
+                emoji = reaction.emoji
+
+                # Count how many developers selected this emoji.
+                reaction_summary[emoji] = (
+                    reaction_summary.get(emoji, 0) + 1
+                )
+
+                # Identify the logged-in developer's reaction.
+                if reaction.user_id == request.user.id:
+
+                    my_reaction = emoji
+
+        # Make these values available in the HTML template.
+        chat_message.reaction_summary = reaction_summary
+
+        chat_message.my_reaction = my_reaction
+
+    # ========================================================
+    # 4. DISPLAY THE CHAT PAGE
+    # ========================================================
 
     return render(
         request,
