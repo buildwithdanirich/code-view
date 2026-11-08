@@ -1,11 +1,10 @@
 """Database models for CodeView groups, memberships, and collaboration."""
 
-# Generate unique identifiers for each membership period.
 import uuid
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, transaction
 
 
 # ============================================================
@@ -13,9 +12,8 @@ from django.db import models
 # ============================================================
 
 class ProjectGroup(models.Model):
-    """Store public communities and private development groups."""
+    """Store normal chat groups and private development groups."""
 
-    # Rules for joining a group.
     JOIN_POLICY_CHOICES = [
         ("open", "Anyone Can Join"),
         ("approval", "Admin Approval Required"),
@@ -23,8 +21,8 @@ class ProjectGroup(models.Model):
     ]
 
     name = models.CharField(max_length=100)
-
     description = models.TextField()
+
     # Developer who owns the group.
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -32,23 +30,17 @@ class ProjectGroup(models.Model):
         related_name="owned_project_groups",
     )
 
-    # Preserve the owner membership generation for existing database migrations.
-    #
-    # This is separate from regular GroupMember generations
-    # because owners may not have a GroupMember record.
-    #
-    # If ownership changes, this UUID must also change
-    # to invalidate previously issued owner permissions.
+    # Helps invalidate old owner permissions if ownership changes.
     owner_membership_generation = models.UUIDField(
         default=uuid.uuid4,
         editable=False,
     )
 
-    # False = Public Community.
-    # True = Private Development Group.
+    # False = normal chat group.
+    # True = private development group.
     is_private = models.BooleanField(default=False)
 
-    # Determines how developers become members.
+    # Existing join policies are retained for migration compatibility.
     join_policy = models.CharField(
         max_length=10,
         choices=JOIN_POLICY_CHOICES,
@@ -61,21 +53,19 @@ class ProjectGroup(models.Model):
         ordering = ["-created_at"]
 
     def clean(self):
-        """Prevent private groups from allowing unrestricted joining."""
-
+        """Prevent unrestricted joining of private groups."""
         super().clean()
 
         if self.is_private and self.join_policy == "open":
             raise ValidationError({
                 "join_policy": (
                     "Private development groups must require "
-                    "admin approval or an invitation."
+                    "an invitation or approval."
                 )
             })
 
     def save(self, *args, **kwargs):
         """Validate group settings before saving."""
-
         self.full_clean()
         super().save(*args, **kwargs)
 
@@ -88,7 +78,7 @@ class ProjectGroup(models.Model):
 # ============================================================
 
 class GroupMember(models.Model):
-    """Store approved group members and their roles."""
+    """Store group members and their existing roles."""
 
     ROLE_CHOICES = [
         ("admin", "Admin"),
@@ -112,18 +102,9 @@ class GroupMember(models.Model):
         default="member",
     )
 
-       # Record when the developer joined the group.
     joined_at = models.DateTimeField(auto_now_add=True)
 
-    # Give each membership period a unique identifier.
-    #
-    # Example:
-    # John joins Group 5 -> Generation A
-    # John leaves Group 5 -> Generation A becomes invalid
-    # John rejoins Group 5 -> Generation B
-    #
-    # Permissions tied to an earlier membership must not become
-    # valid again if the developer rejoins.
+    # Identifies the current membership period.
     membership_generation = models.UUIDField(
         default=uuid.uuid4,
         editable=False,
@@ -131,62 +112,100 @@ class GroupMember(models.Model):
 
     class Meta:
         constraints = [
-            # A developer cannot join the same group twice.
             models.UniqueConstraint(
                 fields=["group", "user"],
                 name="unique_project_group_member",
             ),
         ]
-    def clean(self):
-        """Limit private groups to 15 people, including the owner."""
 
+    def clean(self):
+        """
+        Enforce the private-group limit.
+
+        Maximum:
+            1 owner + 14 other developers = 15 people.
+
+        Normal chat groups have no fixed membership limit.
+        """
         super().clean()
 
         if not self.group_id:
             return
 
-        # Public communities can have unlimited members.
+        # Normal groups have no fixed limit.
         if not self.group.is_private:
             return
 
-        # Get all existing group memberships.
+        # Count members other than the owner.
         members = GroupMember.objects.filter(
             group_id=self.group_id,
-        )
-
-        # Exclude the current record when editing a membership.
-        if self.pk:
-            members = members.exclude(pk=self.pk)
-
-        # Exclude the owner because we count them separately.
-        members = members.exclude(
+        ).exclude(
             user_id=self.group.owner_id,
         )
 
-        # Maximum: 14 regular members + 1 owner = 15 people.
-        if self.user_id != self.group.owner_id and members.count() >= 14:
+        # Do not count the current record twice during an update.
+        if self.pk:
+            members = members.exclude(pk=self.pk)
+
+        # The owner is counted separately.
+        if self.user_id == self.group.owner_id:
+            return
+
+        if members.count() >= 14:
             raise ValidationError(
                 "Private development groups cannot exceed "
                 "15 people, including the owner."
             )
 
-
     def save(self, *args, **kwargs):
-        """Validate membership before saving."""
+        """
+        Save memberships safely.
 
-        self.full_clean()
-        super().save(*args, **kwargs)
+        Lock the parent group so simultaneous membership saves
+        cannot independently pass the capacity check.
+        """
+
+        database = (
+            kwargs.get("using")
+            or self._state.db
+            or "default"
+        )
+
+        with transaction.atomic(using=database):
+
+            if self.group_id:
+                locked_group = (
+                    ProjectGroup.objects.using(database)
+                    .select_for_update()
+                    .get(pk=self.group_id)
+                )
+
+                self.group = locked_group
+
+            # Validate while holding the database lock.
+            self.full_clean()
+
+            # Save inside the same transaction.
+            super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.user} in {self.group.name}"
 
 
 # ============================================================
-# 3. GROUP MEMBERSHIP REQUEST
+# 3. EXISTING GROUP MEMBERSHIP REQUEST
 # ============================================================
 
 class GroupMembershipRequest(models.Model):
-    """Store requests from developers who want to join groups."""
+    """
+    Legacy membership-request model.
+
+    Keep this temporarily because existing views and migrations
+    may still reference it.
+
+    We will remove the old approval workflow after updating
+    the remaining CodeView files.
+    """
 
     STATUS_CHOICES = [
         ("pending", "Pending"),
@@ -194,34 +213,29 @@ class GroupMembershipRequest(models.Model):
         ("rejected", "Rejected"),
     ]
 
-    # Group the developer wants to join.
     group = models.ForeignKey(
         ProjectGroup,
         on_delete=models.CASCADE,
         related_name="membership_requests",
     )
 
-    # Developer requesting membership.
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="group_join_requests",
     )
 
-    # New requests must be reviewed.
     status = models.CharField(
         max_length=10,
         choices=STATUS_CHOICES,
         default="pending",
     )
 
-    # Optional introduction from the developer.
     message = models.TextField(
         max_length=1000,
         blank=True,
     )
 
-    # Administrator who reviewed the request.
     reviewed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -255,8 +269,7 @@ class GroupMembershipRequest(models.Model):
         ]
 
     def clean(self):
-        """Check whether the developer can request membership."""
-
+        """Validate legacy membership requests."""
         super().clean()
 
         if not self.group_id or not self.user_id:
@@ -278,8 +291,7 @@ class GroupMembershipRequest(models.Model):
             )
 
     def save(self, *args, **kwargs):
-        """Validate membership requests before saving."""
-
+        """Validate before saving."""
         self.full_clean()
         super().save(*args, **kwargs)
 
@@ -291,7 +303,145 @@ class GroupMembershipRequest(models.Model):
 
 
 # ============================================================
-# 4. GROUP DISCUSSION
+# 4. NEW GROUP INVITATION
+# ============================================================
+
+class GroupInvitation(models.Model):
+    """
+    Store invitations sent by private development group owners.
+
+    Workflow:
+        1. Owner invites a developer.
+        2. Invitation starts as pending.
+        3. Developer accepts or declines.
+        4. Accepted invitations lead to group membership.
+
+    The acceptance workflow will be implemented separately.
+    """
+
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("accepted", "Accepted"),
+        ("declined", "Declined"),
+    ]
+
+    # Private development group sending the invitation.
+    group = models.ForeignKey(
+        ProjectGroup,
+        on_delete=models.CASCADE,
+        related_name="invitations",
+    )
+
+    # Developer who sent the invitation.
+    # This must be the group owner.
+    invited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="sent_group_invitations",
+    )
+
+    # Developer receiving the invitation.
+    invited_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="received_group_invitations",
+    )
+
+    # pending, accepted, or declined.
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default="pending",
+    )
+
+    # When the invitation was created.
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    # When the developer accepted or declined.
+    responded_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+
+        constraints = [
+            # Prevent duplicate invitation records for one
+            # developer in the same group.
+            models.UniqueConstraint(
+                fields=["group", "invited_user"],
+                name="unique_private_group_invitation",
+            ),
+        ]
+
+        indexes = [
+            # Make finding pending invitations faster.
+            models.Index(
+                fields=["invited_user", "status"],
+                name="group_invitee_status_idx",
+            ),
+        ]
+
+    def clean(self):
+        """Validate the invitation before saving it."""
+        super().clean()
+
+        # Wait until the required relationships are available.
+        if (
+            not self.group_id
+            or not self.invited_by_id
+            or not self.invited_user_id
+        ):
+            return
+
+        # Normal chat groups do not use invitations.
+        if not self.group.is_private:
+            raise ValidationError(
+                "Only private development groups use invitations."
+            )
+
+        # Only the owner can send invitations.
+        if self.invited_by_id != self.group.owner_id:
+            raise ValidationError(
+                "Only the group owner can send invitations."
+            )
+
+        # Owners cannot invite themselves.
+        if self.invited_user_id == self.group.owner_id:
+            raise ValidationError(
+                "The group owner cannot invite themselves."
+            )
+
+        # Check existing membership for pending invitations.
+        # An accepted invitation may already have a member record,
+        # so we must not reject it just because it was accepted.
+        if self.status == "pending":
+
+            already_member = GroupMember.objects.filter(
+                group_id=self.group_id,
+                user_id=self.invited_user_id,
+            ).exists()
+
+            if already_member:
+                raise ValidationError(
+                    "This developer is already a member of the group."
+                )
+
+    def save(self, *args, **kwargs):
+        """Validate invitation data before saving."""
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return (
+            f"Invitation for {self.invited_user} "
+            f"to {self.group.name}: {self.status}"
+        )
+
+
+# ============================================================
+# 5. GROUP DISCUSSION
 # ============================================================
 
 class GroupDiscussion(models.Model):
@@ -323,11 +473,11 @@ class GroupDiscussion(models.Model):
 
 
 # ============================================================
-# 5. GROUP DISCUSSION COMMENT
+# 6. GROUP DISCUSSION COMMENT
 # ============================================================
 
 class GroupDiscussionComment(models.Model):
-    """Store comments and nested replies under discussion posts."""
+    """Store comments and nested replies under discussions."""
 
     discussion = models.ForeignKey(
         GroupDiscussion,
@@ -342,14 +492,8 @@ class GroupDiscussionComment(models.Model):
 
     content = models.TextField(max_length=2000)
 
-    # NEW:
     # A comment can reply to another comment.
-    #
-    # parent=None means this is a normal comment.
-    # parent=<comment> means this is a reply.
-    #
-    # "self" means this model references another record
-    # from the same database table.
+    # None means it is a top-level comment.
     parent = models.ForeignKey(
         "self",
         on_delete=models.CASCADE,
@@ -364,11 +508,10 @@ class GroupDiscussionComment(models.Model):
         ordering = ["created_at"]
 
     def clean(self):
-        """Prevent invalid relationships between comments."""
-
+        """Prevent invalid comment relationships."""
         super().clean()
 
-        # Normal comments do not have a parent.
+        # A normal comment has no parent.
         if not self.parent_id:
             return
 
@@ -378,14 +521,13 @@ class GroupDiscussionComment(models.Model):
                 "A comment cannot reply to itself."
             )
 
-        # A reply must belong to the same discussion
-        # as the comment it is replying to.
+        # Replies must stay in the same discussion.
         if self.parent.discussion_id != self.discussion_id:
             raise ValidationError(
                 "Replies must belong to the same discussion."
             )
 
-        # Track visited comments to prevent circular replies.
+        # Prevent circular reply relationships.
         seen = {self.pk} if self.pk else set()
 
         ancestor = self.parent
@@ -402,8 +544,7 @@ class GroupDiscussionComment(models.Model):
             ancestor = ancestor.parent
 
     def save(self, *args, **kwargs):
-        """Validate replies before saving them."""
-
+        """Validate comments before saving."""
         self.full_clean()
         super().save(*args, **kwargs)
 
@@ -412,7 +553,7 @@ class GroupDiscussionComment(models.Model):
 
 
 # ============================================================
-# 6. GROUP DISCUSSION LIKE
+# 7. GROUP DISCUSSION LIKE
 # ============================================================
 
 class GroupDiscussionLike(models.Model):
@@ -433,7 +574,6 @@ class GroupDiscussionLike(models.Model):
 
     class Meta:
         constraints = [
-            # Prevent duplicate likes.
             models.UniqueConstraint(
                 fields=["discussion", "user"],
                 name="unique_discussion_like",
@@ -445,11 +585,11 @@ class GroupDiscussionLike(models.Model):
 
 
 # ============================================================
-# 7. HIDDEN DISCUSSION
+# 8. HIDDEN DISCUSSION
 # ============================================================
 
 class HiddenDiscussion(models.Model):
-    """Remember posts hidden by individual developers."""
+    """Remember discussions hidden by individual developers."""
 
     discussion = models.ForeignKey(
         GroupDiscussion,
@@ -474,7 +614,6 @@ class HiddenDiscussion(models.Model):
 
     def __str__(self):
         return f"{self.user} hid {self.discussion.title}"
-
 
 
 # ============================================================
@@ -503,7 +642,6 @@ class GroupRepository(models.Model):
 
     def clean(self):
         """Allow repositories only in private development groups."""
-
         super().clean()
 
         if self.group_id and not self.group.is_private:
@@ -513,7 +651,6 @@ class GroupRepository(models.Model):
 
     def save(self, *args, **kwargs):
         """Validate repository information before saving."""
-
         self.full_clean()
         super().save(*args, **kwargs)
 
@@ -522,24 +659,23 @@ class GroupRepository(models.Model):
 
 
 # ============================================================
-# 10. GROUP CHAT MESSAGE (NEW)
+# 10. GROUP CHAT MESSAGE
 # ============================================================
 
 class GroupChatMessage(models.Model):
     """
-    Store messages sent inside public and private groups.
+    Store messages sent inside normal and private groups.
 
     Supports:
-    - Text messages
-    - Code snippets
-    - Voice notes
-    - File attachments
-    - Replies to messages
-    - Message editing
-    - Soft deletion
+        - Text messages
+        - Code snippets
+        - Voice notes
+        - File attachments
+        - Replies
+        - Message editing
+        - Soft deletion
     """
 
-    # Types of messages developers can send.
     MESSAGE_TYPES = [
         ("text", "Text"),
         ("code", "Code Snippet"),
@@ -547,17 +683,14 @@ class GroupChatMessage(models.Model):
         ("file", "Attachment"),
     ]
 
-    # Group where the message was sent.
+    # Group receiving the message.
     group = models.ForeignKey(
         ProjectGroup,
         on_delete=models.CASCADE,
         related_name="chat_messages",
     )
 
-    # Developer who sent the message.
-    #
-    # SET_NULL keeps chat history when a user account
-    # is deleted.
+    # Keep chat history when the sender account is deleted.
     sender = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -565,39 +698,31 @@ class GroupChatMessage(models.Model):
         related_name="group_chat_messages",
     )
 
-    # Identify the type of message.
+    # Identify the message type.
     message_type = models.CharField(
         max_length=10,
         choices=MESSAGE_TYPES,
         default="text",
     )
 
-    # Stores ordinary text or programming code.
+    # Ordinary text or programming code.
     content = models.TextField(
         blank=True,
     )
 
-    # Programming language used in a code snippet.
+    # Programming language for code snippets.
     code_language = models.CharField(
         max_length=30,
         blank=True,
     )
 
-    # Store uploaded voice notes or files.
-    #
-    # Django stores the file path in the database.
-    # The actual file is stored using the configured
-    # Django file storage system.
+    # Uploaded voice notes and files.
     attachment = models.FileField(
         upload_to="group_chat/attachments/%Y/%m/",
         blank=True,
     )
 
-    # Allow a message to reply to another message.
-    #
-    # Example:
-    # John: How do I install Django?
-    # Daniel: ↳ Replying to John: pip install django
+    # A message can reply to another message.
     reply_to = models.ForeignKey(
         "self",
         on_delete=models.SET_NULL,
@@ -606,19 +731,17 @@ class GroupChatMessage(models.Model):
         related_name="chat_replies",
     )
 
-    # Date the message was created.
     created_at = models.DateTimeField(
         auto_now_add=True,
     )
 
-    # Date the message was last edited.
+    # Time of the most recent edit.
     edited_at = models.DateTimeField(
         null=True,
         blank=True,
     )
 
-    # Soft deletion:
-    # Keep the message record but mark it as deleted.
+    # Soft deletion preserves message references.
     deleted_at = models.DateTimeField(
         null=True,
         blank=True,
@@ -627,7 +750,6 @@ class GroupChatMessage(models.Model):
     class Meta:
         ordering = ["created_at", "id"]
 
-        # Helps retrieve messages from a group efficiently.
         indexes = [
             models.Index(
                 fields=["group", "created_at", "id"],
@@ -635,11 +757,9 @@ class GroupChatMessage(models.Model):
         ]
 
     def clean(self):
-        """Validate chat messages and their reply relationships."""
-
+        """Validate messages and their reply relationships."""
         super().clean()
 
-        # Validate message replies.
         if self.reply_to_id:
 
             # A message cannot reply to itself.
@@ -648,18 +768,17 @@ class GroupChatMessage(models.Model):
                     "A message cannot reply to itself."
                 )
 
-            # Prevent replies between different groups.
+            # Replies cannot cross group boundaries.
             if self.reply_to.group_id != self.group_id:
                 raise ValidationError(
                     "Replies must stay within the same group."
                 )
 
-        # Deleted messages remain in the database
-        # so existing replies do not lose their references.
+        # Deleted messages remain stored.
         if self.deleted_at:
             return
 
-        # Text and code messages must contain content.
+        # Text and code messages require content.
         if self.message_type in ("text", "code"):
 
             if not self.content.strip():
@@ -676,8 +795,7 @@ class GroupChatMessage(models.Model):
                 )
 
     def save(self, *args, **kwargs):
-        """Validate the message before saving it."""
-
+        """Validate messages before saving."""
         self.full_clean()
         super().save(*args, **kwargs)
 

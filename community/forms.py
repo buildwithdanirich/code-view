@@ -1,4 +1,18 @@
-"""Forms for CodeView groups, discussions, comments, and chat."""
+"""
+Forms for CodeView groups, discussions, comments, chat, and GitHub.
+
+Group rules:
+    1. Normal chat groups are public and open to registered developers.
+    2. Private development groups require owner-sent invitations.
+    3. Private groups allow at most 15 members including the owner.
+
+This file does not create memberships or send invitations.
+Those actions are handled by the views and invitation service.
+"""
+
+import re
+
+from urllib.parse import urlparse, unquote
 
 from django import forms
 
@@ -7,41 +21,53 @@ from .models import (
     GroupDiscussion,
     GroupDiscussionComment,
     GroupChatMessage,
-    GroupRepository,  
 )
 
 
 # ============================================================
-# 1. CREATE PROJECT GROUP
+# 1. CREATE GROUP FORM
 # ============================================================
 
 class ProjectGroupForm(forms.ModelForm):
-    """Collect group details and validate membership settings."""
+    """
+    Collect information when creating a CodeView group.
+
+    Developers choose:
+        - Group name
+        - Group description
+        - Whether the group is private
+
+    Joining rules are assigned automatically:
+        Public group  -> open
+        Private group -> invite
+    """
 
     class Meta:
         model = ProjectGroup
 
+        # The owner is assigned in views.py.
+        # The joining policy is assigned automatically.
         fields = [
             "name",
             "description",
             "is_private",
-            "join_policy",
         ]
 
         widgets = {
+
             "name": forms.TextInput(
                 attrs={
-                    "placeholder": "Enter your group name",
                     "class": "group-input",
+                    "placeholder": "Enter your group name",
                 }
             ),
 
             "description": forms.Textarea(
                 attrs={
+                    "class": "group-textarea",
                     "placeholder": (
                         "Describe your community or development project"
                     ),
-                    "class": "group-textarea",
                     "rows": 4,
                 }
             ),
@@ -51,35 +77,29 @@ class ProjectGroupForm(forms.ModelForm):
                     "class": "group-checkbox",
                 }
             ),
-
-            "join_policy": forms.Select(
-                attrs={
-                    "class": "group-input",
-                }
-            ),
         }
 
         labels = {
             "name": "Group Name",
             "description": "Group Description",
             "is_private": "Private Development Group",
-            "join_policy": "Who Can Join?",
         }
 
         help_texts = {
             "is_private": (
-                "Leave unchecked for a public community. "
-                "Check for a private development group."
-            ),
-
-            "join_policy": (
-                "Choose whether developers can join immediately, "
-                "request administrator approval, or require an invitation."
+                "Leave unchecked to create a normal chat group "
+                "that registered developers can join freely. "
+                "Check to create a private development group "
+                "where the owner invites developers."
             ),
         }
 
     def clean_name(self):
-        """Remove unnecessary spaces from the group name."""
+        """
+        Remove extra spaces from the group name.
+
+        Reject names containing only whitespace.
+        """
 
         name = self.cleaned_data["name"].strip()
 
@@ -91,32 +111,66 @@ class ProjectGroupForm(forms.ModelForm):
         return name
 
     def clean(self):
-        """Validate the group type and joining policy together."""
+        """
+        Set the joining policy from the selected group type.
+
+        The developer cannot submit a different joining policy
+        through the browser.
+        """
 
         cleaned_data = super().clean()
 
-        is_private = cleaned_data.get("is_private")
-        join_policy = cleaned_data.get("join_policy")
+        is_private = cleaned_data.get("is_private", False)
 
-        # Private development groups cannot allow open joining.
-        if is_private and join_policy == "open":
-            self.add_error(
-                "join_policy",
-                (
-                    "Private development groups must require "
-                    "administrator approval or an invitation."
-                ),
-            )
+        if is_private:
+
+            # Private development groups require invitations.
+            joining_policy = "invite"
+
+        else:
+
+            # Normal chat groups allow direct joining.
+            joining_policy = "open"
+
+        # The field is not shown in the form, but the model
+        # still needs its value for validation and saving.
+        self.instance.join_policy = joining_policy
 
         return cleaned_data
 
+    def save(self, commit=True):
+        """
+        Save the group with the correct joining policy.
+
+        This also works when views.py uses:
+            form.save(commit=False)
+        """
+
+        group = super().save(commit=False)
+
+        if group.is_private:
+            group.join_policy = "invite"
+        else:
+            group.join_policy = "open"
+
+        if commit:
+            group.save()
+            self.save_m2m()
+
+        return group
+
 
 # ============================================================
-# 2. GROUP DISCUSSION
+# 2. GROUP DISCUSSION FORM
 # ============================================================
 
 class GroupDiscussionForm(forms.ModelForm):
-    """Collect the title and content of a group discussion."""
+    """
+    Collect the title and content of a group discussion.
+
+    Only authorized group members can create discussions.
+    The view checks membership before saving.
+    """
 
     class Meta:
         model = GroupDiscussion
@@ -127,17 +181,18 @@ class GroupDiscussionForm(forms.ModelForm):
         ]
 
         widgets = {
+
             "title": forms.TextInput(
                 attrs={
-                    "placeholder": "Enter discussion title",
                     "class": "group-input",
+                    "placeholder": "Enter discussion title",
                 }
             ),
 
             "content": forms.Textarea(
                 attrs={
-                    "placeholder": "What would you like to discuss?",
                     "class": "group-textarea",
+                    "placeholder": "What would you like to discuss?",
                     "rows": 5,
                 }
             ),
@@ -169,19 +224,19 @@ class GroupDiscussionForm(forms.ModelForm):
 
 
 # ============================================================
-# 3. GROUP DISCUSSION COMMENT
+# 3. GROUP DISCUSSION COMMENT FORM
 # ============================================================
 
 class GroupDiscussionCommentForm(forms.ModelForm):
     """
     Collect comments and replies underneath discussions.
 
-    The same form handles:
-    - Normal comments
-    - Replies to comments
-    - Replies to other replies
+    Supports:
+        - Normal comments
+        - Replies to comments
+        - Replies to other replies
 
-    The parent comment is assigned securely in views.py.
+    The view assigns the author, discussion, and parent.
     """
 
     class Meta:
@@ -192,10 +247,11 @@ class GroupDiscussionCommentForm(forms.ModelForm):
         ]
 
         widgets = {
+
             "content": forms.Textarea(
                 attrs={
-                    "placeholder": "Write your comment or reply...",
                     "class": "group-textarea",
+                    "placeholder": "Write your comment or reply...",
                     "rows": 3,
                     "maxlength": 2000,
                 }
@@ -216,27 +272,31 @@ class GroupDiscussionCommentForm(forms.ModelForm):
 
 
 # ============================================================
-# 4. GROUP CHAT MESSAGE (NEW)
+# 4. GROUP CHAT MESSAGE FORM
 # ============================================================
 
 class GroupChatMessageForm(forms.ModelForm):
     """
-    Collect messages sent inside group chats.
+    Collect messages sent inside CodeView group chats.
 
     Supports:
-    - Text messages
-    - Programming code snippets
-    - Voice notes
-    - File attachments
+        1. Text messages
+        2. Programming code snippets
+        3. Voice notes
+        4. File attachments
 
-    The sender, group, and reply target are assigned
-    securely in views.py rather than trusted from the browser.
+    The view assigns:
+        - Sender
+        - Group
+        - Reply target
+
+    This prevents developers from choosing another sender
+    or another group through submitted form data.
     """
 
     class Meta:
         model = GroupChatMessage
 
-        # Developers can only submit these fields.
         fields = [
             "message_type",
             "content",
@@ -245,6 +305,7 @@ class GroupChatMessageForm(forms.ModelForm):
         ]
 
         widgets = {
+
             "message_type": forms.Select(
                 attrs={
                     "class": "group-input",
@@ -253,16 +314,16 @@ class GroupChatMessageForm(forms.ModelForm):
 
             "content": forms.Textarea(
                 attrs={
-                    "placeholder": "Type your message...",
                     "class": "group-textarea",
+                    "placeholder": "Type your message...",
                     "rows": 3,
                 }
             ),
 
             "code_language": forms.TextInput(
                 attrs={
-                    "placeholder": "e.g. python, javascript, go",
                     "class": "group-input",
+                    "placeholder": "e.g. python, javascript, go",
                     "maxlength": 30,
                 }
             ),
@@ -282,36 +343,43 @@ class GroupChatMessageForm(forms.ModelForm):
         }
 
     def clean_content(self):
-        """Remove unnecessary whitespace from messages."""
+        """
+        Remove unnecessary whitespace from messages.
+        """
 
-        content = self.cleaned_data.get("content", "")
+        content = self.cleaned_data.get("content") or ""
 
         return content.strip()
 
     def clean_code_language(self):
-        """Normalize the programming language name."""
+        """
+        Normalize programming language names.
 
-        language = self.cleaned_data.get(
-            "code_language",
-            "",
-        )
+        Example:
+            "Python" -> "python"
+            "GO"     -> "go"
+        """
+
+        language = self.cleaned_data.get("code_language") or ""
 
         return language.strip().lower()
 
     def clean_attachment(self):
         """
-        Check the uploaded file size.
+        Reject attachments larger than 20 MB.
 
-        This is an initial upload limit.
-        We'll add file-type verification and secure
-        file-serving rules when implementing uploads.
+        This is a basic size limit.
+
+        File-type verification, malware scanning, and secure
+        file-serving rules must also be implemented before
+        production deployment.
         """
 
         attachment = self.cleaned_data.get("attachment")
 
         if attachment:
 
-            # Maximum upload size: 20 MB.
+            # Convert 20 megabytes into bytes.
             maximum_size = 20 * 1024 * 1024
 
             if attachment.size > maximum_size:
@@ -322,15 +390,25 @@ class GroupChatMessageForm(forms.ModelForm):
         return attachment
 
     def clean(self):
-        """Validate the selected message type and its content."""
+        """
+        Validate message content according to its type.
+
+        Text/code:
+            Must contain written content.
+
+        Voice/file:
+            Must contain an uploaded attachment.
+        """
 
         cleaned_data = super().clean()
 
         message_type = cleaned_data.get("message_type")
-        content = cleaned_data.get("content", "")
+
+        content = cleaned_data.get("content") or ""
+
         attachment = cleaned_data.get("attachment")
 
-        # Text and code messages must contain text.
+        # Text and code messages require written content.
         if message_type in ("text", "code"):
 
             if not content:
@@ -339,8 +417,8 @@ class GroupChatMessageForm(forms.ModelForm):
                     "Please enter a message.",
                 )
 
-        # Voice notes and file messages require uploads.
-        if message_type in ("voice", "file"):
+        # Voice notes and file messages require attachments.
+        elif message_type in ("voice", "file"):
 
             if not attachment:
                 self.add_error(
@@ -352,78 +430,75 @@ class GroupChatMessageForm(forms.ModelForm):
 
 
 # ============================================================
-# 5. ADD GROUP MEMBER
-# ============================================================
-
-class AddGroupMemberForm(forms.Form):
-    """Allow administrators to select a registered developer."""
-
-    # Store the username entered by the administrator.
-    username = forms.CharField(
-        max_length=150,
-        widget=forms.TextInput(
-            attrs={
-                "class": "group-input",
-                "placeholder": "Enter developer username",
-            }
-        ),
-    )
-
-    def clean_username(self):
-        """Remove unnecessary spaces from the username."""
-
-        username = self.cleaned_data["username"].strip()
-
-        if not username:
-            raise forms.ValidationError(
-                "Please enter a developer username."
-            )
-
-        return username
-
-
-        # ============================================================
-# GITHUB REPOSITORY CONNECTION FORM
+# 5. GITHUB REPOSITORY CONNECTION FORM
 # ============================================================
 
 class GroupRepositoryForm(forms.Form):
-    """Collect and validate a public GitHub repository URL."""
+    """
+    Collect and validate a public GitHub repository URL.
 
-    # Ask the developer to provide a GitHub repository URL.
+    Example:
+        https://github.com/owner/repository
+
+    This form validates the URL format.
+
+    The view must separately verify that the repository
+    exists and is accessible.
+    """
+
     repository_url = forms.URLField(
         label="GitHub Repository URL",
         max_length=500,
+
         widget=forms.URLInput(
             attrs={
                 "class": "group-input",
-                "placeholder": "https://github.com/owner/repository",
+                "placeholder": (
+                    "https://github.com/owner/repository"
+                ),
             }
         ),
     )
 
     def clean_repository_url(self):
-        """Check that the URL points to a GitHub repository."""
+        """
+        Validate a GitHub repository URL.
 
-        from urllib.parse import urlparse, unquote
+        Security rules:
+            - HTTPS only.
+            - Official github.com domain only.
+            - No credentials.
+            - No custom ports.
+            - No query strings.
+            - No URL fragments.
+            - Exactly owner/repository.
+        """
 
-        # Get the URL after Django performs basic URL validation.
+        # Django already checks basic URL validity.
         url = self.cleaned_data["repository_url"].strip()
 
-        # Split the URL into its components.
+        # Separate the URL into its components.
         parsed = urlparse(url)
 
-        # Require HTTPS and the official GitHub domain.
-        if parsed.scheme != "https" or parsed.hostname != "github.com":
+        # Only accept the official GitHub domain.
+        if (
+            parsed.scheme != "https"
+            or parsed.hostname != "github.com"
+        ):
             raise forms.ValidationError(
                 "Enter a valid HTTPS GitHub repository URL."
             )
 
-        # Reject unexpected ports, credentials, queries, and fragments.
+        # Reading a malformed port can raise ValueError.
         try:
             port = parsed.port
-        except ValueError:
-            raise forms.ValidationError("Invalid repository URL.")
 
+        except ValueError:
+            raise forms.ValidationError(
+                "Invalid repository URL."
+            )
+
+        # Reject unexpected URL components.
         if (
             parsed.username
             or parsed.password
@@ -435,44 +510,66 @@ class GroupRepositoryForm(forms.Form):
                 "Enter a standard GitHub repository URL."
             )
 
-        # Extract the repository owner and name.
+        # Split the path into owner and repository.
         parts = parsed.path.strip("/").split("/")
 
-        # A repository URL must contain exactly owner/repository.
         if len(parts) != 2:
             raise forms.ValidationError(
-                "Use this format: https://github.com/owner/repository"
+                "Use this format: "
+                "https://github.com/owner/repository"
             )
 
-              # Extract the repository owner and name.
         owner, repository = parts
 
-        # Allow GitHub URLs ending with .git.
+        # Accept the common .git suffix.
         if repository.endswith(".git"):
             repository = repository[:-4]
 
-        # Reject an empty repository name.
+        # Reject empty repository names.
         if not repository:
             raise forms.ValidationError(
                 "Enter a valid GitHub repository name."
             )
-        # Reject encoded characters and invalid repository names.
-        import re
 
+        # Reject encoded characters.
         if (
             unquote(owner) != owner
             or unquote(repository) != repository
-            or not re.fullmatch(r"[A-Za-z0-9-]{1,39}", owner)
-            or owner.startswith("-")
-            or owner.endswith("-")
-            or not re.fullmatch(r"[A-Za-z0-9_.-]{1,100}", repository)
         ):
             raise forms.ValidationError(
-                "Invalid GitHub repository owner or name."
+                "Encoded repository names are not allowed."
             )
 
-        # Store the extracted values for use in the view.
+        # GitHub owner names may contain letters,
+        # numbers, and hyphens.
+        valid_owner = re.fullmatch(
+            r"[A-Za-z0-9-]{1,39}",
+            owner,
+        )
+
+        if (
+            not valid_owner
+            or owner.startswith("-")
+            or owner.endswith("-")
+        ):
+            raise forms.ValidationError(
+                "Invalid GitHub repository owner."
+            )
+
+        # Validate the repository name.
+        valid_repository = re.fullmatch(
+            r"[A-Za-z0-9_.-]{1,100}",
+            repository,
+        )
+
+        if not valid_repository:
+            raise forms.ValidationError(
+                "Invalid GitHub repository name."
+            )
+
+        # Make the extracted values available to views.py.
         self.cleaned_data["github_owner"] = owner
+
         self.cleaned_data["repository_name"] = repository
 
         return url

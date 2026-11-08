@@ -101,14 +101,28 @@ ASGI_APPLICATION = "config.asgi.application"
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
+# ============================================================
+# DATABASE CONFIGURATION
+# ============================================================
 
 DATABASES = {
     "default": {
+        # PostgreSQL is the database system CodeView uses.
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("CODEVIEW_DB_NAME", "codeview_v1_db"),
-        "USER": os.environ.get("CODEVIEW_DB_USER", "codeview_v1_user"),
+
+        # Name of our CodeView database.
+        "NAME": os.environ.get("CODEVIEW_DB_NAME", "codeview"),
+
+        # PostgreSQL username.
+        "USER": os.environ.get("CODEVIEW_DB_USER", "codeview"),
+
+        # Read the database password from the environment.
         "PASSWORD": os.environ["CODEVIEW_DB_PASSWORD"],
+
+        # PostgreSQL server address.
         "HOST": os.environ.get("CODEVIEW_DB_HOST", "localhost"),
+
+        # Default PostgreSQL port.
         "PORT": os.environ.get("CODEVIEW_DB_PORT", "5432"),
     }
 }

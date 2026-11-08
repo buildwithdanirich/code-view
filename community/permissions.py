@@ -1,94 +1,127 @@
-"""Centralized permission checks for CodeView groups."""
+"""
+Permission helpers for CodeView groups.
 
-from .models import GroupMember
+Group rules:
 
+1. Public groups:
+   - Registered developers can view them.
+   - Developers can join freely.
 
-# ============================================================
-# 1. CHECK GROUP OWNER
-# ============================================================
+2. Private development groups:
+   - Only accepted members can access them.
+   - Only the owner can invite developers.
+   - Only the owner can remove members.
+   - Development features are private-group only.
+
+3. Group ownership:
+   - The owner has management permissions.
+   - Ordinary members cannot manage membership.
+"""
+
 
 def is_group_owner(group, user):
-    """Return True if the user owns the group."""
+    """
+    Check whether the developer owns the group.
 
-    # Anonymous users cannot own or manage groups.
+    Returns True if the user is the owner.
+    Otherwise, returns False.
+    """
+
     if not user.is_authenticated:
         return False
 
-    # Compare the group's owner ID with the user's ID.
-    return group.owner_id == user.pk
+    return group.owner_id == user.id
 
-
-# ============================================================
-# 2. CHECK GROUP ADMINISTRATOR
-# ============================================================
-
-def is_group_admin(group, user):
-    """Return True if the user is the owner or an administrator."""
-
-    # Reject anonymous users.
-    if not user.is_authenticated:
-        return False
-
-    # The group owner always has administrator permissions.
-    if is_group_owner(group, user):
-        return True
-
-    # Check whether the user has an administrator membership.
-    return GroupMember.objects.filter(
-        group=group,
-        user=user,
-        role="admin",
-    ).exists()
-
-
-# ============================================================
-# 3. CHECK GROUP MEMBERSHIP
-# ============================================================
 
 def is_group_member(group, user):
-    """Return True if the user owns or belongs to the group."""
+    """
+    Check whether the developer belongs to the group.
 
-    # Reject anonymous users.
+    The group owner is always considered a member.
+    Other developers must have a GroupMember record.
+    """
+
     if not user.is_authenticated:
         return False
 
-    # The owner is automatically considered a member.
     if is_group_owner(group, user):
         return True
 
-    # Check whether the developer has a membership record.
+    # Import here to avoid unnecessary circular imports.
+    from .models import GroupMember
+
     return GroupMember.objects.filter(
         group=group,
         user=user,
     ).exists()
 
 
-# ============================================================
-# 4. CHECK PRIVATE GROUP ACCESS
-# ============================================================
+def is_group_admin(group, user):
+    """
+    Compatibility helper for older CodeView code.
+
+    CodeView no longer supports secondary group admins.
+
+    Only the owner has administrative permissions.
+    """
+
+    return is_group_owner(group, user)
+
 
 def can_view_group(group, user):
-    """Check whether a developer can view a group's main page."""
+    """
+    Check whether a developer can view a group.
 
-    # Group pages require authentication.
+    Public groups:
+        Any authenticated developer can view them.
+
+    Private groups:
+        Only accepted members and the owner can view them.
+    """
+
     if not user.is_authenticated:
         return False
 
-    # Public communities are visible to logged-in developers.
     if not group.is_private:
         return True
 
-    # Private groups are accessible only to their members.
     return is_group_member(group, user)
 
 
-# ============================================================
-# 5. CHECK MEMBER MANAGEMENT PERMISSIONS
-# ============================================================
-
 def can_manage_group_members(group, user):
-    """Check whether a developer can manage group memberships."""
+    """
+    Only the group owner can remove members
+    or manage membership.
+    """
 
-    # Only owners and administrators can manage members.
-    return is_group_admin(group, user)
-    
+    return is_group_owner(group, user)
+
+
+def can_invite_group_members(group, user):
+    """
+    Only private development group owners
+    can send invitations.
+    """
+
+    if not group.is_private:
+        return False
+
+    return is_group_owner(group, user)
+
+
+def can_use_development_features(group, user):
+    """
+    Check whether the developer can access features
+    reserved for private development groups.
+
+    Examples:
+    - GitHub repository integration
+    - Meeting rooms
+    - Screen sharing
+    - Whiteboard
+    """
+
+    if not group.is_private:
+        return False
+
+    return is_group_member(group, user)

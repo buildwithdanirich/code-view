@@ -1,0 +1,344 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>My Invitations | CodeView</title>
+
+    <!-- Existing shared CodeView styling. -->
+    <link
+        rel="stylesheet"
+        href="{% static 'community/sheared.css' %}"
+    >
+
+    <!-- Invitation page styling. -->
+    <link
+        rel="stylesheet"
+        href="{% static 'community/invitations/received_invitations.css' %}"
+    >
+</head>
+
+<body>
+
+    <!-- =====================================================
+         1. TOP NAVIGATION
+    ====================================================== -->
+
+    <header class="navbar">
+
+        <a href="{% url 'groups' %}" class="brand">
+            &lt;/&gt; CodeView
+        </a>
+
+        <nav class="top-links">
+
+            <a href="{% url 'groups' %}">
+                Groups
+            </a>
+
+            <a href="{% url 'create_group' %}">
+                Create Group
+            </a>
+
+            <a
+                href="{% url 'received_group_invitations' %}"
+                class="active"
+            >
+                My Invitations
+            </a>
+
+        </nav>
+
+        <div class="profile">
+
+            <span class="avatar">
+                {{ request.user.username|first|upper }}
+            </span>
+
+            <span>
+                {{ request.user.username }}
+            </span>
+
+        </div>
+
+    </header>
+
+
+    <!-- =====================================================
+         2. MAIN CONTENT
+    ====================================================== -->
+
+    <main class="invitations-page">
+
+        <div class="invitations-container">
+
+            <!-- Page heading. -->
+
+            <header class="invitations-heading">
+
+                <div>
+
+                    <h1>
+                        ✉ My Group Invitations
+                    </h1>
+
+                    <p>
+                        Review invitations from private development
+                        groups and decide which groups to join.
+                    </p>
+
+                </div>
+
+                <a
+                    href="{% url 'groups' %}"
+                    class="back-to-groups"
+                >
+                    ← Back to Groups
+                </a>
+
+            </header>
+
+
+            <!-- =================================================
+                 3. DJANGO NOTIFICATIONS
+            ================================================== -->
+
+            {% if messages %}
+
+                <section
+                    class="notifications"
+                    aria-live="polite"
+                >
+
+                    {% for message in messages %}
+
+                        <div
+                            class="notification notification-{{ message.tags }}"
+                            role="status"
+                        >
+                            {{ message }}
+                        </div>
+
+                    {% endfor %}
+
+                </section>
+
+            {% endif %}
+
+
+            <!-- =================================================
+                 4. PENDING INVITATIONS
+            ================================================== -->
+
+            <section class="invitations-section">
+
+                <div class="invitations-section-heading">
+
+                    <h2>
+                        Pending Invitations
+                    </h2>
+
+                    <span class="invitation-count">
+                        {{ invitations|length }}
+                    </span>
+
+                </div>
+
+
+                {% for invitation in invitations %}
+
+                    <!-- Each invitation belongs to the logged-in user. -->
+
+                    <article class="invitation-card">
+
+                        <div class="invitation-card-header">
+
+                            <div class="invitation-group-avatar">
+                                {{ invitation.group.name|first|upper }}
+                            </div>
+
+                            <div class="invitation-group-details">
+
+                                <h3>
+                                    {{ invitation.group.name }}
+                                </h3>
+
+                                <span class="invitation-status">
+                                    Pending
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- Group description. -->
+
+                        <p class="invitation-description">
+                            {{ invitation.group.description|default:"No group description provided."|truncatewords:35 }}
+                        </p>
+
+
+                        <!-- Invitation information. -->
+
+                        <div class="invitation-meta">
+
+                            <p>
+                                <strong>Invited by:</strong>
+                                {{ invitation.invited_by.username }}
+                            </p>
+
+                            <p>
+                                <strong>Received:</strong>
+                                {{ invitation.created_at|date:"M d, Y - H:i" }}
+                            </p>
+
+                            <p>
+                                <strong>Group type:</strong>
+                                Private Development Group
+                            </p>
+
+                        </div>
+
+
+                        <!-- =================================================
+                             5. ACCEPT OR DECLINE
+                        ================================================== -->
+
+                        <div class="invitation-actions">
+
+                            <!-- Accept invitation. -->
+
+                            <form
+                                method="POST"
+                                action="{% url 'accept_group_invitation' invitation.id %}"
+                                class="accept-invitation-form"
+                            >
+
+                                {% csrf_token %}
+
+                                <button
+                                    type="submit"
+                                    class="accept-invitation-button"
+                                >
+                                    ✓ Accept Invitation
+                                </button>
+
+                            </form>
+
+
+                            <!-- Decline invitation. -->
+
+                            <form
+                                method="POST"
+                                action="{% url 'decline_group_invitation' invitation.id %}"
+                                class="decline-invitation-form"
+                            >
+
+                                {% csrf_token %}
+
+                                <button
+                                    type="submit"
+                                    class="decline-invitation-button"
+                                >
+                                    ✕ Decline
+                                </button>
+
+                            </form>
+
+                        </div>
+
+                    </article>
+
+                {% empty %}
+
+                    <!-- Displayed when there are no pending invitations. -->
+
+                    <div class="invitations-empty">
+
+                        <div class="invitations-empty-icon">
+                            ✉
+                        </div>
+
+                        <h3>
+                            No Pending Invitations
+                        </h3>
+
+                        <p>
+                            You haven't received any pending group
+                            invitations yet.
+                        </p>
+
+                        <p>
+                            When a private development group owner
+                            invites you, the invitation will appear here.
+                        </p>
+
+                        <a
+                            href="{% url 'groups' %}"
+                            class="browse-groups-button"
+                        >
+                            Browse Groups
+                        </a>
+
+                    </div>
+
+                {% endfor %}
+
+            </section>
+
+
+            <!-- =================================================
+                 6. INFORMATION
+            ================================================== -->
+
+            <section class="invitations-info">
+
+                <h2>
+                    How Invitations Work
+                </h2>
+
+                <p>
+                    Private development groups are invitation-only.
+                    Group owners invite registered developers,
+                    and each developer decides whether to join.
+                </p>
+
+                <p>
+                    Accepting an invitation adds you to the group.
+                    Declining an invitation does not affect your
+                    existing group memberships.
+                </p>
+
+                <p>
+                    Private development groups support a maximum
+                    of 15 members, including the owner.
+                </p>
+
+            </section>
+
+        </div>
+
+    </main>
+
+
+    <!-- =====================================================
+         7. EXTERNAL JAVASCRIPT
+         No JavaScript is written inside this HTML file.
+    ====================================================== -->
+
+    <script
+        src="{% static 'community/invitations/received_invitations.js' %}"
+        defer
+    ></script>
+
+</body>
+</html>
