@@ -496,3 +496,139 @@
 #group-chat .selected-file-name[hidden] {
     display: none !important;
 }
+
+/* ==========================================
+   21. WHATSAPP-STYLE VOICE RECORDING
+   Recording and preview stay inside composer.
+========================================== */
+
+/* Normal text-message layout. */
+#group-chat .composer-normal {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    gap: 10px;
+}
+
+/* Voice recording layout. */
+#group-chat .composer-voice {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    gap: 12px;
+}
+
+/* Hide whichever composer mode is inactive. */
+#group-chat .composer-normal[hidden],
+#group-chat .composer-voice[hidden],
+#group-chat .voice-preview[hidden],
+#group-chat .voice-recording-status[hidden],
+#group-chat #stop-voice-button[hidden] {
+    display: none !important;
+}
+
+/* Make the message input fill available space. */
+#group-chat .composer-normal .composer-textarea {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Recording timer and label. */
+#group-chat .voice-recording-status {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    gap: 9px;
+    color: #e5e7eb;
+    font-size: 14px;
+}
+
+/* Red recording indicator. */
+#group-chat #voice-recording-indicator {
+    font-size: 13px;
+    animation: codeview-recording-pulse 1.2s infinite;
+}
+
+/* Recording timer. */
+#group-chat #voice-recording-timer {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+/* Recording label. */
+#group-chat #voice-recording-label {
+    color: #9ca3af;
+}
+
+/* Voice note playback preview. */
+#group-chat .voice-preview {
+    flex: 1;
+    width: 100%;
+    min-width: 0;
+    height: 40px;
+}
+
+/* Delete recording button. */
+#group-chat .voice-cancel,
+#group-chat #cancel-voice-button {
+    background: transparent;
+    color: #f87171;
+}
+
+#group-chat #cancel-voice-button:hover {
+    background: rgba(248, 113, 113, 0.12);
+}
+
+/* Stop recording button. */
+#group-chat #stop-voice-button {
+    background: #dc2626;
+    color: #ffffff;
+}
+
+#group-chat #stop-voice-button:hover {
+    background: #b91c1c;
+}
+
+/* Pulse the red indicator while recording. */
+@keyframes codeview-recording-pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.35;
+    }
+}
+
+/* Mobile layout. */
+@media (max-width: 750px) {
+
+    #group-chat .composer-normal,
+    #group-chat .composer-voice {
+        gap: 6px;
+    }
+
+    #group-chat .voice-recording-status {
+        gap: 5px;
+        font-size: 12px;
+    }
+
+    #group-chat .voice-preview {
+        height: 35px;
+    }
+
+    #group-chat #voice-recording-label {
+        display: none;
+    }
+}
+
+/* Respect reduced-motion preferences. */
+@media (prefers-reduced-motion: reduce) {
+    #group-chat #voice-recording-indicator {
+        animation: none;
+    }
+}

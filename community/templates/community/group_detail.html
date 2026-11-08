@@ -1015,60 +1015,110 @@
                                 {% endif %}
 
 
-                                <div class="composer-box">
+<!-- Message composer -->
+<div class="composer-box">
 
-                                    <!-- File attachment button. -->
+    <!-- Normal message input -->
+    <div class="composer-normal" id="composer-normal">
 
-                                    <button
-                                        type="button"
-                                        class="composer-button"
-                                        id="attach-file-button"
-                                        title="Attach a file"
-                                        aria-label="Attach a file"
-                                    >
-                                        📎
-                                    </button>
+        <!-- File attachment -->
+        <button
+            type="button"
+            class="composer-button"
+            id="attach-file-button"
+            title="Attach a file"
+        >
+            📎
+        </button>
 
+        <div class="composer-file-input" hidden>
+            {{ chat_form.attachment }}
+        </div>
 
-                                    <div class="composer-file-input" hidden>
-                                        {{ chat_form.attachment }}
-                                    </div>
+        <!-- Text input -->
+        <textarea
+            name="content"
+            id="id_content"
+            class="composer-textarea"
+            rows="2"
+            placeholder="Message #{{ group.name }}"
+        >{{ chat_form.content.value|default_if_none:"" }}</textarea>
 
+        <!-- Microphone -->
+        <button
+            type="button"
+            class="composer-button"
+            id="record-voice-button"
+            title="Record voice note"
+        >
+            🎤
+        </button>
 
-                                    <!-- Message text input. -->
+    </div>
 
-                                    <textarea
-                                        name="content"
-                                        id="id_content"
-                                        class="composer-textarea"
-                                        rows="2"
-                                        placeholder="Message #{{ group.name }}"
-                                    >{{ chat_form.content.value|default_if_none:"" }}</textarea>
+    <!-- Voice recording interface -->
+    <div
+        class="composer-voice"
+        id="composer-voice"
+        hidden
+    >
 
+        <!-- Cancel recording -->
+        <button
+            type="button"
+            class="composer-button"
+            id="cancel-voice-button"
+            title="Discard recording"
+        >
+            🗑️
+        </button>
 
-                                    <!-- Voice recording remains disabled
-                                         until the recording feature is built. -->
+        <!-- Recording information -->
+        <div
+            class="voice-recording-status"
+            id="voice-recording-status"
+        >
+            <span id="voice-recording-indicator">🔴</span>
 
-                                    <button
-                                        type="button"
-                                        class="composer-button"
-                                        id="record-voice-button"
-                                        title="Voice recording coming soon"
-                                        disabled
-                                    >
-                                        🎤
-                                    </button>
+            <span id="voice-recording-timer">00:00</span>
 
+            <span id="voice-recording-label">
+                Recording...
+            </span>
+        </div>
 
-                                    <button
-                                        type="submit"
-                                        class="composer-button composer-send"
-                                        title="Send message"
-                                    >
-                                        ➤
-                                    </button>
+        <!-- Audio preview -->
+        <audio
+            id="voice-preview"
+            class="voice-preview"
+            controls
+            preload="metadata"
+            hidden
+        ></audio>
 
-                                </div>
+        <!-- Stop recording -->
+        <button
+            type="button"
+            class="composer-button"
+            id="stop-voice-button"
+            title="Stop recording"
+        >
+            ⏹
+        </button>
+
+    </div>
+
+    <!-- Send button -->
+    <button
+        type="submit"
+        class="composer-button composer-send"
+        id="composer-send-button"
+        title="Send message"
+    >
+        ➤
+    </button>
+
+</div>
 
 
                                 <p

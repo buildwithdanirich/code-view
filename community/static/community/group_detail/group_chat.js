@@ -29,6 +29,30 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const attachButton = document.getElementById("attach-file-button");
 
+    // Normal message input container.
+const composerNormal = document.getElementById("composer-normal");
+
+// Voice recording container.
+const composerVoice = document.getElementById("composer-voice");
+
+// Stop and discard buttons.
+const stopVoiceButton = document.getElementById("stop-voice-button");
+const cancelVoiceButton = document.getElementById("cancel-voice-button");
+
+// Recording timer and status.
+const voiceRecordingTimer = document.getElementById("voice-recording-timer");
+const voiceRecordingStatus = document.getElementById("voice-recording-status");
+
+// Audio player for reviewing the recording.
+const voicePreview = document.getElementById("voice-preview");
+
+
+    // Button used to start and stop voice recording.
+const recordVoiceButton = document.getElementById(
+    "record-voice-button"
+);
+
+
     const fileInput = chatForm.querySelector('input[type="file"]');
 
     const messageType = chatForm.querySelector(
@@ -717,6 +741,677 @@ function handleEditedMessage(data) {
    // ========================================
 // 8. REPLY TO MESSAGES
 // ========================================
+// ========================================
+// VOICE NOTE RECORDING
+// ========================================
+
+// Store the active microphone recorder.
+let mediaRecorder = null;
+
+// Store the microphone stream.
+let microphoneStream = null;
+
+// Store recorded audio pieces.
+let audioChunks = [];
+
+// Store the completed recording until it is sent.
+let recordedVoiceFile = null;
+
+// Track whether microphone permission is being requested.
+let startingRecording = false;
+
+// Maximum recording duration: 2 minutes.
+const MAX_RECORDING_MS = 120000;
+
+// Maximum recording size: 20 MB.
+const MAX_VOICE_SIZE = 20 * 1024 * 1024;
+
+// Automatically stop recordings after the maximum duration.
+let recordingTimer = null;
+
+// Update the visible recording timer.
+let recordingDisplayTimer = null;
+
+// Store when recording started.
+let recordingStartedAt = 0;
+
+// Store the temporary audio preview URL.
+let voicePreviewUrl = null;
+
+// Track whether the user discarded the recording.
+let discardRecording = false;
+
+
+// ========================================
+// 1. FORMAT RECORDING TIME
+// ========================================
+
+function formatVoiceTime(totalSeconds) {
+
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    return (
+        String(minutes).padStart(2, "0") +
+        ":" +
+        String(seconds).padStart(2, "0")
+    );
+}
+
+
+// ========================================
+// 2. STOP RECORDING DISPLAY TIMER
+// ========================================
+
+function stopRecordingDisplayTimer() {
+
+    if (recordingDisplayTimer !== null) {
+
+        clearInterval(recordingDisplayTimer);
+
+        recordingDisplayTimer = null;
+    }
+}
+
+
+// ========================================
+// 3. RELEASE MICROPHONE
+// ========================================
+
+function releaseMicrophone() {
+
+    // Stop the automatic recording timeout.
+    clearTimeout(recordingTimer);
+
+    recordingTimer = null;
+
+    // Release microphone access.
+    if (microphoneStream) {
+
+        microphoneStream.getTracks().forEach(function (track) {
+
+            track.stop();
+
+        });
+
+        microphoneStream = null;
+    }
+}
+
+
+// ========================================
+// 4. RESET MICROPHONE BUTTON
+// ========================================
+
+function resetRecordButton() {
+
+    if (!recordVoiceButton) {
+        return;
+    }
+
+    recordVoiceButton.textContent = "🎤";
+
+    recordVoiceButton.title = "Record voice note";
+
+    recordVoiceButton.setAttribute(
+        "aria-label",
+        "Record voice note"
+    );
+}
+
+
+// ========================================
+// 5. RESTORE NORMAL MESSAGE COMPOSER
+// ========================================
+
+function showNormalComposer() {
+
+    // Stop updating the recording timer.
+    stopRecordingDisplayTimer();
+
+    // Show the normal message input.
+    if (composerNormal) {
+        composerNormal.hidden = false;
+    }
+
+    // Hide the recording interface.
+    if (composerVoice) {
+        composerVoice.hidden = true;
+    }
+
+    // Stop and clear the audio preview.
+    if (voicePreview) {
+
+        voicePreview.pause();
+
+        voicePreview.hidden = true;
+
+        voicePreview.removeAttribute("src");
+
+        voicePreview.load();
+    }
+
+    // Release the temporary audio URL.
+    if (voicePreviewUrl) {
+
+        URL.revokeObjectURL(voicePreviewUrl);
+
+        voicePreviewUrl = null;
+    }
+
+    // Restore recording status.
+    if (voiceRecordingStatus) {
+        voiceRecordingStatus.hidden = false;
+    }
+
+    // Restore stop button.
+    if (stopVoiceButton) {
+        stopVoiceButton.hidden = false;
+    }
+
+    // Restore the microphone button.
+    resetRecordButton();
+}
+
+
+// ========================================
+// 6. SHOW RECORDING INTERFACE
+// ========================================
+
+function showRecordingComposer() {
+
+    // Hide normal text input.
+    if (composerNormal) {
+        composerNormal.hidden = true;
+    }
+
+    // Show recording interface.
+    if (composerVoice) {
+        composerVoice.hidden = false;
+    }
+
+    // Hide audio preview while recording.
+    if (voicePreview) {
+        voicePreview.hidden = true;
+    }
+
+    // Show recording status.
+    if (voiceRecordingStatus) {
+        voiceRecordingStatus.hidden = false;
+    }
+
+    // Show stop recording button.
+    if (stopVoiceButton) {
+        stopVoiceButton.hidden = false;
+    }
+
+    // Record the starting time.
+    recordingStartedAt = Date.now();
+
+    // Start the timer from zero.
+    if (voiceRecordingTimer) {
+        voiceRecordingTimer.textContent = "00:00";
+    }
+
+    stopRecordingDisplayTimer();
+
+    // Update the timer every second.
+    recordingDisplayTimer = setInterval(function () {
+
+        const elapsedSeconds = Math.floor(
+            (Date.now() - recordingStartedAt) / 1000
+        );
+
+        if (voiceRecordingTimer) {
+
+            voiceRecordingTimer.textContent =
+                formatVoiceTime(elapsedSeconds);
+        }
+
+    }, 1000);
+}
+
+
+// ========================================
+// 7. SHOW AUDIO PREVIEW
+// ========================================
+
+function showVoicePreviewComposer() {
+
+    stopRecordingDisplayTimer();
+
+    // A completed recording must exist.
+    if (!recordedVoiceFile || !voicePreview) {
+
+        showNormalComposer();
+
+        return;
+    }
+
+    // Remove an older preview URL.
+    if (voicePreviewUrl) {
+
+        URL.revokeObjectURL(voicePreviewUrl);
+
+        voicePreviewUrl = null;
+    }
+
+    // Create a temporary URL for playback.
+    voicePreviewUrl = URL.createObjectURL(
+        recordedVoiceFile
+    );
+
+    // Load the recorded audio.
+    voicePreview.src = voicePreviewUrl;
+
+    voicePreview.hidden = false;
+
+    voicePreview.load();
+
+    // Hide the recording timer.
+    if (voiceRecordingStatus) {
+        voiceRecordingStatus.hidden = true;
+    }
+
+    // Hide the stop button.
+    if (stopVoiceButton) {
+        stopVoiceButton.hidden = true;
+    }
+
+    // Keep the normal text input hidden.
+    if (composerNormal) {
+        composerNormal.hidden = true;
+    }
+
+    // Keep the voice composer visible.
+    if (composerVoice) {
+        composerVoice.hidden = false;
+    }
+}
+
+
+// ========================================
+// 8. DISPLAY RECORDED VOICE
+// ========================================
+
+function showRecordedVoice() {
+
+    if (!recordedVoiceFile) {
+        return;
+    }
+
+    // Show the audio player inside the composer.
+    showVoicePreviewComposer();
+
+    // Hide the old recording notification.
+    if (fileNameDisplay) {
+
+        fileNameDisplay.textContent = "";
+
+        fileNameDisplay.hidden = true;
+    }
+}
+
+
+// ========================================
+// 9. START VOICE RECORDING
+// ========================================
+
+async function startVoiceRecording() {
+
+    // Prevent multiple recording sessions.
+    if (
+        startingRecording ||
+        mediaRecorder ||
+        sendingMessage
+    ) {
+        return;
+    }
+
+    // Check browser microphone support.
+    if (
+        !navigator.mediaDevices ||
+        !navigator.mediaDevices.getUserMedia ||
+        typeof MediaRecorder === "undefined"
+    ) {
+
+        alert(
+            "Your browser does not support microphone recording."
+        );
+
+        return;
+    }
+
+    // Ensure the recording interface exists.
+    if (
+        !composerNormal ||
+        !composerVoice ||
+        !voicePreview
+    ) {
+
+        alert("Voice recording interface is unavailable.");
+
+        return;
+    }
+
+    startingRecording = true;
+
+    try {
+
+        // Request microphone permission.
+        microphoneStream =
+            await navigator.mediaDevices.getUserMedia({
+                audio: true
+            });
+
+        // Choose a supported recording format.
+        let mimeType = "";
+
+        if (
+            MediaRecorder.isTypeSupported(
+                "audio/webm;codecs=opus"
+            )
+        ) {
+
+            mimeType = "audio/webm;codecs=opus";
+
+        } else if (
+            MediaRecorder.isTypeSupported("audio/webm")
+        ) {
+
+            mimeType = "audio/webm";
+
+        } else if (
+            MediaRecorder.isTypeSupported("audio/mp4")
+        ) {
+
+            mimeType = "audio/mp4";
+        }
+
+        // Create the microphone recorder.
+        mediaRecorder = mimeType
+            ? new MediaRecorder(
+                microphoneStream,
+                { mimeType }
+            )
+            : new MediaRecorder(microphoneStream);
+
+        // Clear old recording data.
+        audioChunks = [];
+
+        recordedVoiceFile = null;
+
+        discardRecording = false;
+
+        // Collect audio data.
+        mediaRecorder.addEventListener(
+            "dataavailable",
+            function (event) {
+
+                if (event.data.size > 0) {
+
+                    audioChunks.push(event.data);
+                }
+            }
+        );
+
+        // Process the recording after it stops.
+        mediaRecorder.addEventListener(
+            "stop",
+            function () {
+
+                // Stop the visible recording timer.
+                stopRecordingDisplayTimer();
+
+                // Get the recorded audio format.
+                const recorderType =
+                    mediaRecorder.mimeType ||
+                    mimeType ||
+                    "audio/webm";
+
+                // Combine the recorded audio pieces.
+                const audioBlob = new Blob(
+                    audioChunks,
+                    {
+                        type: recorderType
+                    }
+                );
+
+                // Determine the file extension.
+                const extension =
+                    recorderType.includes("mp4")
+                        ? "m4a"
+                        : "webm";
+
+                // Release the recorder and microphone.
+                mediaRecorder = null;
+
+                releaseMicrophone();
+
+                // Check whether the recording was discarded.
+                if (discardRecording) {
+
+                    recordedVoiceFile = null;
+
+                    discardRecording = false;
+
+                    showNormalComposer();
+
+                } else if (audioBlob.size === 0) {
+
+                    alert("No audio was recorded.");
+
+                    showNormalComposer();
+
+                } else if (
+                    audioBlob.size > MAX_VOICE_SIZE
+                ) {
+
+                    alert(
+                        "Voice note exceeds the 20 MB limit."
+                    );
+
+                    showNormalComposer();
+
+                } else {
+
+                    // Create the file Django will receive.
+                    recordedVoiceFile = new File(
+                        [audioBlob],
+                        `voice-note-${Date.now()}.${extension}`,
+                        {
+                            type: recorderType
+                        }
+                    );
+
+                    // Show playback before sending.
+                    showRecordedVoice();
+                }
+
+                // Clear temporary audio pieces.
+                audioChunks = [];
+
+                // Restore microphone button.
+                resetRecordButton();
+            }
+        );
+
+        // Handle recorder errors.
+        mediaRecorder.addEventListener(
+            "error",
+            function (event) {
+
+                console.error(
+                    "Voice recorder error:",
+                    event
+                );
+
+                discardRecording = true;
+
+                stopRecordingDisplayTimer();
+
+                releaseMicrophone();
+
+                showNormalComposer();
+            }
+        );
+
+        // Start recording.
+        mediaRecorder.start();
+
+        // Switch to the recording interface.
+        showRecordingComposer();
+
+        // Automatically stop after two minutes.
+        recordingTimer = setTimeout(function () {
+
+            if (
+                mediaRecorder &&
+                mediaRecorder.state === "recording"
+            ) {
+
+                mediaRecorder.stop();
+            }
+
+        }, MAX_RECORDING_MS);
+
+    } catch (error) {
+
+        console.error(
+            "Microphone recording failed:",
+            error
+        );
+
+        // Clean up a recorder that failed to start.
+        if (
+            mediaRecorder &&
+            mediaRecorder.state === "recording"
+        ) {
+
+            discardRecording = true;
+
+            mediaRecorder.stop();
+
+        } else {
+
+            mediaRecorder = null;
+
+            releaseMicrophone();
+
+            showNormalComposer();
+        }
+
+        alert(
+            "Unable to access your microphone. Check browser permissions."
+        );
+
+    } finally {
+
+        startingRecording = false;
+    }
+}
+
+
+// ========================================
+// 10. MICROPHONE BUTTON
+// ========================================
+
+if (recordVoiceButton) {
+
+    recordVoiceButton.addEventListener(
+        "click",
+        async function () {
+
+            // Start a new recording.
+            await startVoiceRecording();
+        }
+    );
+}
+
+
+// ========================================
+// 11. STOP RECORDING BUTTON
+// ========================================
+
+if (stopVoiceButton) {
+
+    stopVoiceButton.addEventListener(
+        "click",
+        function () {
+
+            if (
+                mediaRecorder &&
+                mediaRecorder.state === "recording"
+            ) {
+
+                // Stop recording and prepare preview.
+                mediaRecorder.stop();
+            }
+        }
+    );
+}
+
+
+// ========================================
+// 12. DELETE RECORDING BUTTON
+// ========================================
+
+if (cancelVoiceButton) {
+
+    cancelVoiceButton.addEventListener(
+        "click",
+        function () {
+
+            // If recording is active, discard it.
+            if (
+                mediaRecorder &&
+                mediaRecorder.state === "recording"
+            ) {
+
+                discardRecording = true;
+
+                mediaRecorder.stop();
+
+                return;
+            }
+
+            // If already recorded, delete the voice file.
+            recordedVoiceFile = null;
+
+            audioChunks = [];
+
+            discardRecording = false;
+
+            // Restore normal text input.
+            showNormalComposer();
+        }
+    );
+}
+
+
+// ========================================
+// 13. CLEAN UP MICROPHONE WHEN LEAVING
+// ========================================
+
+window.addEventListener(
+    "beforeunload",
+    function () {
+
+        // Stop the visible recording timer.
+        stopRecordingDisplayTimer();
+
+        // Release microphone access.
+        releaseMicrophone();
+
+        // Remove the temporary audio URL.
+        if (voicePreviewUrl) {
+
+            URL.revokeObjectURL(voicePreviewUrl);
+
+            voicePreviewUrl = null;
+        }
+    }
+);
 
 // Find the existing reply preview elements in the HTML.
 const replyPreview = document.getElementById("chat-reply-preview");
@@ -831,6 +1526,58 @@ chatMessages.addEventListener("click", function (event) {
         if (sendingMessage) {
             return;
         }
+// Prevent sending while microphone permission is being requested.
+if (startingRecording) {
+    alert("Please wait for the microphone to start.");
+    return;
+}
+
+// If the user presses Send while recording,
+// stop recording and wait until the audio file is ready.
+if (
+    mediaRecorder &&
+    mediaRecorder.state === "recording"
+) {
+
+    // Wait for the recorder to finish creating the audio file.
+    const recorder = mediaRecorder;
+
+    const recordingFinished = new Promise(function (resolve, reject) {
+
+        recorder.addEventListener(
+            "stop",
+            function () {
+                resolve();
+            },
+            { once: true }
+        );
+
+        recorder.addEventListener(
+            "error",
+            function () {
+                reject(new Error("Voice recording failed."));
+            },
+            { once: true }
+        );
+    });
+
+    // Stop the recording automatically.
+    recorder.stop();
+
+    try {
+        await recordingFinished;
+    } catch (error) {
+        console.error("Voice recording failed:", error);
+        alert("Unable to finish the voice recording.");
+        return;
+    }
+
+    // Confirm that a valid audio file was created.
+    if (!recordedVoiceFile) {
+        alert("No valid voice recording is available to send.");
+        return;
+    }
+}
 
         const message = messageInput
             ? messageInput.value.trim()
@@ -840,25 +1587,79 @@ chatMessages.addEventListener("click", function (event) {
             fileInput && fileInput.files.length > 0
         );
 
-        if (!message && !hasFile) {
+        if (!message && !hasFile && !recordedVoiceFile) {
             alert("Please enter a message or attach a file.");
             return;
         }
+// Preserve the voice message type for recorded audio.
+if (messageType) {
 
-        if (messageType) {
-            messageType.value = hasFile ? "file" : "text";
-        }
+    if (recordedVoiceFile) {
+        messageType.value = "voice";
+    } else {
+        messageType.value = hasFile ? "file" : "text";
+    }
+}
 
         sendingMessage = true;
 
         try {
 
            // Send the message and wait for the server to confirm success.
-          await submitForm(chatForm);
+         // Send a voice note if one has been recorded.
+if (recordedVoiceFile) {
+
+    const formData = new FormData(chatForm);
+
+    // Attach the recorded audio.
+    formData.set(
+        "attachment",
+        recordedVoiceFile,
+        recordedVoiceFile.name
+    );
+
+    // Tell Django this is a voice message.
+    formData.set("message_type", "voice");
+
+    const response = await fetch(chatForm.action, {
+        method: "POST",
+        body: formData,
+        credentials: "same-origin",
+        headers: {
+            "X-CSRFToken": getCSRFToken(chatForm),
+            "X-Requested-With": "XMLHttpRequest"
+        }
+    });
+
+    if (!response.ok) {
+        throw new Error(
+            `Voice upload failed: ${response.status}`
+        );
+    }
+
+    const result = await response.json();
+
+    if (result.success !== true) {
+        throw new Error(
+            result.error || "Voice message was not accepted."
+        );
+    }
+
+} else {
+
+    // Send normal text messages and attachments.
+    await submitForm(chatForm);
+}
 
             // Reset the message form.
             chatForm.reset();
 
+
+            // Clear the recording only after Django confirms success.
+            recordedVoiceFile = null;
+            audioChunks = [];
+
+            showNormalComposer();
             // Clear the reply ID and hide the reply preview.
             clearReply();
 
