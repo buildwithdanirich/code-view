@@ -63,6 +63,7 @@ from .models import (
     GroupChatMessage,
     GroupMessageReaction,
     GroupRepository,
+    RepositoryConnectionRequest,
 )
 
 from .permissions import (
@@ -704,9 +705,15 @@ def search_group_developers(request, group_id):
 # 8. PRIVATE DEVELOPMENT MEETING ROOM
 # ============================================================
 @login_required
+@require_GET
 def meeting_room(request, group_id):
     """
     Display the private development workspace.
+
+    Includes:
+    - Connected GitHub repository
+    - Repository connection approval requests
+    - Group chat messages
 
     LiveKit meeting functionality will be connected later.
     """
@@ -720,13 +727,11 @@ def meeting_room(request, group_id):
         id=group_id,
     )
 
-    # Only private groups have meeting rooms.
     if not group.is_private:
         return HttpResponseForbidden(
             "Meeting rooms are only available to private groups."
         )
 
-    # Only group members can enter the meeting room.
     if not is_group_member(group, request.user):
         return HttpResponseForbidden(
             "You must belong to this group to enter its meeting room."
@@ -742,11 +747,78 @@ def meeting_room(request, group_id):
 
     repository_form = GroupRepositoryForm()
 
+    is_owner = is_group_owner(
+        group,
+        request.user,
+    )
+
     # ========================================================
-    # 3. LOAD CHAT MESSAGES
+    # 3. LOAD REPOSITORY CONNECTION REQUESTS
     # ========================================================
 
-    # Exclude messages that have been soft-deleted.
+    repository_requests = []
+
+    my_repository_request = None
+
+    can_request_repository = False
+
+    can_connect_repository = is_owner
+
+    if is_owner:
+
+        # Only the group owner sees pending requests.
+        repository_requests = list(
+            RepositoryConnectionRequest.objects.filter(
+                group=group,
+                status="pending",
+                owner_membership_generation=(
+                    group.owner_membership_generation
+                ),
+            )
+            .select_related("requested_by")
+            .order_by("created_at")
+        )
+
+    else:
+
+        membership = GroupMember.objects.filter(
+            group=group,
+            user=request.user,
+        ).first()
+
+        if membership:
+
+            # Only requests from the current membership
+            # and ownership periods are valid.
+            my_repository_request = (
+                RepositoryConnectionRequest.objects.filter(
+                    group=group,
+                    requested_by=request.user,
+                    membership_generation=(
+                        membership.membership_generation
+                    ),
+                    owner_membership_generation=(
+                        group.owner_membership_generation
+                    ),
+                    status__in=["pending", "approved"],
+                )
+                .order_by("-created_at")
+                .first()
+            )
+
+            can_request_repository = (
+                my_repository_request is None
+            )
+
+            can_connect_repository = (
+                my_repository_request is not None
+                and my_repository_request.status == "approved"
+            )
+
+    # ========================================================
+    # 4. LOAD CHAT MESSAGES
+    # ========================================================
+
     recent_messages = list(
         GroupChatMessage.objects
         .filter(
@@ -761,11 +833,10 @@ def meeting_room(request, group_id):
         .order_by("-created_at", "-id")[:50]
     )
 
-    # Display messages from oldest to newest.
     recent_messages.reverse()
 
     # ========================================================
-    # 4. DISPLAY THE MEETING ROOM
+    # 5. DISPLAY THE MEETING ROOM
     # ========================================================
 
     return render(
@@ -775,10 +846,17 @@ def meeting_room(request, group_id):
             "group": group,
             "repository": repository,
             "repository_form": repository_form,
-            "can_manage_repository": is_group_owner(
-                group,
-                request.user,
-            ),
+
+            # Existing owner permission.
+            "can_manage_repository": is_owner,
+
+            # New repository approval information.
+            "repository_requests": repository_requests,
+            "my_repository_request": my_repository_request,
+            "can_request_repository": can_request_repository,
+            "can_connect_repository": can_connect_repository,
+
+            # Existing group chat.
             "chat_messages": recent_messages,
         },
     )

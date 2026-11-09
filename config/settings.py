@@ -201,3 +201,36 @@ MEDIA_ROOT = BASE_DIR / "media"
 # Files in this directory must only be served through
 # authenticated Django views that verify group membership.
 PRIVATE_MEDIA_ROOT = BASE_DIR / "private_media"
+
+# ========================================
+# GITHUB APP CONFIGURATION
+# ========================================
+
+# Identifies CodeView's GitHub App.
+GITHUB_APP_ID = os.environ.get("GITHUB_APP_ID")
+
+# Location of the private key used to authenticate CodeView with GitHub.
+GITHUB_APP_PRIVATE_KEY_PATH = os.environ.get(
+    "GITHUB_APP_PRIVATE_KEY_PATH"
+)
+
+# ============================================================
+# GITHUB USER AUTHORIZATION
+# ============================================================
+
+# Public identifier for CodeView's GitHub App OAuth flow.
+GITHUB_CLIENT_ID = os.environ.get(
+    "GITHUB_CLIENT_ID"
+)
+
+# Secret used by the server to exchange an OAuth code for a token.
+# Never expose this value in HTML or JavaScript.
+GITHUB_CLIENT_SECRET = os.environ.get(
+    "GITHUB_CLIENT_SECRET"
+)
+
+# GitHub redirects the developer here after authorization.
+GITHUB_OAUTH_CALLBACK_URL = os.environ.get(
+    "GITHUB_OAUTH_CALLBACK_URL",
+    "http://127.0.0.1:8000/github/callback/",
+)

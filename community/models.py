@@ -973,3 +973,168 @@ class GroupMessageReaction(models.Model):
             f"{self.user} reacted {self.emoji} "
             f"to message {self.message_id}"
         )
+
+        # ============================================================
+# REPOSITORY CONNECTION REQUEST
+# ============================================================
+
+class RepositoryConnectionRequest(models.Model):
+    """
+    Track requests from members who want to replace
+    their private development group's GitHub repository.
+
+    The group owner must approve the request before
+    the member can begin connecting a repository.
+    """
+
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("approved", "Approved"),
+        ("rejected", "Rejected"),
+        ("used", "Used"),
+        ("cancelled", "Cancelled"),
+    ]
+
+    # The private development group.
+    group = models.ForeignKey(
+        ProjectGroup,
+        on_delete=models.CASCADE,
+        related_name="repository_connection_requests",
+    )
+
+    # Member requesting permission.
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="repository_connection_requests",
+    )
+
+    # Current state of the request.
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default="pending",
+    )
+
+    # Identifies the membership period when the request was created.
+    membership_generation = models.UUIDField()
+
+    # Identifies the group ownership period.
+    owner_membership_generation = models.UUIDField()
+
+    # Group owner who reviewed the request.
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_repository_connection_requests",
+    )
+
+    # When the member submitted the request.
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    # When the owner approved or rejected the request.
+    reviewed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    # When an approved request was successfully used.
+    used_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+
+        indexes = [
+            models.Index(
+                fields=["group", "status"],
+                name="repo_request_group_status_idx",
+            ),
+        ]
+
+        constraints = [
+            # A member cannot have two pending requests
+            # for the same group.
+            models.UniqueConstraint(
+                fields=["group", "requested_by"],
+                condition=models.Q(status="pending"),
+                name="unique_pending_repo_request",
+            ),
+
+            # A member cannot have two approved,
+            # unused requests for the same group.
+            models.UniqueConstraint(
+                fields=["group", "requested_by"],
+                condition=models.Q(status="approved"),
+                name="unique_approved_repo_request",
+            ),
+        ]
+
+    def clean(self):
+        """Validate repository connection requests."""
+
+        super().clean()
+
+        if not self.group_id or not self.requested_by_id:
+            return
+
+        # Repository connections belong to private groups only.
+        if not self.group.is_private:
+            raise ValidationError(
+                "Repository connection requests are only "
+                "allowed in private development groups."
+            )
+
+        # The owner does not need to request permission.
+        if self.requested_by_id == self.group.owner_id:
+            raise ValidationError(
+                "Group owners do not need repository "
+                "connection approval."
+            )
+
+        # Confirm the requester is still a group member.
+        membership = GroupMember.objects.filter(
+            group_id=self.group_id,
+            user_id=self.requested_by_id,
+        ).first()
+
+        if membership is None:
+            raise ValidationError(
+                "Only current group members can request "
+                "repository connection permission."
+            )
+
+        # A request must belong to the current membership period.
+        if self.membership_generation != membership.membership_generation:
+            raise ValidationError(
+                "Repository connection request membership "
+                "is no longer valid."
+            )
+
+        # A request must belong to the current ownership period.
+        if (
+            self.owner_membership_generation
+            != self.group.owner_membership_generation
+        ):
+            raise ValidationError(
+                "Repository connection request ownership "
+                "is no longer valid."
+            )
+
+    def save(self, *args, **kwargs):
+        """Validate before saving the request."""
+
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return (
+            f"{self.requested_by} - {self.group.name} "
+            f"({self.status})"
+        )

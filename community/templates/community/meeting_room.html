@@ -283,6 +283,51 @@
 
                 {% endif %}
 
+                <!-- Owner: review current repository connection requests. -->
+                {% if can_manage_repository %}
+                    <div class="repository-approval-requests">
+                        <h3>Repository Connection Requests</h3>
+
+                        {% if repository_requests %}
+                            {% for connection_request in repository_requests %}
+                                <div class="repository-approval-request">
+                                    <p>
+                                        <strong>{{ connection_request.requested_by.username }}</strong>
+                                        wants permission to connect a GitHub repository.
+                                    </p>
+
+                                    <form method="post" action="{% url 'approve_repository_connection' group.id connection_request.id %}">
+                                        {% csrf_token %}
+                                        <button type="submit">Approve</button>
+                                    </form>
+
+                                    <form method="post" action="{% url 'reject_repository_connection' group.id connection_request.id %}">
+                                        {% csrf_token %}
+                                        <button type="submit">Reject</button>
+                                    </form>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <p>No pending repository connection requests.</p>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <!-- Member: show approval state, or allow a new request. -->
+                    <div class="repository-member-permission">
+                        {% if my_repository_request and my_repository_request.status == 'pending' %}
+                            <p>Your repository connection request is pending owner approval.</p>
+                        {% elif my_repository_request and my_repository_request.status == 'approved' %}
+                            <p>Your request has been approved.</p>
+                            <p>GitHub authorization will be available here once the secure connection flow is implemented.</p>
+                        {% elif can_request_repository %}
+                            <form method="post" action="{% url 'request_repository_connection' group.id %}">
+                                {% csrf_token %}
+                                <button type="submit">Request Repository Connection</button>
+                            </form>
+                        {% endif %}
+                    </div>
+                {% endif %}
+
             </section>
 
             <!-- ====================================
@@ -736,4 +781,5 @@
 <script src="{% static 'community/meeting_room/meeting_room.js' %}" defer></script>
 </body>
 
-</html>
+</html>%                                                                   
+(venv) ➜  code-view git:(main) ✗ 

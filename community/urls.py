@@ -9,6 +9,7 @@ Features:
 - Group chat
 - Group membership management
 - GitHub repository integration
+- Repository connection approval requests
 - Meeting rooms
 """
 
@@ -19,6 +20,9 @@ from . import views
 
 # Private-group invitation functionality.
 from . import invitation_views
+
+# GitHub repository connection approval functionality.
+from . import repository_request_views
 
 
 urlpatterns = [
@@ -47,8 +51,6 @@ urlpatterns = [
     # 3. JOIN NORMAL CHAT GROUP
     # ========================================================
 
-    # Private development groups must use invitations.
-    # The join_group view must enforce this restriction.
     path(
         "<int:group_id>/join/",
         views.join_group,
@@ -69,28 +71,24 @@ urlpatterns = [
     # 5. PRIVATE-GROUP INVITATIONS
     # ========================================================
 
-    # Only the private-group owner can send invitations.
     path(
         "<int:group_id>/invitations/send/",
         invitation_views.send_invitation_view,
         name="send_group_invitation",
     ),
 
-    # Show invitations received by the logged-in developer.
     path(
         "invitations/received/",
         invitation_views.received_invitations_view,
         name="received_group_invitations",
     ),
 
-    # Accept an invitation.
     path(
         "invitations/<int:invitation_id>/accept/",
         invitation_views.accept_invitation_view,
         name="accept_group_invitation",
     ),
 
-    # Decline an invitation.
     path(
         "invitations/<int:invitation_id>/decline/",
         invitation_views.decline_invitation_view,
@@ -101,23 +99,18 @@ urlpatterns = [
     # 6. GROUP MEMBERSHIP MANAGEMENT
     # ========================================================
 
-    # Search registered developers.
-    # The view must restrict private-group invitation searches
-    # to the group owner.
     path(
         "<int:group_id>/members/search/",
         views.search_group_developers,
         name="search_group_developers",
     ),
 
-    # Only the group owner can remove private-group members.
     path(
         "<int:group_id>/members/<int:member_id>/remove/",
         views.remove_group_member,
         name="remove_group_member",
     ),
 
-    # Allow developers to leave groups.
     path(
         "<int:group_id>/members/leave/",
         views.leave_group,
@@ -128,35 +121,30 @@ urlpatterns = [
     # 7. GROUP DISCUSSIONS
     # ========================================================
 
-    # Create a discussion.
     path(
         "<int:group_id>/discussions/create/",
         views.create_discussion,
         name="create_discussion",
     ),
 
-    # View a discussion and its comments.
     path(
         "<int:group_id>/discussions/<int:discussion_id>/",
         views.discussion_detail,
         name="discussion_detail",
     ),
 
-    # Add a comment or reply.
     path(
         "<int:group_id>/discussions/<int:discussion_id>/comment/",
         views.add_discussion_comment,
         name="add_discussion_comment",
     ),
 
-    # Like or unlike a discussion.
     path(
         "<int:group_id>/discussions/<int:discussion_id>/like/",
         views.toggle_discussion_like,
         name="toggle_discussion_like",
     ),
 
-    # Hide a discussion.
     path(
         "<int:group_id>/discussions/<int:discussion_id>/hide/",
         views.hide_discussion,
@@ -167,51 +155,44 @@ urlpatterns = [
     # 8. GROUP CHAT
     # ========================================================
 
-    # Open the group chat room.
     path(
         "<int:group_id>/chat/",
         views.group_chat,
         name="group_chat",
     ),
 
-    # Send text, code snippets, voice notes, or files.
     path(
         "<int:group_id>/chat/send/",
         views.send_group_message,
         name="send_group_message",
     ),
 
-    # Edit a message.
     path(
         "<int:group_id>/chat/<int:message_id>/edit/",
         views.edit_group_message,
         name="edit_group_message",
     ),
 
-    # Delete a message.
     path(
         "<int:group_id>/chat/<int:message_id>/delete/",
         views.delete_group_message,
         name="delete_group_message",
     ),
 
-        # ========================================================
+    # ========================================================
     # GROUP CHAT MESSAGE REACTIONS
     # ========================================================
 
-    # Add, change, or remove an emoji reaction.
     path(
         "<int:group_id>/chat/<int:message_id>/react/",
         views.toggle_group_message_reaction,
         name="toggle_group_message_reaction",
     ),
 
-        # ========================================================
+    # ========================================================
     # SECURE GROUP CHAT ATTACHMENT DOWNLOAD
     # ========================================================
 
-    # Allow authorized group members to download attachments.
-    # The view checks membership before returning the file.
     path(
         "<int:group_id>/chat/<int:message_id>/attachment/",
         views.download_group_attachment,
@@ -222,21 +203,39 @@ urlpatterns = [
     # 9. GITHUB REPOSITORY INTEGRATION
     # ========================================================
 
-    # Connect a repository to a private development group.
     path(
         "<int:group_id>/repository/connect/",
         views.connect_group_repository,
         name="connect_group_repository",
     ),
 
-    # Display the repository's files.
+    # Member requests permission to connect a repository.
+    path(
+        "<int:group_id>/repository/request/",
+        repository_request_views.request_repository_connection,
+        name="request_repository_connection",
+    ),
+
+    # Group owner approves a repository connection request.
+    path(
+        "<int:group_id>/repository/requests/<int:request_id>/approve/",
+        repository_request_views.approve_repository_connection,
+        name="approve_repository_connection",
+    ),
+
+    # Group owner rejects a repository connection request.
+    path(
+        "<int:group_id>/repository/requests/<int:request_id>/reject/",
+        repository_request_views.reject_repository_connection,
+        name="reject_repository_connection",
+    ),
+
     path(
         "<int:group_id>/repository/files/",
         views.group_repository_files,
         name="group_repository_files",
     ),
 
-    # Display the content of a selected repository file.
     path(
         "<int:group_id>/repository/file-content/",
         views.group_repository_file_content,
@@ -247,7 +246,6 @@ urlpatterns = [
     # 10. PRIVATE-GROUP MEETING ROOM
     # ========================================================
 
-    # LiveKit integration will be added later.
     path(
         "<int:group_id>/meeting/",
         views.meeting_room,
