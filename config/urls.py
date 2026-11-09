@@ -3,6 +3,8 @@
 # Access Django project settings.
 from django.conf import settings
 
+from community import github_oauth
+
 # Helper for serving uploaded files during development.
 from django.conf.urls.static import static
 
@@ -35,6 +37,24 @@ urlpatterns = [
             pattern_name="groups",
             permanent=False,
         ),
+    ),
+
+        # ============================================================
+    # GITHUB OAUTH AUTHORIZATION
+    # ============================================================
+
+    # Start GitHub authorization for a private development group.
+    path(
+        "github/authorize/<int:group_id>/",
+        github_oauth.start_github_authorization,
+        name="start_github_authorization",
+    ),
+
+    # GitHub redirects developers here after authorization.
+    path(
+        "github/callback/",
+        github_oauth.github_oauth_callback,
+        name="github_oauth_callback",
     ),
 
 ]
