@@ -1,57 +1,36 @@
 /*
- * CodeView — Real-Time Repository Notifications
+ * CodeView — Real-Time Repository Connection Requests
  *
  * Responsibilities:
  * 1. Connect the group owner to the notification WebSocket.
- * 2. Receive new repository connection requests.
- * 3. Display notifications without refreshing.
- * 4. Allow the owner to open the existing approval section.
+ * 2. Detect new repository connection requests.
+ * 3. Automatically update the owner's approval list.
+ * 4. Preserve Django-generated Approve and Reject forms.
  * 5. Reconnect after temporary connection failures.
  *
  * Security:
- * The Django WebSocket consumer verifies group ownership.
- * JavaScript does not grant repository permissions.
+ * - Django verifies group ownership.
+ * - Django generates the approval/rejection URLs and CSRF tokens.
+ * - JavaScript never grants repository permissions.
  */
 
 document.addEventListener("DOMContentLoaded", () => {
 
     // ========================================================
-    // 1. FIND THE NOTIFICATION ELEMENTS
+    // 1. FIND THE OWNER'S APPROVAL SECTION
     // ========================================================
-
-    const notificationPanel = document.getElementById(
-        "repository-notification-panel"
-    );
-
-    const notificationMessage = document.getElementById(
-        "repository-notification-message"
-    );
-
-    const notificationReview = document.getElementById(
-        "repository-notification-review"
-    );
-
-    const notificationDismiss = document.getElementById(
-        "repository-notification-dismiss"
-    );
 
     const approvalSection = document.getElementById(
         "repository-approval-requests"
     );
 
-    // The server-rendered owner-only interface supplies
-    // the notification URL.
-    const socketPath = document.body.dataset.repositoryNotificationSocketUrl;
+    // Get the WebSocket URL provided by Django.
+    const socketPath = (
+        document.body.dataset.repositoryNotificationSocketUrl
+    );
 
-    // Ordinary members do not have these elements or URL.
-    if (
-        !socketPath ||
-        !notificationPanel ||
-        !notificationMessage ||
-        !notificationReview ||
-        !notificationDismiss ||
-        !approvalSection
-    ) {
+    // Only the group owner should have this section and URL.
+    if (!socketPath || !approvalSection) {
         return;
     }
 
@@ -75,24 +54,187 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let pageIsClosing = false;
 
-    // Remember notification IDs already displayed
-    // during this page session.
+    // Prevent duplicate request events from triggering
+    // unnecessary updates.
     const receivedRequestIds = new Set();
 
+    // Prevent simultaneous requests to refresh the list.
+    let refreshInProgress = false;
+
+    // Remember whether another update is needed.
+    let refreshAgain = false;
+
     // ========================================================
-    // 3. DISPLAY A REPOSITORY REQUEST
+    // 3. FETCH THE LATEST REPOSITORY REQUESTS
     // ========================================================
 
-    function displayNotification(data) {
+    async function refreshApprovalSection() {
 
-        // Only handle new repository request events.
-        if (data.type !== "repository_request_created") {
+        // Avoid overlapping fetch requests.
+        if (refreshInProgress) {
+            refreshAgain = true;
+            return;
+        }
+
+        refreshInProgress = true;
+
+        try {
+
+            // Request the latest meeting room HTML from Django.
+            const response = await fetch(
+                window.location.href,
+                {
+                    method: "GET",
+                    credentials: "same-origin",
+                    cache: "no-store",
+                    redirect: "error",
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest",
+                    },
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    `Failed to refresh requests: ${response.status}`
+                );
+            }
+
+            // Read the server-rendered meeting room.
+            const html = await response.text();
+
+            // Parse the HTML without changing the current page.
+            const parser = new DOMParser();
+
+            const updatedDocument = parser.parseFromString(
+                html,
+                "text/html"
+            );
+
+            // Find the latest repository approval section.
+            const updatedSection = updatedDocument.getElementById(
+                "repository-approval-requests"
+            );
+
+            // If the section is missing, do not change the page.
+            if (!updatedSection) {
+                throw new Error(
+                    "Repository approval section was not found."
+                );
+            }
+
+            // Stop if the owner has left the meeting room.
+            if (pageIsClosing) {
+                return;
+            }
+
+            // ====================================================
+            // REMOVE THE OLD REQUEST CARDS
+            // ====================================================
+
+            const existingCards = approvalSection.querySelectorAll(
+                ".repository-approval-request"
+            );
+
+            existingCards.forEach((card) => {
+                card.remove();
+            });
+
+            // Remove the previous empty-state message.
+            const emptyMessages = Array.from(
+                approvalSection.children
+            ).filter((element) => {
+
+                return (
+                    element.tagName === "P" &&
+                    element.textContent.includes(
+                        "No pending repository connection requests."
+                    )
+                );
+            });
+
+            emptyMessages.forEach((message) => {
+                message.remove();
+            });
+
+            // ====================================================
+            // INSERT THE LATEST REQUEST CARDS
+            // ====================================================
+
+            const updatedCards = updatedSection.querySelectorAll(
+                ".repository-approval-request"
+            );
+
+            if (updatedCards.length > 0) {
+
+                // Use the forms rendered by Django.
+                // Their POST URLs and CSRF tokens remain intact.
+                updatedCards.forEach((card) => {
+
+                    const importedCard = document.importNode(
+                        card,
+                        true
+                    );
+
+                    approvalSection.appendChild(importedCard);
+                });
+
+            } else {
+
+                // Display the empty state when no requests exist.
+                const emptyMessage = document.createElement("p");
+
+                emptyMessage.textContent = (
+                    "No pending repository connection requests."
+                );
+
+                approvalSection.appendChild(emptyMessage);
+            }
+
+            console.log(
+                "Repository connection requests updated."
+            );
+
+        } catch (error) {
+
+            // Keep the existing list if the update fails.
+            console.error(
+                "Failed to update repository requests:",
+                error
+            );
+
+        } finally {
+
+            refreshInProgress = false;
+
+            // Fetch again if another event arrived
+            // while the previous request was running.
+            if (refreshAgain && !pageIsClosing) {
+
+                refreshAgain = false;
+
+                refreshApprovalSection();
+            }
+        }
+    }
+
+    // ========================================================
+    // 4. HANDLE NEW REPOSITORY REQUEST EVENTS
+    // ========================================================
+
+    function handleRepositoryRequest(data) {
+
+        // Only process new repository request events.
+        if (
+            !data ||
+            data.type !== "repository_request_created"
+        ) {
             return;
         }
 
         const requestId = Number(data.request_id);
 
-        // Reject malformed request IDs.
+        // Ignore invalid request IDs.
         if (
             !Number.isSafeInteger(requestId) ||
             requestId <= 0
@@ -100,30 +242,20 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        // Avoid showing the same event twice.
+        // Ignore events already handled during this session.
         if (receivedRequestIds.has(requestId)) {
             return;
         }
 
         receivedRequestIds.add(requestId);
 
-        // Display the developer's username safely.
-        const username = (
-            typeof data.requested_by === "string"
-                ? data.requested_by
-                : "A group member"
-        );
-
-        notificationMessage.textContent = (
-            `${username} requested permission to connect ` +
-            "a GitHub repository."
-        );
-
-        notificationPanel.hidden = false;
+        // Automatically refresh the approval list.
+        // No notification popup or extra buttons are needed.
+        refreshApprovalSection();
     }
 
     // ========================================================
-    // 4. CONNECT TO DJANGO CHANNELS
+    // 5. CONNECT TO DJANGO CHANNELS
     // ========================================================
 
     function connectNotifications() {
@@ -137,10 +269,13 @@ document.addEventListener("DOMContentLoaded", () => {
         notificationSocket.addEventListener("open", () => {
 
             console.log(
-                "Repository notification WebSocket connected."
+                "Repository request WebSocket connected."
             );
 
             reconnectAttempts = 0;
+
+            // Catch up on requests created while disconnected.
+            refreshApprovalSection();
         });
 
         notificationSocket.addEventListener("message", (event) => {
@@ -148,36 +283,40 @@ document.addEventListener("DOMContentLoaded", () => {
             let data;
 
             try {
+
                 data = JSON.parse(event.data);
+
             } catch (error) {
+
                 console.error(
-                    "Invalid repository notification received."
+                    "Invalid repository request event."
                 );
 
                 return;
             }
 
-            displayNotification(data);
+            handleRepositoryRequest(data);
         });
 
         notificationSocket.addEventListener("close", (event) => {
 
             console.log(
-                "Repository notification WebSocket disconnected."
+                "Repository request WebSocket disconnected."
             );
 
-            // Do not reconnect when the page is closing.
             if (pageIsClosing) {
                 return;
             }
 
-            // Authentication and authorization failures
-            // require a fresh page load or login.
-            if (event.code === 4401 || event.code === 4403) {
+            // Stop reconnecting after authorization failures.
+            if (
+                event.code === 4401 ||
+                event.code === 4403
+            ) {
                 return;
             }
 
-            // Gradually increase the reconnection delay.
+            // Increase the delay after each failed connection.
             reconnectAttempts += 1;
 
             const delay = Math.min(
@@ -194,55 +333,34 @@ document.addEventListener("DOMContentLoaded", () => {
         notificationSocket.addEventListener("error", () => {
 
             console.error(
-                "Repository notification WebSocket error."
+                "Repository request WebSocket error."
             );
         });
     }
 
     // ========================================================
-    // 5. REVIEW THE REQUEST
-    // ========================================================
-
-    notificationReview.addEventListener("click", () => {
-
-        // Hide the notification.
-        notificationPanel.hidden = true;
-
-        // Refresh the existing approval section from Django.
-        // Django remains responsible for rendering the
-        // current pending requests and their secure forms.
-        window.location.reload();
-    });
-
-    // ========================================================
-    // 6. DISMISS THE NOTIFICATION
-    // ========================================================
-
-    notificationDismiss.addEventListener("click", () => {
-
-        // Hide the notification without changing the
-        // request's pending status in PostgreSQL.
-        notificationPanel.hidden = true;
-    });
-
-    // ========================================================
-    // 7. CLEAN UP WHEN THE PAGE CLOSES
+    // 6. CLEAN UP WHEN THE PAGE CLOSES
     // ========================================================
 
     window.addEventListener("pagehide", () => {
 
         pageIsClosing = true;
 
+        // Stop pending reconnection attempts.
         if (reconnectTimer !== null) {
             window.clearTimeout(reconnectTimer);
         }
 
+        // Close the WebSocket connection.
         if (notificationSocket) {
             notificationSocket.close();
         }
     });
 
-    // Start listening for repository requests.
+    // ========================================================
+    // 7. START LISTENING
+    // ========================================================
+
     connectNotifications();
 
 });
