@@ -32,8 +32,11 @@
     data-current-user-id="{{ request.user.id }}"
     data-edit-url-template="{% url 'edit_group_message' group.id 0 %}"
     data-delete-url-template="{% url 'delete_group_message' group.id 0 %}"
+
     {% if can_manage_repository %}
         data-repository-notification-socket-url="/ws/groups/{{ group.id }}/repository-notifications/"
+    {% else %}
+        data-repository-member-notification-socket-url="/ws/groups/{{ group.id }}/repository-member-notifications/"
     {% endif %}
 >
 
@@ -1012,15 +1015,19 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
 
     <!-- Existing meeting room JavaScript -->
-    <script
-        src="{% static 'community/meeting_room/meeting_room.js' %}"
-        defer
-    ></script>
+<script
+    src="{% static 'community/meeting_room/meeting_room.js' %}"
+    defer
+></script>
 
-    <!-- Owner-only real-time repository notifications -->
 {% if can_manage_repository %}
     <script
         src="{% static 'community/meeting_room/repository_notifications.js' %}"
+        defer
+    ></script>
+{% else %}
+    <script
+        src="{% static 'community/meeting_room/repository_member_notifications.js' %}"
         defer
     ></script>
 {% endif %}

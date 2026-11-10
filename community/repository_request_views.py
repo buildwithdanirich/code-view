@@ -1,17 +1,17 @@
 """
-Handle GitHub repository connection permission requests.
+CodeView — GitHub Repository Connection Permission Requests.
 
 Rules:
-- Only members of private development groups can request permission.
-- Group owners do not need approval.
-- Only the current group owner can approve or reject requests.
-- An approval belongs to one membership and ownership period.
-- Approval does not immediately replace the group's repository.
+1. Only private development group members can request permission.
+2. Group owners do not need approval.
+3. Only the current group owner can approve or reject requests.
+4. Approvals belong to a specific membership and ownership period.
+5. Approval does not automatically replace the group's repository.
 
 Real-time notifications:
-- Notify the group owner when a new request is created.
-- Notify the requesting member when a decision is made.
-- Send events only after successful database commits.
+1. Notify the owner when a new request is created.
+2. Notify the requesting member when approved or rejected.
+3. Send notifications only after successful database commits.
 """
 
 import logging
@@ -38,22 +38,18 @@ logger = logging.getLogger(__name__)
 
 
 # ============================================================
-# REAL-TIME NOTIFICATION HELPER
+# 1. OWNER REPOSITORY NOTIFICATION HELPER
 # ============================================================
 
 def send_repository_notification(group_id, data):
     """
-    Send a repository notification to the group's owner.
+    Notify the group owner about a new repository request.
 
-    This helper is called after the database transaction
-    successfully commits.
-
-    The WebSocket consumer independently checks ownership
-    before forwarding the event to the browser.
+    This function runs after the database transaction commits.
     """
 
     try:
-        # Get the configured Django Channels layer.
+        # Get Django Channels' configured channel layer.
         channel_layer = get_channel_layer()
 
         if channel_layer is None:
@@ -63,12 +59,12 @@ def send_repository_notification(group_id, data):
             )
             return
 
-        # This name must match RepositoryNotificationConsumer.
+        # This must match RepositoryNotificationConsumer.
         notification_group = (
             f"group_repository_owner_{group_id}"
         )
 
-        # Send the event to connected owner WebSockets.
+        # Send the notification to the owner's WebSocket.
         async_to_sync(channel_layer.group_send)(
             notification_group,
             {
@@ -78,8 +74,7 @@ def send_repository_notification(group_id, data):
         )
 
     except Exception:
-        # A notification failure must not undo a successfully
-        # saved repository request or approval decision.
+        # Notification failures must not undo saved requests.
         logger.exception(
             "Failed to send repository notification "
             "for group %s.",
@@ -88,33 +83,91 @@ def send_repository_notification(group_id, data):
 
 
 # ============================================================
-# 1. MEMBER REQUESTS REPOSITORY CONNECTION
+# 2. MEMBER REPOSITORY DECISION NOTIFICATION HELPER
+# ============================================================
+
+def send_repository_member_notification(
+    group_id,
+    user_id,
+    membership_generation,
+    data,
+):
+    """
+    Notify one member about an approval or rejection.
+
+    The notification is delivered only to the specified
+    authenticated member and membership generation.
+    """
+
+    try:
+        # Get Django Channels' configured channel layer.
+        channel_layer = get_channel_layer()
+
+        if channel_layer is None:
+            logger.warning(
+                "Member repository notification skipped: "
+                "no channel layer is configured."
+            )
+            return
+
+        # Each member has a separate notification channel.
+        # This name must match RepositoryMemberNotificationConsumer.
+        notification_group = (
+            f"group_repository_member_{group_id}_{user_id}"
+        )
+
+        # Send the decision to the requesting member.
+        async_to_sync(channel_layer.group_send)(
+            notification_group,
+            {
+                "type": "repository.decision",
+
+                # The consumer checks this before delivering.
+                "membership_generation": membership_generation,
+
+                # Information sent to the browser.
+                "data": data,
+            },
+        )
+
+    except Exception:
+        # A WebSocket failure must not undo an approval/rejection.
+        logger.exception(
+            "Failed to send repository decision notification "
+            "for group %s and user %s.",
+            group_id,
+            user_id,
+        )
+
+
+# ============================================================
+# 3. MEMBER REQUESTS REPOSITORY CONNECTION
 # ============================================================
 
 @login_required
 @require_POST
 def request_repository_connection(request, group_id):
     """
-    Allow a group member to request permission to connect
-    a GitHub repository.
+    Allow a private group member to request permission
+    to connect a GitHub repository.
     """
 
     with transaction.atomic():
 
-        # Lock the group to coordinate membership and owner changes.
+        # Lock the group while checking membership and ownership.
         group = get_object_or_404(
             ProjectGroup.objects.select_for_update(),
             pk=group_id,
         )
 
-        # Only private development groups support repositories.
+        # Only private groups support repository connections.
         if not group.is_private:
             return HttpResponseForbidden(
                 "Repository connections are only available "
                 "to private development groups."
             )
 
-        # The owner can connect repositories without approval.
+        # Owners can connect repositories without approval.
         if group.owner_id == request.user.id:
             messages.info(
                 request,
@@ -126,7 +179,7 @@ def request_repository_connection(request, group_id):
                 group_id=group.id,
             )
 
-        # Check whether the developer belongs to the group.
+        # Verify that the developer belongs to this group.
         membership = GroupMember.objects.filter(
             group=group,
             user=request.user,
@@ -150,8 +203,8 @@ def request_repository_connection(request, group_id):
 
         if existing_request:
 
-            # An old request cannot grant permission after
-            # the member rejoins or group ownership changes.
+            # Determine whether this request still belongs
+            # to the current membership and ownership periods.
             is_current = (
                 existing_request.membership_generation
                 == membership.membership_generation
@@ -180,13 +233,13 @@ def request_repository_connection(request, group_id):
                     group_id=group.id,
                 )
 
-            # Invalidate an outdated request before creating a new one.
+            # Cancel an outdated request.
             existing_request.status = "cancelled"
             existing_request.save(
                 update_fields=["status"],
             )
 
-        # Create a new request for the current membership period.
+        # Create a new request for this membership period.
         try:
             with transaction.atomic():
 
@@ -215,8 +268,7 @@ def request_repository_connection(request, group_id):
                 group_id=group.id,
             )
 
-        # Prepare a minimal event payload.
-        # The owner-only consumer verifies authorization.
+        # Prepare the owner notification.
         notification_data = {
             "type": "repository_request_created",
             "group_id": group.id,
@@ -228,7 +280,7 @@ def request_repository_connection(request, group_id):
             ),
         }
 
-        # Notify only after the outer transaction commits.
+        # Send the notification after PostgreSQL commits.
         transaction.on_commit(
             lambda group_id=group.id, data=notification_data: (
                 send_repository_notification(group_id, data)
@@ -248,7 +300,7 @@ def request_repository_connection(request, group_id):
 
 
 # ============================================================
-# 2. GROUP OWNER APPROVES REQUEST
+# 4. GROUP OWNER APPROVES REQUEST
 # ============================================================
 
 @login_required
@@ -267,11 +319,13 @@ def approve_repository_connection(request, group_id, request_id):
             pk=group_id,
         )
 
+        # Only the current private group owner can approve.
         if not group.is_private or group.owner_id != request.user.id:
             return HttpResponseForbidden(
                 "Only the private group owner can approve requests."
             )
 
+        # Lock the request to prevent simultaneous decisions.
         connection_request = get_object_or_404(
             RepositoryConnectionRequest.objects.select_for_update(),
             pk=request_id,
@@ -290,7 +344,8 @@ def approve_repository_connection(request, group_id, request_id):
                 group_id=group.id,
             )
 
-        # Check that the member still belongs to the group.
+        # Verify that the requesting member still belongs
+        # to the same membership period.
         membership = GroupMember.objects.filter(
             group=group,
             user=connection_request.requested_by,
@@ -303,9 +358,12 @@ def approve_repository_connection(request, group_id, request_id):
             or group.owner_membership_generation
             != connection_request.owner_membership_generation
         ):
-            # Expire the invalid request.
+
+            # An outdated request cannot be approved.
             connection_request.status = "cancelled"
-            connection_request.save(update_fields=["status"])
+            connection_request.save(
+                update_fields=["status"],
+            )
 
             messages.error(
                 request,
@@ -317,7 +375,7 @@ def approve_repository_connection(request, group_id, request_id):
                 group_id=group.id,
             )
 
-        # Record the approval.
+        # Save the approval in PostgreSQL.
         connection_request.status = "approved"
         connection_request.reviewed_by = request.user
         connection_request.reviewed_at = timezone.now()
@@ -328,6 +386,42 @@ def approve_repository_connection(request, group_id, request_id):
                 "reviewed_by",
                 "reviewed_at",
             ],
+        )
+
+        # ====================================================
+        # NOTIFY THE REQUESTING MEMBER
+        # ====================================================
+
+        notification_data = {
+            "type": "repository_request_approved",
+            "group_id": group.id,
+            "request_id": connection_request.id,
+            "status": "approved",
+            "message": (
+                "Your repository connection request "
+                "has been approved."
+            ),
+        }
+
+        # Capture the correct member and membership generation.
+        member_id = connection_request.requested_by_id
+        membership_generation = (
+            connection_request.membership_generation
+        )
+
+        # Send only after the approval commits successfully.
+        transaction.on_commit(
+            lambda group_id=group.id,
+                   user_id=member_id,
+                   generation=membership_generation,
+                   data=notification_data: (
+                send_repository_member_notification(
+                    group_id,
+                    user_id,
+                    generation,
+                    data,
+                )
+            )
         )
 
     messages.success(
@@ -343,7 +437,7 @@ def approve_repository_connection(request, group_id, request_id):
 
 
 # ============================================================
-# 3. GROUP OWNER REJECTS REQUEST
+# 5. GROUP OWNER REJECTS REQUEST
 # ============================================================
 
 @login_required
@@ -356,22 +450,26 @@ def reject_repository_connection(request, group_id, request_id):
 
     with transaction.atomic():
 
+        # Lock the group before checking ownership.
         group = get_object_or_404(
             ProjectGroup.objects.select_for_update(),
             pk=group_id,
         )
 
+        # Only the current private group owner can reject.
         if not group.is_private or group.owner_id != request.user.id:
             return HttpResponseForbidden(
                 "Only the private group owner can reject requests."
             )
 
+        # Lock the request to prevent simultaneous decisions.
         connection_request = get_object_or_404(
             RepositoryConnectionRequest.objects.select_for_update(),
             pk=request_id,
             group=group,
         )
 
+        # Only pending requests can be rejected.
         if connection_request.status != "pending":
             messages.error(
                 request,
@@ -383,6 +481,7 @@ def reject_repository_connection(request, group_id, request_id):
                 group_id=group.id,
             )
 
+        # Save the rejection in PostgreSQL.
         connection_request.status = "rejected"
         connection_request.reviewed_by = request.user
         connection_request.reviewed_at = timezone.now()
@@ -393,6 +492,41 @@ def reject_repository_connection(request, group_id, request_id):
                 "reviewed_by",
                 "reviewed_at",
             ],
+        )
+
+        # ====================================================
+        # NOTIFY THE REQUESTING MEMBER
+        # ====================================================
+
+        notification_data = {
+            "type": "repository_request_rejected",
+            "group_id": group.id,
+            "request_id": connection_request.id,
+            "status": "rejected",
+            "message": (
+                "Your repository connection request "
+                "has been rejected."
+            ),
+        }
+
+        member_id = connection_request.requested_by_id
+        membership_generation = (
+            connection_request.membership_generation
+        )
+
+        # Send only after PostgreSQL commits the rejection.
+        transaction.on_commit(
+            lambda group_id=group.id,
+                   user_id=member_id,
+                   generation=membership_generation,
+                   data=notification_data: (
+                send_repository_member_notification(
+                    group_id,
+                    user_id,
+                    generation,
+                    data,
+                )
+            )
         )
 
     messages.success(

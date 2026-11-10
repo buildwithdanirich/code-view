@@ -320,3 +320,148 @@ class RepositoryNotificationConsumer(AsyncJsonWebsocketConsumer):
             current_generation is not None
             and current_generation == self.owner_generation
         )
+
+# ============================================================
+# 4. MEMBER-ONLY REPOSITORY DECISION NOTIFICATIONS
+# ============================================================
+
+class RepositoryMemberNotificationConsumer(AsyncJsonWebsocketConsumer):
+    """
+    Notify an individual group member when the owner
+    approves or rejects their repository connection request.
+
+    Each connection belongs to one user and one group.
+    """
+
+    async def connect(self):
+        """Verify membership before accepting the connection."""
+
+        # Get the logged-in user from Django's session.
+        self.user = self.scope["user"]
+
+        # Get the group ID from the WebSocket URL.
+        self.group_id = self.scope["url_route"]["kwargs"]["group_id"]
+
+        self.joined_notification_group = False
+
+        # Only authenticated developers can connect.
+        if not self.user.is_authenticated:
+            await self.close(code=4401)
+            return
+
+        # Capture the current membership generation.
+        membership_generation = await self.get_membership_generation()
+
+        if membership_generation is None:
+            await self.close(code=4403)
+            return
+
+        self.membership_generation = membership_generation
+
+        # Give each member their own notification channel.
+        # Other members cannot subscribe to this channel
+        # because the user ID comes from the authenticated session.
+        self.room_group_name = (
+            f"group_repository_member_{self.group_id}_{self.user.pk}"
+        )
+
+        # Subscribe this connection.
+        await self.channel_layer.group_add(
+            self.room_group_name,
+            self.channel_name,
+        )
+
+        self.joined_notification_group = True
+
+        # Recheck membership in case it changed while connecting.
+        if not await self.is_current_member():
+            await self.channel_layer.group_discard(
+                self.room_group_name,
+                self.channel_name,
+            )
+
+            self.joined_notification_group = False
+
+            await self.close(code=4403)
+            return
+
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        """Remove this member's notification subscription."""
+
+        if getattr(self, "joined_notification_group", False):
+            await self.channel_layer.group_discard(
+                self.room_group_name,
+                self.channel_name,
+            )
+
+            self.joined_notification_group = False
+
+    async def repository_decision(self, event):
+        """
+        Handle a repository approval or rejection event.
+
+        Channels maps 'repository.decision' to this method.
+        """
+
+        # Prevent old membership sessions from receiving
+        # notifications after a member leaves and rejoins.
+        if not await self.is_current_member():
+            await self.close(code=4403)
+            return
+
+        data = event.get("data", {})
+
+        # Only forward supported decision events.
+        if data.get("type") not in (
+            "repository_request_approved",
+            "repository_request_rejected",
+        ):
+            return
+
+        # Ensure the notification belongs to this exact
+        # membership period.
+        if (
+            event.get("membership_generation")
+            != self.membership_generation
+        ):
+            return
+
+        # Send the event to the member's browser.
+        await self.send_json(data)
+
+    @database_sync_to_async
+    def get_membership_generation(self):
+        """Retrieve the member's current membership generation."""
+
+        # The group must still be private.
+        if not ProjectGroup.objects.filter(
+            id=self.group_id,
+            is_private=True,
+        ).exists():
+            return None
+
+        # Return the current membership generation.
+        return (
+            GroupMember.objects
+            .filter(
+                group_id=self.group_id,
+                user_id=self.user.pk,
+            )
+            .values_list(
+                "membership_generation",
+                flat=True,
+            )
+            .first()
+        )
+
+    async def is_current_member(self):
+        """Verify that this connection still belongs to the member."""
+
+        current_generation = await self.get_membership_generation()
+
+        return (
+            current_generation is not None
+            and current_generation == self.membership_generation
+        )
