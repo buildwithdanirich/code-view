@@ -22,6 +22,7 @@ import secrets
 import time
 
 from urllib.parse import quote, urlencode
+import logging
 
 import httpx
 
@@ -53,6 +54,7 @@ from .models import (
     RepositoryConnectionRequest,
 )
 
+logger = logging.getLogger(__name__)
 
 # Allow five minutes to complete GitHub authorization.
 OAUTH_MAX_AGE_SECONDS = 300
@@ -606,13 +608,43 @@ def github_oauth_callback(request):
         httpx.HTTPError,
         ValueError,
         TypeError,
-    ):
+    ) as error:
+
+        # Log the error category and HTTP status, not
+        # authorization codes, tokens, or response bodies.
+        status_code = None
+
+        if isinstance(error, httpx.HTTPStatusError):
+            status_code = error.response.status_code
+        # Log our own verification error messages.
+        # Never log access tokens or authorization codes.
+
+        if isinstance(error, GitHubAuthError):
+
+            logger.warning(
+                "Private repository verification failed. "
+                "Group ID: %s | Reason: %s",
+                group.id,
+                str(error),
+            )
+
+        else:
+
+            logger.warning(
+                "Private repository verification failed. "
+                "Group ID: %s | Error type: %s | HTTP status: %s",
+                group.id,
+                type(error).__name__,
+                status_code,
+            )
+
         messages.error(
             request,
             (
                 "GitHub could not verify this private repository. "
-                "Check your repository permissions and confirm "
-                "that the CodeView GitHub App is installed."
+                "Check that your GitHub account has write access "
+                "and that the CodeView GitHub App is installed "
+                "for the selected repository."
             ),
         )
 

@@ -18,10 +18,18 @@ The old membership-request approval and direct-add-member
 workflows have been removed.
 """
 
+import httpx
+
 import json
 import logging
 
 from .github_oauth import has_repository_connection_permission
+
+from community.github_auth import (
+    GitHubAuthError,
+    github_api_request,
+    get_installation_access_token,
+)
 
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
@@ -1933,27 +1941,41 @@ def connect_group_repository(request, group_id):
 # ============================================================
 # 19. GITHUB REPOSITORY FILE EXPLORER
 # ============================================================
-
 @login_required
 @require_GET
 def group_repository_files(request, group_id):
-    """Retrieve the connected repository's file tree."""
+    """
+    Retrieve the connected GitHub repository's file tree.
 
+    Public repositories:
+        Access GitHub without authentication.
+
+    Private repositories:
+        Use a short-lived GitHub App installation token.
+
+    Only members of the private development group
+    can access the repository explorer.
+    """
+
+    # Find the development group.
     group = get_object_or_404(
         ProjectGroup,
         id=group_id,
     )
 
+    # Repository explorer is only available in private groups.
     if not group.is_private:
         return HttpResponseForbidden(
             "Repository files are only available to private groups."
         )
 
+    # Only group members can view repository files.
     if not is_group_member(group, request.user):
         return HttpResponseForbidden(
             "You must belong to this group to view repository files."
         )
 
+    # Retrieve the repository connected to this group.
     repository = GroupRepository.objects.filter(
         group=group,
     ).first()
@@ -1964,17 +1986,71 @@ def group_repository_files(request, group_id):
             status=404,
         )
 
+    # Encode GitHub repository information safely.
     owner = quote(repository.github_owner, safe="")
     repo_name = quote(repository.repository_name, safe="")
     branch = quote(repository.default_branch, safe="")
 
-    api_url = (
-        f"https://api.github.com/repos/{owner}/{repo_name}"
+    # GitHub API endpoint for retrieving repository files.
+    endpoint = (
+        f"/repos/{owner}/{repo_name}"
         f"/git/trees/{branch}?recursive=1"
     )
 
     try:
-        repository_data = github_request_json(api_url)
+
+        # PRIVATE REPOSITORY
+        if repository.is_private:
+
+            # A private repository must have a GitHub App installation.
+            if not repository.github_installation_id:
+
+                return JsonResponse(
+                    {
+                        "error": (
+                            "GitHub App installation is missing "
+                            "for this private repository."
+                        )
+                    },
+                    status=502,
+                )
+
+            # Generate a short-lived installation access token.
+            # Never store this token in the database or browser.
+            installation_token = get_installation_access_token(
+                repository.github_installation_id
+            )
+
+            # Retrieve private repository files using
+            # the authenticated GitHub API.
+            repository_data = github_api_request(
+                "GET",
+                endpoint,
+                token=installation_token,
+            )
+
+        # PUBLIC REPOSITORY
+        else:
+
+            # Public repositories do not require GitHub authorization.
+            api_url = f"https://api.github.com{endpoint}"
+
+            repository_data = github_request_json(
+                api_url
+            )
+
+    except GitHubAuthError:
+
+        # Do not expose GitHub authentication details to the browser.
+        return JsonResponse(
+            {
+                "error": (
+                    "Unable to access this private GitHub repository. "
+                    "Check the GitHub App installation permissions."
+                )
+            },
+            status=502,
+        )
 
     except HTTPError as error:
 
@@ -1999,6 +2075,8 @@ def group_repository_files(request, group_id):
             status=502,
         )
 
+    # GitHub may truncate extremely large repository trees.
+    # Do not display an incomplete file list as if it were complete.
     if repository_data.get("truncated"):
 
         return JsonResponse(
@@ -2011,10 +2089,12 @@ def group_repository_files(request, group_id):
             status=422,
         )
 
+    # Convert GitHub's tree format into CodeView's explorer format.
     files = []
 
     for item in repository_data.get("tree", []):
 
+        # Only include files and folders.
         if item.get("type") not in ("blob", "tree"):
             continue
 
@@ -2030,6 +2110,7 @@ def group_repository_files(request, group_id):
             }
         )
 
+    # Return repository information and files to the frontend.
     return JsonResponse(
         {
             "repository": (
@@ -2041,31 +2122,48 @@ def group_repository_files(request, group_id):
         }
     )
 
-
 # ============================================================
 # 20. GITHUB REPOSITORY FILE CONTENT
 # ============================================================
-
 @login_required
 @require_GET
 def group_repository_file_content(request, group_id):
-    """Retrieve a text file from the connected GitHub repository."""
+    """
+    Retrieve and preview a text file from a GitHub repository.
 
+    Public repositories:
+        Retrieve files without GitHub authentication.
+
+    Private repositories:
+        Use a short-lived GitHub App installation token.
+
+    Security:
+        - Only private development group members can view files.
+        - File paths are validated.
+        - File previews are limited to 1 MiB.
+        - GitHub tokens are never returned to the browser.
+        - Repository files remain read-only.
+    """
+
+    # STEP 1: Find the development group.
     group = get_object_or_404(
         ProjectGroup,
         id=group_id,
     )
 
+    # Only private development groups support this feature.
     if not group.is_private:
         return HttpResponseForbidden(
             "Repository files are only available to private groups."
         )
 
+    # Only group members can access repository files.
     if not is_group_member(group, request.user):
         return HttpResponseForbidden(
             "You must belong to this group to view repository files."
         )
 
+    # STEP 2: Get the repository connected to this group.
     repository = GroupRepository.objects.filter(
         group=group,
     ).first()
@@ -2076,8 +2174,10 @@ def group_repository_file_content(request, group_id):
             status=404,
         )
 
+    # STEP 3: Get the requested file path.
     file_path = request.GET.get("path", "")
 
+    # Reject invalid paths and directory traversal attempts.
     if (
         not file_path
         or file_path.startswith("/")
@@ -2092,36 +2192,131 @@ def group_repository_file_content(request, group_id):
             status=400,
         )
 
+    # STEP 4: Safely encode the repository information.
     owner = quote(repository.github_owner, safe="")
     repo_name = quote(repository.repository_name, safe="")
     branch = quote(repository.default_branch, safe="")
 
+    # Encode each file path component separately.
     encoded_path = "/".join(
         quote(part, safe="")
         for part in file_path.split("/")
     )
 
-    api_url = (
-        f"https://api.github.com/repos/{owner}/{repo_name}"
+    # GitHub API endpoint for retrieving file contents.
+    endpoint = (
+        f"/repos/{owner}/{repo_name}"
         f"/contents/{encoded_path}?ref={branch}"
     )
 
-    github_request = Request(
-        api_url,
-        headers={
-            "Accept": "application/vnd.github.raw+json",
-            "User-Agent": "CodeView",
-        },
-    )
+    api_url = f"https://api.github.com{endpoint}"
 
+    # Limit previews to 1 MiB.
+    max_file_size = 1024 * 1024
+
+    # STEP 5: Retrieve the file.
     try:
 
-        with urlopen(github_request, timeout=10) as response:
+        # PRIVATE REPOSITORY
+        if repository.is_private:
 
-            # Limit previews to 1 MiB.
-            raw_content = response.read(
-                1024 * 1024 + 1
+            # Private repositories require a GitHub App installation.
+            if not repository.github_installation_id:
+                return JsonResponse(
+                    {
+                        "error": (
+                            "GitHub App installation is missing "
+                            "for this private repository."
+                        )
+                    },
+                    status=502,
+                )
+
+            # Generate a short-lived installation access token.
+            installation_token = get_installation_access_token(
+                repository.github_installation_id
             )
+
+            # Authenticate directly with GitHub.
+            # Use the raw-content media type to retrieve file bytes.
+            with httpx.Client(
+                timeout=10.0,
+                follow_redirects=False,
+                trust_env=False,
+            ) as client:
+
+                response = client.get(
+                    api_url,
+                    headers={
+                        "Accept": "application/vnd.github.raw+json",
+                        "Authorization": f"Bearer {installation_token}",
+                        "X-GitHub-Api-Version": "2022-11-28",
+                        "User-Agent": "CodeView",
+                    },
+                )
+
+                # Raise an exception for unsuccessful responses.
+                response.raise_for_status()
+
+                # Do not download files larger than the preview limit.
+                # Stream the response to enforce the size limit.
+                raw_content = bytearray()
+
+                for chunk in response.iter_bytes():
+
+                    raw_content.extend(chunk)
+
+                    if len(raw_content) > max_file_size:
+                        return JsonResponse(
+                            {
+                                "error": (
+                                    "This file is too large to preview."
+                                )
+                            },
+                            status=413,
+                        )
+
+                raw_content = bytes(raw_content)
+
+        # PUBLIC REPOSITORY
+        else:
+
+            # Public repositories do not require authentication.
+            github_request = Request(
+                api_url,
+                headers={
+                    "Accept": "application/vnd.github.raw+json",
+                    "User-Agent": "CodeView",
+                },
+            )
+
+            with urlopen(github_request, timeout=10) as response:
+
+                raw_content = response.read(
+                    max_file_size + 1
+                )
+
+    # STEP 6: Handle GitHub HTTP errors.
+    except httpx.HTTPStatusError as error:
+
+        status_code = error.response.status_code
+
+        if status_code == 404:
+            message = "File not found in the connected repository."
+
+        elif status_code in (403, 429):
+            message = (
+                "GitHub denied the request or applied "
+                "a request limit."
+            )
+
+        else:
+            message = "Unable to retrieve this file."
+
+        return JsonResponse(
+            {"error": message},
+            status=502,
+        )
 
     except HTTPError as error:
 
@@ -2139,19 +2334,41 @@ def group_repository_file_content(request, group_id):
             status=502,
         )
 
-    except (URLError, TimeoutError, OSError):
+    # Handle GitHub App authentication failures.
+    except GitHubAuthError:
+
+        return JsonResponse(
+            {
+                "error": (
+                    "Unable to access this private repository. "
+                    "Check the GitHub App installation permissions."
+                )
+            },
+            status=502,
+        )
+
+    # Handle connection errors.
+    except (
+        httpx.RequestError,
+        URLError,
+        TimeoutError,
+        OSError,
+    ):
 
         return JsonResponse(
             {"error": "Unable to contact GitHub."},
             status=502,
         )
 
-    if len(raw_content) > 1024 * 1024:
+    # STEP 7: Check file size.
+    if len(raw_content) > max_file_size:
+
         return JsonResponse(
             {"error": "This file is too large to preview."},
             status=413,
         )
 
+    # STEP 8: Convert file bytes into readable text.
     try:
         content = raw_content.decode("utf-8")
 
@@ -2166,6 +2383,7 @@ def group_repository_file_content(request, group_id):
             status=415,
         )
 
+    # STEP 9: Return the file contents to the frontend.
     return JsonResponse(
         {
             "path": file_path,

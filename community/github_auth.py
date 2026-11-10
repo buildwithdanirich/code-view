@@ -86,7 +86,8 @@ def github_api_request(
     """
     Send an authenticated request to the GitHub REST API.
 
-    The token is never included in an error message.
+    Report safe HTTP status information without exposing
+    authentication tokens or GitHub response bodies.
     """
 
     # Only allow GitHub API paths, not arbitrary external URLs.
@@ -113,7 +114,7 @@ def github_api_request(
     }
 
     try:
-        # Send the request to GitHub.
+        # Create an HTTP client for GitHub requests.
         with httpx.Client(
             base_url=GITHUB_API_URL,
             timeout=10.0,
@@ -121,6 +122,7 @@ def github_api_request(
             trust_env=False,
         ) as client:
 
+            # Send the authenticated request.
             response = client.request(
                 method.upper(),
                 endpoint,
@@ -128,17 +130,38 @@ def github_api_request(
                 json=json_data,
             )
 
-            # Raise an exception for unsuccessful responses.
+            # Raise an error if GitHub returns 4xx or 5xx.
             response.raise_for_status()
 
-            # Convert GitHub's JSON response into a Python object.
+            # Convert GitHub's JSON response into Python data.
             return response.json()
 
-    except (httpx.HTTPError, ValueError) as exc:
-        raise GitHubAuthError(
-            "GitHub API request failed."
-        ) from exc
+    except httpx.HTTPStatusError as exc:
 
+        # Extract only the HTTP status code.
+        # Never expose tokens, headers, or response bodies.
+        status_code = exc.response.status_code
+
+        raise GitHubAuthError(
+            f"GitHub API returned HTTP {status_code}."
+        ) from None
+
+    except httpx.RequestError as exc:
+
+        # Report the type of connection failure.
+        # Do not include exception text, which may contain URLs.
+        error_type = type(exc).__name__
+
+        raise GitHubAuthError(
+            f"GitHub API connection failed: {error_type}."
+        ) from None
+
+    except ValueError:
+
+        # GitHub returned data that could not be decoded as JSON.
+        raise GitHubAuthError(
+            "GitHub API returned an invalid JSON response."
+        ) from None
 
 def get_installation_access_token(installation_id):
     """
