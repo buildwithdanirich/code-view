@@ -5,6 +5,8 @@ Handles:
 1. Real-time group chat.
 2. Real-time group discussions.
 3. Owner-only repository connection notifications.
+4. Member-only repository decision notifications.
+5. Group-wide repository update notifications.
 """
 
 # Run asynchronous background tasks.
@@ -20,183 +22,244 @@ from channels.db import database_sync_to_async
 from .models import ProjectGroup, GroupMember
 
 
+class MembershipRevocationMixin:
+    """Listen for revocation of this user's specific group membership."""
+
+    async def subscribe_to_revocations(self):
+        # User identity comes from the authenticated WebSocket scope.
+        self.revocation_group_name = (
+            f"group_membership_access_{self.group_id}_{self.user.pk}"
+        )
+        await self.channel_layer.group_add(
+            self.revocation_group_name,
+            self.channel_name,
+        )
+        self.joined_revocation_group = True
+
+    async def unsubscribe_from_revocations(self):
+        if getattr(self, "joined_revocation_group", False):
+            await self.channel_layer.group_discard(
+                self.revocation_group_name,
+                self.channel_name,
+            )
+            self.joined_revocation_group = False
+
+    async def membership_revoked(self, event):
+        """Close only sockets created under the revoked membership generation."""
+        if str(event.get("group_id")) != str(self.group_id):
+            return
+        if str(event.get("user_id")) != str(self.user.pk):
+            return
+
+        # Owners have an ownership generation, not a member generation.
+        identity = getattr(self, "access_identity", None)
+        if identity is not None:
+            generation = identity[1] if identity[0] == "member" else None
+        else:
+            generation = getattr(self, "membership_generation", None)
+
+        if generation is not None and str(generation) == str(
+            event.get("membership_generation")
+        ):
+            await self.close(code=4403)
+
+
 # ============================================================
 # 1. GROUP CHAT CONSUMER
 # ============================================================
 
-class GroupChatConsumer(AsyncJsonWebsocketConsumer):
+class GroupChatConsumer(MembershipRevocationMixin, AsyncJsonWebsocketConsumer):
     """Manage real-time WebSocket connections for group chat."""
 
     async def connect(self):
-        """Connect a developer to their group's chat."""
-
-        # Get the logged-in developer.
+        """Connect only developers with current group access."""
         self.user = self.scope["user"]
-
-        # Get the group ID from the WebSocket URL.
         self.group_id = self.scope["url_route"]["kwargs"]["group_id"]
-
-        # Create a unique channel-layer group name.
         self.room_group_name = f"group_chat_{self.group_id}"
+        self.joined_group = False
 
-        # Reject developers who are not logged in.
         if not self.user.is_authenticated:
             await self.close(code=4401)
             return
 
-        # Check whether the developer belongs to this group.
-        is_member = await self.check_group_membership()
-
-        if not is_member:
+        # Remember the exact ownership or membership period.
+        self.access_identity = await self.get_access_identity()
+        if self.access_identity is None:
             await self.close(code=4403)
             return
 
-        # Add this connection to the group's broadcast channel.
         await self.channel_layer.group_add(
             self.room_group_name,
             self.channel_name,
         )
+        self.joined_group = True
 
-        # Accept the authenticated group chat connection.
-        await self.accept()
+        await self.subscribe_to_revocations()
 
-    async def disconnect(self, close_code):
-        """Remove the developer from the group's channel."""
-
-        # Only remove connections that joined the channel.
-        if hasattr(self, "room_group_name"):
+        # Membership may change while the socket is connecting.
+        if not await self.has_current_access():
             await self.channel_layer.group_discard(
                 self.room_group_name,
                 self.channel_name,
             )
+            self.joined_group = False
+            await self.unsubscribe_from_revocations()
+            await self.close(code=4403)
+            return
+
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        await self.unsubscribe_from_revocations()
+        """Unsubscribe a connection that joined the broadcast group."""
+        if getattr(self, "joined_group", False):
+            await self.channel_layer.group_discard(
+                self.room_group_name,
+                self.channel_name,
+            )
+            self.joined_group = False
 
     async def chat_message(self, event):
-        """Send a message event to the developer's browser."""
-
+        """Deliver messages only while the original access is valid."""
+        if not await self.has_current_access():
+            await self.close(code=4403)
+            return
         await self.send_json(event["data"])
 
-    # ============================================================
-    # REAL-TIME MESSAGE REACTIONS
-    # ============================================================
-
     async def chat_reaction(self, event):
-        """
-        Send message reaction updates to connected developers.
-
-        Example:
-            Developer A reacts ❤️ to a message.
-            The backend broadcasts the updated reactions.
-            Every connected developer sees the change.
-        """
-
-        # Forward the reaction update to the browser.
+        """Deliver reactions only while the original access is valid."""
+        if not await self.has_current_access():
+            await self.close(code=4403)
+            return
         await self.send_json(event["data"])
 
     @database_sync_to_async
-    def check_group_membership(self):
-        """Check group membership using Django's database."""
-
-        # Find the requested group.
-        group = ProjectGroup.objects.filter(
-            id=self.group_id
-        ).first()
-
-        # Reject groups that do not exist.
+    def get_access_identity(self):
+        """Get the current owner/member generation for this group."""
+        group = ProjectGroup.objects.filter(id=self.group_id).first()
         if group is None:
-            return False
+            return None
 
-        # Use CodeView's existing membership helper.
-        from .views import is_group_member
+        if group.owner_id == self.user.pk:
+            return ("owner", group.owner_membership_generation)
 
-        return is_group_member(group, self.user)
+        membership = GroupMember.objects.filter(
+            group_id=self.group_id,
+            user_id=self.user.pk,
+        ).first()
+        if membership is None:
+            return None
+        return ("member", membership.membership_generation)
+
+    async def has_current_access(self):
+        """Prevent removed or rejoined members using stale sockets."""
+        current_identity = await self.get_access_identity()
+        return (
+            current_identity is not None
+            and current_identity == self.access_identity
+        )
 
 
 # ============================================================
 # 2. GROUP DISCUSSION CONSUMER
 # ============================================================
 
-class GroupDiscussionConsumer(AsyncJsonWebsocketConsumer):
-    """Send real-time discussion updates to group members."""
+class GroupDiscussionConsumer(MembershipRevocationMixin, AsyncJsonWebsocketConsumer):
+    """Send real-time discussion updates to authorized group members."""
 
     async def connect(self):
-        """Connect a developer to discussion updates."""
-
-        # Get the logged-in developer.
+        """Connect only developers with current group access."""
         self.user = self.scope["user"]
-
-        # Get the group ID from the WebSocket URL.
         self.group_id = self.scope["url_route"]["kwargs"]["group_id"]
-
-        # Create a separate channel group for discussions.
         self.room_group_name = f"group_discussions_{self.group_id}"
+        self.joined_group = False
 
-        # Reject developers who are not logged in.
         if not self.user.is_authenticated:
             await self.close(code=4401)
             return
 
-        # Check whether the developer belongs to the group.
-        is_member = await self.check_group_membership()
-
-        if not is_member:
+        self.access_identity = await self.get_access_identity()
+        if self.access_identity is None:
             await self.close(code=4403)
             return
 
-        # Join the discussion broadcast group.
         await self.channel_layer.group_add(
             self.room_group_name,
             self.channel_name,
         )
+        self.joined_group = True
 
-        # Accept the WebSocket connection.
-        await self.accept()
+        await self.subscribe_to_revocations()
 
-    async def disconnect(self, close_code):
-        """Disconnect from discussion updates."""
-
-        # Remove the connection from the discussion group.
-        if hasattr(self, "room_group_name"):
+        # Recheck after subscribing to avoid a membership race.
+        if not await self.has_current_access():
             await self.channel_layer.group_discard(
                 self.room_group_name,
                 self.channel_name,
             )
+            self.joined_group = False
+            await self.unsubscribe_from_revocations()
+            await self.close(code=4403)
+            return
+
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        await self.unsubscribe_from_revocations()
+        """Unsubscribe a connection that joined the broadcast group."""
+        if getattr(self, "joined_group", False):
+            await self.channel_layer.group_discard(
+                self.room_group_name,
+                self.channel_name,
+            )
+            self.joined_group = False
 
     async def discussion_like(self, event):
-        """Send the updated discussion like count."""
-
+        """Deliver likes only while the original access is valid."""
+        if not await self.has_current_access():
+            await self.close(code=4403)
+            return
         await self.send_json(event["data"])
 
     async def discussion_comment(self, event):
-        """Send new comments to connected group members."""
-
+        """Deliver comments only while the original access is valid."""
+        if not await self.has_current_access():
+            await self.close(code=4403)
+            return
         await self.send_json(event["data"])
 
     @database_sync_to_async
-    def check_group_membership(self):
-        """Check whether the developer belongs to the group."""
+    def get_access_identity(self):
+        """Get the current owner/member generation for this group."""
+        group = ProjectGroup.objects.filter(id=self.group_id).first()
+        if group is None:
+            return None
 
-        # Check approved membership.
-        is_member = GroupMember.objects.filter(
+        if group.owner_id == self.user.pk:
+            return ("owner", group.owner_membership_generation)
+
+        membership = GroupMember.objects.filter(
             group_id=self.group_id,
-            user=self.user,
-        ).exists()
+            user_id=self.user.pk,
+        ).first()
+        if membership is None:
+            return None
+        return ("member", membership.membership_generation)
 
-        # Allow approved members.
-        if is_member:
-            return True
-
-        # Also allow the group owner.
-        return ProjectGroup.objects.filter(
-            id=self.group_id,
-            owner_id=self.user.pk,
-        ).exists()
+    async def has_current_access(self):
+        """Prevent removed or rejoined members using stale sockets."""
+        current_identity = await self.get_access_identity()
+        return (
+            current_identity is not None
+            and current_identity == self.access_identity
+        )
 
 
 # ============================================================
 # 3. OWNER-ONLY REPOSITORY NOTIFICATION CONSUMER
 # ============================================================
 
-class RepositoryNotificationConsumer(AsyncJsonWebsocketConsumer):
+class RepositoryNotificationConsumer(MembershipRevocationMixin, AsyncJsonWebsocketConsumer):
     """
     Send repository connection request notifications
     exclusively to the current group owner.
@@ -242,6 +305,7 @@ class RepositoryNotificationConsumer(AsyncJsonWebsocketConsumer):
 
         self.joined_notification_group = True
 
+
         # Recheck ownership after joining to reduce the risk
         # of an ownership change during connection setup.
         if not await self.is_current_owner():
@@ -259,6 +323,7 @@ class RepositoryNotificationConsumer(AsyncJsonWebsocketConsumer):
         await self.accept()
 
     async def disconnect(self, close_code):
+        await self.unsubscribe_from_revocations()
         """Remove the owner's WebSocket subscription."""
 
         if getattr(self, "joined_notification_group", False):
@@ -325,7 +390,7 @@ class RepositoryNotificationConsumer(AsyncJsonWebsocketConsumer):
 # 4. MEMBER-ONLY REPOSITORY DECISION NOTIFICATIONS
 # ============================================================
 
-class RepositoryMemberNotificationConsumer(AsyncJsonWebsocketConsumer):
+class RepositoryMemberNotificationConsumer(MembershipRevocationMixin, AsyncJsonWebsocketConsumer):
     """
     Notify an individual group member when the owner
     approves or rejects their repository connection request.
@@ -373,6 +438,8 @@ class RepositoryMemberNotificationConsumer(AsyncJsonWebsocketConsumer):
 
         self.joined_notification_group = True
 
+        await self.subscribe_to_revocations()
+
         # Recheck membership in case it changed while connecting.
         if not await self.is_current_member():
             await self.channel_layer.group_discard(
@@ -382,12 +449,14 @@ class RepositoryMemberNotificationConsumer(AsyncJsonWebsocketConsumer):
 
             self.joined_notification_group = False
 
+            await self.unsubscribe_from_revocations()
             await self.close(code=4403)
             return
 
         await self.accept()
 
     async def disconnect(self, close_code):
+        await self.unsubscribe_from_revocations()
         """Remove this member's notification subscription."""
 
         if getattr(self, "joined_notification_group", False):
@@ -470,7 +539,7 @@ class RepositoryMemberNotificationConsumer(AsyncJsonWebsocketConsumer):
 # 5. GROUP-WIDE REPOSITORY UPDATE CONSUMER
 # ============================================================
 
-class GroupRepositoryUpdateConsumer(AsyncJsonWebsocketConsumer):
+class GroupRepositoryUpdateConsumer(MembershipRevocationMixin, AsyncJsonWebsocketConsumer):
     """
     Notify authorized private-group developers when the
     connected GitHub repository changes.
@@ -518,6 +587,8 @@ class GroupRepositoryUpdateConsumer(AsyncJsonWebsocketConsumer):
 
         self.joined_repository_group = True
 
+        await self.subscribe_to_revocations()
+
         # Recheck access after joining to reduce the chance
         # of accepting a connection after membership changes.
         if not await self.has_current_access():
@@ -536,6 +607,7 @@ class GroupRepositoryUpdateConsumer(AsyncJsonWebsocketConsumer):
         await self.accept()
 
     async def disconnect(self, close_code):
+        await self.unsubscribe_from_revocations()
         """Remove the developer from the repository update channel."""
 
         if getattr(self, "joined_repository_group", False):

@@ -129,6 +129,31 @@ def broadcast_repository_update(group_id):
     )
 
 
+def broadcast_membership_revocation(group_id, user_id, membership_generation):
+    """Notify sockets belonging to a revoked membership period.
+
+    No private repository data or credentials are included.
+    """
+    channel_layer = get_channel_layer()
+    if channel_layer is None:
+        logger.warning(
+            "Membership revoked without a configured channel layer: group=%s user=%s",
+            group_id,
+            user_id,
+        )
+        return
+
+    async_to_sync(channel_layer.group_send)(
+        f"group_membership_access_{group_id}_{user_id}",
+        {
+            "type": "membership.revoked",
+            "group_id": group_id,
+            "user_id": user_id,
+            "membership_generation": str(membership_generation),
+        },
+    )
+
+
 def group_members_url(group_id):
     """Return the URL for the group members section."""
 
@@ -616,7 +641,21 @@ def remove_group_member(request, group_id, member_id):
 
         username = target.user.username
 
+        # Capture the membership identity before deleting the record.
+        revoked_user_id = target.user_id
+        revoked_generation = str(target.membership_generation)
+        revoked_group_id = group.id
+
         target.delete()
+
+        # Notify only after the deletion has committed successfully.
+        transaction.on_commit(
+            lambda group_id=revoked_group_id,
+                   user_id=revoked_user_id,
+                   generation=revoked_generation: broadcast_membership_revocation(
+                group_id, user_id, generation
+            )
+        )
 
     messages.success(
         request,
@@ -661,7 +700,21 @@ def leave_group(request, group_id):
                 "You are not a member of this group."
             )
 
+        # Keep the identity of the membership being revoked.
+        revoked_group_id = group.id
+        revoked_user_id = request.user.id
+        revoked_generation = str(membership.membership_generation)
+
         membership.delete()
+
+        # A rollback must never disconnect a still-authorized developer.
+        transaction.on_commit(
+            lambda group_id=revoked_group_id,
+                   user_id=revoked_user_id,
+                   generation=revoked_generation: broadcast_membership_revocation(
+                group_id, user_id, generation
+            )
+        )
 
     messages.success(
         request,
