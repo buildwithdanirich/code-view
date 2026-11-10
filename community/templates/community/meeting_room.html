@@ -32,6 +32,9 @@
     data-current-user-id="{{ request.user.id }}"
     data-edit-url-template="{% url 'edit_group_message' group.id 0 %}"
     data-delete-url-template="{% url 'delete_group_message' group.id 0 %}"
+    {% if can_manage_repository %}
+        data-repository-notification-socket-url="/ws/groups/{{ group.id }}/repository-notifications/"
+    {% endif %}
 >
 
     <!-- ========================================
@@ -348,7 +351,41 @@
 
                 {% if can_manage_repository %}
 
-                    <div class="repository-approval-requests">
+                   <div
+    class="repository-approval-requests"
+    id="repository-approval-requests"
+>
+
+    <!-- Real-time notification for new repository requests -->
+    <div
+        id="repository-notification-panel"
+        class="repository-notification-panel"
+        role="status"
+        aria-live="polite"
+        hidden
+    >
+        <strong>🔔 New Repository Connection Request</strong>
+
+        <p id="repository-notification-message"></p>
+
+        <div class="repository-notification-actions">
+
+            <button
+                type="button"
+                id="repository-notification-review"
+            >
+                Review Request
+            </button>
+
+            <button
+                type="button"
+                id="repository-notification-dismiss"
+            >
+                Dismiss
+            </button>
+
+        </div>
+    </div>
 
                         <h3>
                             Repository Connection Requests
@@ -979,6 +1016,14 @@
         src="{% static 'community/meeting_room/meeting_room.js' %}"
         defer
     ></script>
+
+    <!-- Owner-only real-time repository notifications -->
+{% if can_manage_repository %}
+    <script
+        src="{% static 'community/meeting_room/repository_notifications.js' %}"
+        defer
+    ></script>
+{% endif %}
 
 </body>
 

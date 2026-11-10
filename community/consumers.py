@@ -4,6 +4,7 @@ CodeView — WebSocket Consumers.
 Handles:
 1. Real-time group chat.
 2. Real-time group discussions.
+3. Owner-only repository connection notifications.
 """
 
 # Run asynchronous background tasks.
@@ -55,7 +56,7 @@ class GroupChatConsumer(AsyncJsonWebsocketConsumer):
             self.room_group_name,
             self.channel_name,
         )
-        
+
         # Accept the authenticated group chat connection.
         await self.accept()
 
@@ -90,7 +91,7 @@ class GroupChatConsumer(AsyncJsonWebsocketConsumer):
 
         # Forward the reaction update to the browser.
         await self.send_json(event["data"])
-        
+
     @database_sync_to_async
     def check_group_membership(self):
         """Check group membership using Django's database."""
@@ -191,3 +192,131 @@ class GroupDiscussionConsumer(AsyncJsonWebsocketConsumer):
         ).exists()
 
 
+# ============================================================
+# 3. OWNER-ONLY REPOSITORY NOTIFICATION CONSUMER
+# ============================================================
+
+class RepositoryNotificationConsumer(AsyncJsonWebsocketConsumer):
+    """
+    Send repository connection request notifications
+    exclusively to the current group owner.
+    """
+
+    async def connect(self):
+        """Authenticate and authorize the group owner."""
+
+        # Identify the developer from Django's authenticated session.
+        self.user = self.scope["user"]
+
+        # Identify the requested group.
+        self.group_id = self.scope["url_route"]["kwargs"]["group_id"]
+
+        # Track whether this connection joined the notification group.
+        self.joined_notification_group = False
+
+        # Reject unauthenticated users.
+        if not self.user.is_authenticated:
+            await self.close(code=4401)
+            return
+
+        # Verify current ownership and capture its generation.
+        owner_generation = await self.get_owner_generation()
+
+        if owner_generation is None:
+            await self.close(code=4403)
+            return
+
+        # Remember the ownership period for this connection.
+        self.owner_generation = owner_generation
+
+        # Create a private notification channel for this group.
+        self.room_group_name = (
+            f"group_repository_owner_{self.group_id}"
+        )
+
+        # Subscribe this WebSocket connection.
+        await self.channel_layer.group_add(
+            self.room_group_name,
+            self.channel_name,
+        )
+
+        self.joined_notification_group = True
+
+        # Recheck ownership after joining to reduce the risk
+        # of an ownership change during connection setup.
+        if not await self.is_current_owner():
+            await self.channel_layer.group_discard(
+                self.room_group_name,
+                self.channel_name,
+            )
+
+            self.joined_notification_group = False
+
+            await self.close(code=4403)
+            return
+
+        # Accept only the authorized owner's connection.
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        """Remove the owner's WebSocket subscription."""
+
+        if getattr(self, "joined_notification_group", False):
+            await self.channel_layer.group_discard(
+                self.room_group_name,
+                self.channel_name,
+            )
+
+            self.joined_notification_group = False
+
+    async def repository_notification(self, event):
+        """
+        Deliver a repository request notification.
+
+        Django Channels maps the event type
+        'repository.notification' to this method.
+        """
+
+        # Check ownership again before sending the event.
+        # This prevents an old owner from receiving new
+        # notifications after an ownership change.
+        if not await self.is_current_owner():
+            await self.close(code=4403)
+            return
+
+        # Send only the notification payload to the browser.
+        await self.send_json(event["data"])
+
+    @database_sync_to_async
+    def get_owner_generation(self):
+        """
+        Return the current ownership generation only when
+        the connected developer owns this private group.
+        """
+
+        return (
+            ProjectGroup.objects
+            .filter(
+                id=self.group_id,
+                is_private=True,
+                owner_id=self.user.pk,
+            )
+            .values_list(
+                "owner_membership_generation",
+                flat=True,
+            )
+            .first()
+        )
+
+    async def is_current_owner(self):
+        """
+        Confirm that the developer still owns the group
+        and belongs to the same ownership generation.
+        """
+
+        current_generation = await self.get_owner_generation()
+
+        return (
+            current_generation is not None
+            and current_generation == self.owner_generation
+        )

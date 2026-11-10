@@ -7,7 +7,17 @@ Rules:
 - Only the current group owner can approve or reject requests.
 - An approval belongs to one membership and ownership period.
 - Approval does not immediately replace the group's repository.
+
+Real-time notifications:
+- Notify the group owner when a new request is created.
+- Notify the requesting member when a decision is made.
+- Send events only after successful database commits.
 """
+
+import logging
+
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -22,6 +32,59 @@ from .models import (
     ProjectGroup,
     RepositoryConnectionRequest,
 )
+
+
+logger = logging.getLogger(__name__)
+
+
+# ============================================================
+# REAL-TIME NOTIFICATION HELPER
+# ============================================================
+
+def send_repository_notification(group_id, data):
+    """
+    Send a repository notification to the group's owner.
+
+    This helper is called after the database transaction
+    successfully commits.
+
+    The WebSocket consumer independently checks ownership
+    before forwarding the event to the browser.
+    """
+
+    try:
+        # Get the configured Django Channels layer.
+        channel_layer = get_channel_layer()
+
+        if channel_layer is None:
+            logger.warning(
+                "Repository notification skipped: "
+                "no channel layer is configured."
+            )
+            return
+
+        # This name must match RepositoryNotificationConsumer.
+        notification_group = (
+            f"group_repository_owner_{group_id}"
+        )
+
+        # Send the event to connected owner WebSockets.
+        async_to_sync(channel_layer.group_send)(
+            notification_group,
+            {
+                "type": "repository.notification",
+                "data": data,
+            },
+        )
+
+    except Exception:
+        # A notification failure must not undo a successfully
+        # saved repository request or approval decision.
+        logger.exception(
+            "Failed to send repository notification "
+            "for group %s.",
+            group_id,
+        )
 
 
 # ============================================================
@@ -126,12 +189,19 @@ def request_repository_connection(request, group_id):
         # Create a new request for the current membership period.
         try:
             with transaction.atomic():
-                RepositoryConnectionRequest.objects.create(
-                    group=group,
-                    requested_by=request.user,
-                    membership_generation=membership.membership_generation,
-                    owner_membership_generation=group.owner_membership_generation,
-                    status="pending",
+
+                connection_request = (
+                    RepositoryConnectionRequest.objects.create(
+                        group=group,
+                        requested_by=request.user,
+                        membership_generation=(
+                            membership.membership_generation
+                        ),
+                        owner_membership_generation=(
+                            group.owner_membership_generation
+                        ),
+                        status="pending",
+                    )
                 )
 
         except IntegrityError:
@@ -144,6 +214,26 @@ def request_repository_connection(request, group_id):
                 "meeting_room",
                 group_id=group.id,
             )
+
+        # Prepare a minimal event payload.
+        # The owner-only consumer verifies authorization.
+        notification_data = {
+            "type": "repository_request_created",
+            "group_id": group.id,
+            "request_id": connection_request.id,
+            "requested_by": request.user.get_username(),
+            "message": (
+                "A group member requested permission "
+                "to connect a GitHub repository."
+            ),
+        }
+
+        # Notify only after the outer transaction commits.
+        transaction.on_commit(
+            lambda group_id=group.id, data=notification_data: (
+                send_repository_notification(group_id, data)
+            )
+        )
 
     messages.success(
         request,

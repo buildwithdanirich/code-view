@@ -1673,40 +1673,23 @@ def delete_group_message(request, group_id, message_id):
 @require_POST
 def connect_group_repository(request, group_id):
     """
-    Connect a GitHub repository to a private development group.
+    Connect or replace a GitHub repository.
 
-    Public repositories:
-        Connect directly without GitHub OAuth.
+    Public repositories connect directly.
+    Private repositories require GitHub OAuth.
 
-    Private or publicly inaccessible repositories:
-        Start GitHub OAuth authorization.
-
-    Permissions:
-        - Group owners can connect repositories directly.
-        - Members require an approved connection request.
-
-    Security:
-        - Validate repository URLs.
-        - Verify public repositories using GitHub.
-        - Recheck permissions inside database transactions.
-        - Preserve the existing repository if verification fails.
-        - Consume member approvals after successful connections.
+    Owners can connect directly.
+    Members require one valid approval per successful connection.
     """
 
-    # ========================================================
-    # 1. FIND THE PRIVATE DEVELOPMENT GROUP
-    # ========================================================
-
+    # 1. Find the private development group.
     group = get_object_or_404(
         ProjectGroup,
         id=group_id,
         is_private=True,
     )
 
-    # ========================================================
-    # 2. CHECK REPOSITORY CONNECTION PERMISSION
-    # ========================================================
-
+    # 2. Check the user's permission.
     if not has_repository_connection_permission(
         group,
         request.user,
@@ -1715,10 +1698,7 @@ def connect_group_repository(request, group_id):
             "You do not have permission to connect repositories."
         )
 
-    # ========================================================
-    # 3. VALIDATE THE REPOSITORY URL
-    # ========================================================
-
+    # 3. Validate the repository URL.
     form = GroupRepositoryForm(request.POST)
 
     if not form.is_valid():
@@ -1726,7 +1706,6 @@ def connect_group_repository(request, group_id):
             request,
             "Enter a valid GitHub repository URL.",
         )
-
         return redirect(
             "meeting_room",
             group_id=group.id,
@@ -1735,10 +1714,7 @@ def connect_group_repository(request, group_id):
     owner = form.cleaned_data["github_owner"]
     repository_name = form.cleaned_data["repository_name"]
 
-    # ========================================================
-    # 4. CHECK WHETHER THE REPOSITORY IS PUBLIC
-    # ========================================================
-
+    # 4. Ask GitHub whether the repository is public.
     api_url = (
         "https://api.github.com/repos/"
         f"{quote(owner, safe='')}/"
@@ -1750,16 +1726,8 @@ def connect_group_repository(request, group_id):
 
     except HTTPError as error:
 
-        # GitHub returns 404 for repositories that are not
-        # publicly visible, including many private repositories.
-        #
-        # OAuth will determine whether the developer actually
-        # has access to the selected repository.
+        # GitHub also returns 404 for inaccessible private repos.
         if error.code == 404:
-
-            # Reuse the existing OAuth start function.
-            # It receives the same POST request, including
-            # the repository_url field.
             return start_github_authorization(
                 request,
                 group.id,
@@ -1770,7 +1738,6 @@ def connect_group_repository(request, group_id):
                 request,
                 "GitHub is temporarily limiting requests. Try again later.",
             )
-
         else:
             messages.error(
                 request,
@@ -1787,29 +1754,19 @@ def connect_group_repository(request, group_id):
             request,
             "Unable to contact GitHub. Please try again.",
         )
-
         return redirect(
             "meeting_room",
             group_id=group.id,
         )
 
-    # ========================================================
-    # 5. HANDLE PRIVATE REPOSITORIES
-    # ========================================================
-
-    # A public API response normally identifies public repos.
-    # If GitHub identifies this repository as private,
-    # require OAuth instead of connecting it directly.
+    # 5. Private repositories must use OAuth.
     if repository_data.get("private") is not False:
         return start_github_authorization(
             request,
             group.id,
         )
 
-    # ========================================================
-    # 6. VALIDATE GITHUB'S REPOSITORY INFORMATION
-    # ========================================================
-
+    # 6. Verify the repository metadata.
     verified_owner = (
         repository_data.get("owner") or {}
     ).get("login")
@@ -1818,39 +1775,32 @@ def connect_group_repository(request, group_id):
     default_branch = repository_data.get("default_branch")
     github_repository_id = repository_data.get("id")
 
-    if not all(
-        (
-            verified_owner,
-            verified_name,
-            default_branch,
-            github_repository_id,
-        )
-    ):
+    if not all((
+        verified_owner,
+        verified_name,
+        default_branch,
+        github_repository_id,
+    )):
         messages.error(
             request,
             "GitHub returned incomplete repository information.",
         )
-
         return redirect(
             "meeting_room",
             group_id=group.id,
         )
 
-    # ========================================================
-    # 7. SAVE THE VERIFIED PUBLIC REPOSITORY
-    # ========================================================
-
+    # 7. Verify permission and save atomically.
     with transaction.atomic():
 
-        # Lock the group to prevent simultaneous connections
-        # from replacing each other unexpectedly.
+        # Lock the group to serialize repository changes.
         locked_group = (
             ProjectGroup.objects
             .select_for_update()
             .get(id=group.id)
         )
 
-        # Check group permissions again before saving.
+        # Recheck permission after acquiring the lock.
         if not has_repository_connection_permission(
             locked_group,
             request.user,
@@ -1859,39 +1809,26 @@ def connect_group_repository(request, group_id):
                 "Repository connection permission is no longer valid."
             )
 
-        # Save or replace the group's existing repository.
-        #
-        # A public repository does not require a GitHub App
-        # installation ID.
-        GroupRepository.objects.update_or_create(
-            group=locked_group,
-            defaults={
-                "github_owner": verified_owner,
-                "repository_name": verified_name,
-                "default_branch": default_branch,
-                "github_repository_id": github_repository_id,
-                "github_installation_id": None,
-                "is_private": False,
-            },
-        )
+        approval = None
 
-        # ====================================================
-        # 8. CONSUME AN APPROVED MEMBER REQUEST
-        # ====================================================
-
+        # 8. Members must have a valid, unused approval.
         if locked_group.owner_id != request.user.id:
 
-            # Find the developer's current membership.
             membership = (
                 GroupMember.objects
                 .select_for_update()
-                .get(
+                .filter(
                     group=locked_group,
                     user=request.user,
                 )
+                .first()
             )
 
-            # Find the current valid approval.
+            if membership is None:
+                return HttpResponseForbidden(
+                    "You are no longer a member of this group."
+                )
+
             approval = (
                 RepositoryConnectionRequest.objects
                 .select_for_update()
@@ -1909,13 +1846,27 @@ def connect_group_repository(request, group_id):
                 .first()
             )
 
+            # IMPORTANT: Reject before saving anything.
             if approval is None:
                 return HttpResponseForbidden(
                     "Your repository approval is no longer valid."
                 )
 
-            # Consume the approval in the same transaction
-            # used to save the repository.
+        # 9. Save the verified public repository.
+        GroupRepository.objects.update_or_create(
+            group=locked_group,
+            defaults={
+                "github_owner": verified_owner,
+                "repository_name": verified_name,
+                "default_branch": default_branch,
+                "github_repository_id": github_repository_id,
+                "github_installation_id": None,
+                "is_private": False,
+            },
+        )
+
+        # 10. Consume the member's approval after saving.
+        if approval is not None:
             RepositoryConnectionRequest.objects.filter(
                 id=approval.id,
                 status="approved",
@@ -1924,10 +1875,7 @@ def connect_group_repository(request, group_id):
                 used_at=timezone.now(),
             )
 
-    # ========================================================
-    # 9. CONFIRM SUCCESS
-    # ========================================================
-
+    # 11. Confirm success.
     messages.success(
         request,
         "Public GitHub repository connected successfully!",
