@@ -1,75 +1,72 @@
 """
 CodeView — WebSocket URL Routing.
 
-Connect WebSocket URLs to Django Channels consumers.
+Connects WebSocket URLs to their Django Channels consumers.
 
-Handles:
+Features:
 1. Real-time group chat.
 2. Real-time group discussions.
-3. Owner-only repository connection notifications.
-4. Member-only repository approval/rejection notifications.
+3. Owner repository request notifications.
+4. Member repository approval/rejection notifications.
+5. Group-wide repository synchronization.
 """
 
 from django.urls import re_path
 
-from . import consumers
+from .consumers import (
+    GroupChatConsumer,
+    GroupDiscussionConsumer,
+    RepositoryNotificationConsumer,
+    RepositoryMemberNotificationConsumer,
+    GroupRepositoryUpdateConsumer,
+)
 
-
-# ============================================================
-# WEBSOCKET ROUTES
-# ============================================================
 
 websocket_urlpatterns = [
 
     # ========================================================
-    # 1. REAL-TIME GROUP CHAT
+    # 1. GROUP CHAT
     # ========================================================
 
     re_path(
         r"^ws/groups/(?P<group_id>\d+)/chat/$",
-        consumers.GroupChatConsumer.as_asgi(),
+        GroupChatConsumer.as_asgi(),
     ),
 
     # ========================================================
-    # 2. REAL-TIME GROUP DISCUSSIONS
+    # 2. GROUP DISCUSSIONS
     # ========================================================
 
     re_path(
         r"^ws/groups/(?P<group_id>\d+)/discussions/$",
-        consumers.GroupDiscussionConsumer.as_asgi(),
+        GroupDiscussionConsumer.as_asgi(),
     ),
 
     # ========================================================
-    # 3. OWNER-ONLY REPOSITORY NOTIFICATIONS
+    # 3. OWNER REPOSITORY REQUEST NOTIFICATIONS
     # ========================================================
-
-    # Only the current group owner can establish this
-    # WebSocket connection.
-    #
-    # The consumer verifies authentication, group ownership,
-    # and ownership generation before accepting connections.
 
     re_path(
         r"^ws/groups/(?P<group_id>\d+)/repository-notifications/$",
-        consumers.RepositoryNotificationConsumer.as_asgi(),
+        RepositoryNotificationConsumer.as_asgi(),
     ),
 
     # ========================================================
-    # 4. MEMBER-ONLY REPOSITORY DECISION NOTIFICATIONS
+    # 4. MEMBER REPOSITORY APPROVAL/REJECTION NOTIFICATIONS
     # ========================================================
-
-    # Each authenticated member connects to their own
-    # notification channel.
-    #
-    # The consumer verifies group membership and membership
-    # generation before accepting the connection.
-    #
-    # When the owner approves or rejects a request,
-    # only the requesting member receives the notification.
 
     re_path(
         r"^ws/groups/(?P<group_id>\d+)/repository-member-notifications/$",
-        consumers.RepositoryMemberNotificationConsumer.as_asgi(),
+        RepositoryMemberNotificationConsumer.as_asgi(),
+    ),
+
+    # ========================================================
+    # 5. GROUP-WIDE REPOSITORY UPDATES
+    # ========================================================
+
+    re_path(
+        r"^ws/groups/(?P<group_id>\d+)/repository-updates/$",
+        GroupRepositoryUpdateConsumer.as_asgi(),
     ),
 
 ]

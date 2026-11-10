@@ -465,3 +465,173 @@ class RepositoryMemberNotificationConsumer(AsyncJsonWebsocketConsumer):
             current_generation is not None
             and current_generation == self.membership_generation
         )
+
+# ============================================================
+# 5. GROUP-WIDE REPOSITORY UPDATE CONSUMER
+# ============================================================
+
+class GroupRepositoryUpdateConsumer(AsyncJsonWebsocketConsumer):
+    """
+    Notify authorized private-group developers when the
+    connected GitHub repository changes.
+
+    This consumer does not send GitHub credentials or
+    repository contents to the browser.
+    """
+
+    async def connect(self):
+        """Authenticate the developer and verify group access."""
+
+        # Identify the logged-in developer.
+        self.user = self.scope["user"]
+
+        # Identify the group from the WebSocket URL.
+        self.group_id = self.scope["url_route"]["kwargs"]["group_id"]
+
+        # Track whether this connection joined the channel.
+        self.joined_repository_group = False
+
+        # Reject anonymous connections.
+        if not self.user.is_authenticated:
+            await self.close(code=4401)
+            return
+
+        # Capture the developer's current access identity.
+        access_identity = await self.get_access_identity()
+
+        if access_identity is None:
+            await self.close(code=4403)
+            return
+
+        self.access_identity = access_identity
+
+        # Create a separate broadcast group for repository updates.
+        self.room_group_name = (
+            f"group_repository_updates_{self.group_id}"
+        )
+
+        # Subscribe the developer to repository-change events.
+        await self.channel_layer.group_add(
+            self.room_group_name,
+            self.channel_name,
+        )
+
+        self.joined_repository_group = True
+
+        # Recheck access after joining to reduce the chance
+        # of accepting a connection after membership changes.
+        if not await self.has_current_access():
+
+            await self.channel_layer.group_discard(
+                self.room_group_name,
+                self.channel_name,
+            )
+
+            self.joined_repository_group = False
+
+            await self.close(code=4403)
+            return
+
+        # Accept the authorized connection.
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        """Remove the developer from the repository update channel."""
+
+        if getattr(self, "joined_repository_group", False):
+
+            await self.channel_layer.group_discard(
+                self.room_group_name,
+                self.channel_name,
+            )
+
+            self.joined_repository_group = False
+
+    async def repository_updated(self, event):
+        """
+        Handle a repository.updated event.
+
+        Django Channels maps:
+            repository.updated
+
+        to:
+            repository_updated()
+        """
+
+        # Verify access again before delivering the event.
+        if not await self.has_current_access():
+
+            await self.close(code=4403)
+            return
+
+        data = event.get("data", {})
+
+        # Only forward the supported event.
+        if data.get("type") != "repository_updated":
+            return
+
+        # Ensure the event belongs to this group.
+        if str(data.get("group_id")) != str(self.group_id):
+            return
+
+        # Send only a minimal notification.
+        await self.send_json({
+            "type": "repository_updated",
+            "group_id": self.group_id,
+        })
+
+    @database_sync_to_async
+    def get_access_identity(self):
+        """
+        Identify the developer's current authorization period.
+
+        Owners use the ownership generation.
+        Members use the membership generation.
+
+        This prevents an old connection from becoming valid
+        again after a developer leaves and rejoins.
+        """
+
+        # Only private development groups are supported.
+        group = ProjectGroup.objects.filter(
+            id=self.group_id,
+            is_private=True,
+        ).first()
+
+        if group is None:
+            return None
+
+        # The group owner is authorized.
+        if group.owner_id == self.user.pk:
+
+            return (
+                "owner",
+                group.owner_membership_generation,
+            )
+
+        # Other developers must have an active membership.
+        membership = GroupMember.objects.filter(
+            group_id=self.group_id,
+            user_id=self.user.pk,
+        ).first()
+
+        if membership is None:
+            return None
+
+        return (
+            "member",
+            membership.membership_generation,
+        )
+
+    async def has_current_access(self):
+        """
+        Check whether the developer still has access
+        under the same ownership or membership generation.
+        """
+
+        current_identity = await self.get_access_identity()
+
+        return (
+            current_identity is not None
+            and current_identity == self.access_identity
+        )

@@ -54,11 +54,43 @@ from .models import (
     RepositoryConnectionRequest,
 )
 
+# Allow synchronous Django code to send asynchronous WebSocket events.
+from asgiref.sync import async_to_sync
+
+# Access Django Channels.
+from channels.layers import get_channel_layer
+
 logger = logging.getLogger(__name__)
 
 # Allow five minutes to complete GitHub authorization.
 OAUTH_MAX_AGE_SECONDS = 300
 
+
+def broadcast_repository_update(group_id):
+    """
+    Notify group members when a private GitHub repository
+    is successfully connected or replaced.
+
+    Never send GitHub credentials or access tokens.
+    """
+
+    # Get the configured Django Channels layer.
+    channel_layer = get_channel_layer()
+
+    if channel_layer is None:
+        return
+
+    # Send the repository-change event.
+    async_to_sync(channel_layer.group_send)(
+        f"group_repository_updates_{group_id}",
+        {
+            "type": "repository.updated",
+            "data": {
+                "type": "repository_updated",
+                "group_id": group_id,
+            },
+        },
+    )
 
 def get_valid_repository_approval(group, user):
     """
@@ -732,6 +764,9 @@ def github_oauth_callback(request):
                 return HttpResponseForbidden(
                     "Your repository approval is no longer valid."
                 )
+        # ====================================================
+        # SAVE THE VERIFIED PRIVATE REPOSITORY
+        # ====================================================
 
         # Save or replace the group's single repository.
         GroupRepository.objects.update_or_create(
@@ -748,6 +783,20 @@ def github_oauth_callback(request):
                 status="used",
                 used_at=timezone.now(),
             )
+
+        # ====================================================
+        # BROADCAST AFTER A SUCCESSFUL DATABASE COMMIT
+        # ====================================================
+
+        # Capture the group ID.
+        repository_group_id = locked_group.id
+
+        # Notify members only after PostgreSQL commits.
+        transaction.on_commit(
+            lambda: broadcast_repository_update(
+                repository_group_id
+            )
+        )
 
     messages.success(
         request,

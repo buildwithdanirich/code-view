@@ -23,6 +23,12 @@ import httpx
 import json
 import logging
 
+# Convert asynchronous Channels calls for synchronous Django views.
+from asgiref.sync import async_to_sync
+
+# Access the configured Django Channels layer.
+from channels.layers import get_channel_layer
+
 from .github_oauth import has_repository_connection_permission
 
 from community.github_auth import (
@@ -94,6 +100,34 @@ logger = logging.getLogger(__name__)
 # ============================================================
 # HELPER FUNCTIONS
 # ============================================================
+
+OAUTH_MAX_AGE_SECONDS = 300
+
+def broadcast_repository_update(group_id):
+    """
+    Notify group members when the connected GitHub repository changes.
+
+    The event contains no GitHub tokens or private credentials.
+    """
+
+    # Get Django's configured Channels layer.
+    channel_layer = get_channel_layer()
+
+    if channel_layer is None:
+        return
+
+    # Send the repository update event to the group.
+    async_to_sync(channel_layer.group_send)(
+        f"group_repository_updates_{group_id}",
+        {
+            "type": "repository.updated",
+            "data": {
+                "type": "repository_updated",
+                "group_id": group_id,
+            },
+        },
+    )
+
 
 def group_members_url(group_id):
     """Return the URL for the group members section."""
@@ -1874,8 +1908,38 @@ def connect_group_repository(request, group_id):
                 status="used",
                 used_at=timezone.now(),
             )
+                # Notify group members only after the database commits.
+        repository_group_id = locked_group.id
 
-    # 11. Confirm success.
+        transaction.on_commit(
+            lambda: broadcast_repository_update(
+                repository_group_id
+            )
+        )
+                    # ====================================================
+        # 11. NOTIFY GROUP MEMBERS AFTER A SUCCESSFUL COMMIT
+        # ====================================================
+
+        # Capture the group ID before registering the callback.
+        repository_group_id = locked_group.id
+
+        # Prepare a minimal event without GitHub credentials.
+        repository_event = {
+            "type": "repository_updated",
+            "group_id": repository_group_id,
+        }
+
+        # Notify connected developers only after PostgreSQL
+        # successfully commits the repository connection.
+        transaction.on_commit(
+            lambda: broadcast_group_event(
+                f"group_repository_updates_{repository_group_id}",
+                "repository.updated",
+                repository_event,
+            )
+        )
+
+    # 12. Confirm success.
     messages.success(
         request,
         "Public GitHub repository connected successfully!",
