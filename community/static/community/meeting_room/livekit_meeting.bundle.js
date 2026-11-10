@@ -32518,12 +32518,24 @@
   // community/static/community/meeting_room/livekit_meeting.js
   document.addEventListener("DOMContentLoaded", () => {
     "use strict";
-    const videoButton = document.getElementById("livekit-video-call");
-    const voiceButton = document.getElementById("livekit-voice-call");
-    const panel = document.getElementById("livekit-meeting-panel");
-    const title = document.getElementById("livekit-meeting-title");
-    const status = document.getElementById("livekit-meeting-status");
-    const participants = document.getElementById("livekit-participants");
+    const videoButton = document.getElementById(
+      "livekit-video-call"
+    );
+    const voiceButton = document.getElementById(
+      "livekit-voice-call"
+    );
+    const panel = document.getElementById(
+      "livekit-meeting-panel"
+    );
+    const title = document.getElementById(
+      "livekit-meeting-title"
+    );
+    const status = document.getElementById(
+      "livekit-meeting-status"
+    );
+    const participants = document.getElementById(
+      "livekit-participants"
+    );
     const microphoneButton = document.getElementById(
       "livekit-toggle-microphone"
     );
@@ -32546,7 +32558,9 @@
     const joinUrl = panel.dataset.joinUrl;
     const endUrl = panel.dataset.endUrl;
     if (!startUrl || !joinUrl || !endUrl) {
-      console.error("CodeView: Meeting URLs are missing.");
+      console.error(
+        "CodeView: LiveKit meeting URLs are missing."
+      );
       status.textContent = "Meeting configuration is incomplete.";
       return;
     }
@@ -32554,10 +32568,8 @@
     let busy = false;
     let meetingMode = null;
     let meetingCreatorId = null;
-    const currentUserId = Number(
-      document.body.dataset.currentUserId
-    );
-    const isGroupOwner = panel.dataset.canEndMeeting === "true";
+    let canEndMeeting = false;
+    const attachedMedia = /* @__PURE__ */ new Map();
     function getCsrfToken() {
       const csrfInput = document.querySelector(
         'input[name="csrfmiddlewaretoken"]'
@@ -32565,11 +32577,15 @@
       if (csrfInput && csrfInput.value) {
         return csrfInput.value;
       }
-      const cookie = document.cookie.split(";").map((item) => item.trim()).find((item) => item.startsWith("csrftoken="));
+      const cookie = document.cookie.split(";").map((item) => item.trim()).find((item) => {
+        return item.startsWith("csrftoken=");
+      });
       if (!cookie) {
         return "";
       }
-      return decodeURIComponent(cookie.substring("csrftoken=".length));
+      return decodeURIComponent(
+        cookie.substring("csrftoken=".length)
+      );
     }
     async function postMeetingRequest(url) {
       const response = await fetch(url, {
@@ -32584,15 +32600,18 @@
       try {
         data = await response.json();
       } catch {
-        throw new Error(
+        const error = new Error(
           "The server returned an invalid meeting response."
         );
+        error.status = response.status;
+        throw error;
       }
       if (!response.ok || data.success !== true) {
         const error = new Error(
           data.error || "The meeting request failed."
         );
         error.status = response.status;
+        error.code = data.code || null;
         throw error;
       }
       return data;
@@ -32600,15 +32619,22 @@
     function setStatus(message) {
       status.textContent = message;
     }
+    function isConnected() {
+      return room !== null && room.state === "connected";
+    }
+    function resetMeetingPermissions() {
+      meetingCreatorId = null;
+      canEndMeeting = false;
+      meetingMode = null;
+    }
     function updateControls() {
-      const connected = room !== null && room.state === "connected";
+      const connected = isConnected();
       const microphoneEnabled = connected && room.localParticipant.isMicrophoneEnabled;
       const cameraEnabled = connected && room.localParticipant.isCameraEnabled;
       microphoneButton.disabled = !connected || busy;
       cameraButton.disabled = !connected || busy;
       leaveButton.disabled = !connected || busy;
-      const canEnd = isGroupOwner || meetingCreatorId !== null && meetingCreatorId === currentUserId;
-      endButton.disabled = !connected || busy || !canEnd;
+      endButton.disabled = !connected || busy || !canEndMeeting;
       microphoneButton.textContent = microphoneEnabled ? "\u{1F399} Mute Microphone" : "\u{1F399} Enable Microphone";
       cameraButton.textContent = cameraEnabled ? "\u{1F4F9} Turn Camera Off" : "\u{1F4F9} Turn Camera On";
       videoButton.disabled = busy || connected;
@@ -32618,8 +32644,38 @@
       busy = value;
       updateControls();
     }
-    function renderParticipants() {
+    function saveMeetingPermissions(credentials) {
+      meetingCreatorId = Number(
+        credentials.started_by
+      );
+      canEndMeeting = credentials.can_end_meeting === true;
+      updateControls();
+    }
+    function cleanupMedia() {
+      for (const [track, elements] of attachedMedia) {
+        for (const element of elements) {
+          try {
+            track.detach(element);
+          } catch (error) {
+            console.warn(
+              "CodeView: Media detach failed.",
+              error
+            );
+          }
+          element.remove();
+        }
+      }
+      attachedMedia.clear();
       participants.replaceChildren();
+    }
+    function registerMedia(track, element) {
+      if (!attachedMedia.has(track)) {
+        attachedMedia.set(track, /* @__PURE__ */ new Set());
+      }
+      attachedMedia.get(track).add(element);
+    }
+    function renderParticipants() {
+      cleanupMedia();
       if (!room) {
         return;
       }
@@ -32634,7 +32690,9 @@
         const isLocal = participant === room.localParticipant;
         name.textContent = isLocal ? "You" : participant.name || participant.identity || "Developer";
         tile.appendChild(name);
-        const mediaContainer = document.createElement("div");
+        const mediaContainer = document.createElement(
+          "div"
+        );
         mediaContainer.className = "livekit-participant-media";
         let hasVideo = false;
         for (const publication of participant.trackPublications.values()) {
@@ -32649,19 +32707,35 @@
             if (isLocal) {
               videoElement.muted = true;
             }
-            mediaContainer.appendChild(videoElement);
+            registerMedia(
+              track,
+              videoElement
+            );
+            mediaContainer.appendChild(
+              videoElement
+            );
             hasVideo = true;
           }
           if (track.kind === Track.Kind.Audio && !isLocal) {
             const audioElement = track.attach();
             audioElement.autoplay = true;
-            mediaContainer.appendChild(audioElement);
+            registerMedia(
+              track,
+              audioElement
+            );
+            mediaContainer.appendChild(
+              audioElement
+            );
           }
         }
         if (!hasVideo) {
-          const placeholder = document.createElement("p");
+          const placeholder = document.createElement(
+            "p"
+          );
           placeholder.textContent = "Camera off";
-          mediaContainer.appendChild(placeholder);
+          mediaContainer.appendChild(
+            placeholder
+          );
         }
         tile.appendChild(mediaContainer);
         participants.appendChild(tile);
@@ -32669,30 +32743,59 @@
     }
     function registerRoomEvents(activeRoom) {
       const refresh = () => {
-        if (room === activeRoom) {
-          renderParticipants();
-          updateControls();
-        }
-      };
-      activeRoom.on(RoomEvent.ParticipantConnected, refresh);
-      activeRoom.on(RoomEvent.ParticipantDisconnected, refresh);
-      activeRoom.on(RoomEvent.TrackSubscribed, refresh);
-      activeRoom.on(RoomEvent.TrackUnsubscribed, refresh);
-      activeRoom.on(RoomEvent.TrackPublished, refresh);
-      activeRoom.on(RoomEvent.TrackUnpublished, refresh);
-      activeRoom.on(RoomEvent.TrackMuted, refresh);
-      activeRoom.on(RoomEvent.TrackUnmuted, refresh);
-      activeRoom.on(RoomEvent.Disconnected, () => {
         if (room !== activeRoom) {
           return;
         }
-        room = null;
-        meetingMode = null;
-        meetingCreatorId = null;
-        participants.replaceChildren();
-        setStatus("Disconnected from meeting.");
+        renderParticipants();
         updateControls();
-      });
+      };
+      activeRoom.on(
+        RoomEvent.ParticipantConnected,
+        refresh
+      );
+      activeRoom.on(
+        RoomEvent.ParticipantDisconnected,
+        refresh
+      );
+      activeRoom.on(
+        RoomEvent.TrackSubscribed,
+        refresh
+      );
+      activeRoom.on(
+        RoomEvent.TrackUnsubscribed,
+        refresh
+      );
+      activeRoom.on(
+        RoomEvent.TrackPublished,
+        refresh
+      );
+      activeRoom.on(
+        RoomEvent.TrackUnpublished,
+        refresh
+      );
+      activeRoom.on(
+        RoomEvent.TrackMuted,
+        refresh
+      );
+      activeRoom.on(
+        RoomEvent.TrackUnmuted,
+        refresh
+      );
+      activeRoom.on(
+        RoomEvent.Disconnected,
+        () => {
+          if (room !== activeRoom) {
+            return;
+          }
+          cleanupMedia();
+          room = null;
+          resetMeetingPermissions();
+          setStatus(
+            "Disconnected from meeting."
+          );
+          updateControls();
+        }
+      );
     }
     async function connectToLiveKit(credentials, mode) {
       const serverUrl = credentials.url;
@@ -32710,21 +32813,61 @@
       meetingMode = mode;
       registerRoomEvents(newRoom);
       try {
-        setStatus("Connecting to LiveKit...");
-        await newRoom.connect(serverUrl, accessToken);
-        await newRoom.localParticipant.setMicrophoneEnabled(true);
+        setStatus(
+          "Connecting to LiveKit..."
+        );
+        await newRoom.connect(
+          serverUrl,
+          accessToken
+        );
+        saveMeetingPermissions(credentials);
+        try {
+          await newRoom.localParticipant.setMicrophoneEnabled(true);
+        } catch (error) {
+          console.warn(
+            "CodeView: Microphone unavailable.",
+            error
+          );
+          setStatus(
+            "Connected. Microphone access is unavailable."
+          );
+        }
         if (mode === "video") {
-          await newRoom.localParticipant.setCameraEnabled(true);
+          try {
+            await newRoom.localParticipant.setCameraEnabled(true);
+          } catch (error) {
+            console.warn(
+              "CodeView: Camera unavailable.",
+              error
+            );
+            setStatus(
+              "Connected. Camera access is unavailable."
+            );
+          }
         }
         title.textContent = mode === "video" ? "Video Meeting" : "Voice Meeting";
-        setStatus("Connected to meeting.");
         renderParticipants();
+        if (newRoom.localParticipant.isMicrophoneEnabled && (mode === "voice" || newRoom.localParticipant.isCameraEnabled)) {
+          setStatus(
+            "Connected to meeting."
+          );
+        }
+        updateControls();
       } catch (error) {
-        await newRoom.disconnect();
+        try {
+          await newRoom.disconnect();
+        } catch (disconnectError) {
+          console.warn(
+            "CodeView: Disconnect failed.",
+            disconnectError
+          );
+        }
+        cleanupMedia();
         if (room === newRoom) {
           room = null;
-          meetingMode = null;
         }
+        resetMeetingPermissions();
+        updateControls();
         throw error;
       }
     }
@@ -32735,70 +32878,100 @@
       panel.hidden = false;
       setBusy(true);
       try {
-        setStatus("Checking for an active meeting...");
-        let startedMeeting = null;
+        setStatus(
+          "Checking for an active meeting..."
+        );
+        let credentials = null;
         try {
-          const joinResponse2 = await postMeetingRequest(joinUrl);
-          await connectToLiveKit(
-            joinResponse2.meeting,
-            mode
+          const joinResponse = await postMeetingRequest(
+            joinUrl
           );
-          return;
+          credentials = joinResponse.meeting;
         } catch (error) {
-          if (error.status !== 404) {
+          if (error.status !== 404 || error.code !== "no_active_meeting") {
             throw error;
           }
-        }
-        setStatus("Starting a new meeting...");
-        const startResponse = await postMeetingRequest(startUrl);
-        startedMeeting = startResponse.meeting;
-        if (startedMeeting) {
-          meetingCreatorId = Number(
-            startedMeeting.started_by
+          setStatus(
+            "Starting a new meeting..."
           );
+          try {
+            await postMeetingRequest(
+              startUrl
+            );
+          } catch (startError) {
+            const alreadyActive = startError.status === 400 && startError.message.includes(
+              "already has an active meeting"
+            );
+            if (!alreadyActive) {
+              throw startError;
+            }
+            setStatus(
+              "Another developer started the meeting. Joining..."
+            );
+          }
+          const joinResponse = await postMeetingRequest(
+            joinUrl
+          );
+          credentials = joinResponse.meeting;
         }
-        const joinResponse = await postMeetingRequest(joinUrl);
         await connectToLiveKit(
-          joinResponse.meeting,
+          credentials,
           mode
         );
       } catch (error) {
-        console.error("CodeView meeting error:", error);
-        setStatus(error.message || "Unable to join meeting.");
+        console.error(
+          "CodeView meeting error:",
+          error
+        );
+        setStatus(
+          error.message || "Unable to join meeting."
+        );
+        if (!isConnected()) {
+          cleanupMedia();
+          resetMeetingPermissions();
+        }
       } finally {
         setBusy(false);
       }
     }
     async function toggleMicrophone() {
-      if (!room || busy) {
+      if (!isConnected() || busy) {
         return;
       }
       setBusy(true);
       try {
         const enabled = room.localParticipant.isMicrophoneEnabled;
-        await room.localParticipant.setMicrophoneEnabled(
-          !enabled
-        );
+        await room.localParticipant.setMicrophoneEnabled(!enabled);
         renderParticipants();
       } catch (error) {
-        setStatus(error.message || "Microphone update failed.");
+        console.error(
+          "CodeView microphone error:",
+          error
+        );
+        setStatus(
+          error.message || "Unable to update microphone."
+        );
       } finally {
         setBusy(false);
       }
     }
     async function toggleCamera() {
-      if (!room || busy) {
+      if (!isConnected() || busy) {
         return;
       }
       setBusy(true);
       try {
         const enabled = room.localParticipant.isCameraEnabled;
-        await room.localParticipant.setCameraEnabled(
-          !enabled
-        );
+        await room.localParticipant.setCameraEnabled(!enabled);
         renderParticipants();
       } catch (error) {
-        setStatus(error.message || "Camera update failed.");
+        console.error(
+          "CodeView camera error:",
+          error
+        );
+        setStatus(
+          error.message || "Unable to update camera."
+        );
       } finally {
         setBusy(false);
       }
@@ -32811,17 +32984,28 @@
       try {
         const currentRoom = room;
         await currentRoom.disconnect();
-        room = null;
-        meetingMode = null;
-        meetingCreatorId = null;
-        participants.replaceChildren();
-        setStatus("You left the meeting.");
+        cleanupMedia();
+        if (room === currentRoom) {
+          room = null;
+        }
+        resetMeetingPermissions();
+        setStatus(
+          "You left the meeting."
+        );
+      } catch (error) {
+        console.error(
+          "CodeView leave meeting error:",
+          error
+        );
+        setStatus(
+          error.message || "Unable to leave meeting."
+        );
       } finally {
         setBusy(false);
       }
     }
     async function endMeeting() {
-      if (!room || busy) {
+      if (!isConnected() || busy || !canEndMeeting) {
         return;
       }
       const confirmed = window.confirm(
@@ -32832,27 +33016,58 @@
       }
       setBusy(true);
       try {
-        setStatus("Ending meeting...");
-        await postMeetingRequest(endUrl);
+        setStatus(
+          "Ending meeting..."
+        );
+        await postMeetingRequest(
+          endUrl
+        );
         const currentRoom = room;
-        await currentRoom.disconnect();
+        if (currentRoom) {
+          await currentRoom.disconnect();
+        }
+        cleanupMedia();
         room = null;
-        meetingMode = null;
-        meetingCreatorId = null;
-        participants.replaceChildren();
-        setStatus("Meeting ended.");
+        resetMeetingPermissions();
+        setStatus(
+          "Meeting ended."
+        );
       } catch (error) {
-        setStatus(error.message || "Unable to end meeting.");
+        console.error(
+          "CodeView end meeting error:",
+          error
+        );
+        setStatus(
+          error.message || "Unable to end meeting."
+        );
       } finally {
         setBusy(false);
       }
     }
-    videoButton.addEventListener("click", () => {
-      enterMeeting("video");
-    });
-    voiceButton.addEventListener("click", () => {
-      enterMeeting("voice");
-    });
+    function closeMeetingPanel() {
+      if (isConnected()) {
+        setStatus(
+          "Leave the meeting before closing this panel."
+        );
+        return;
+      }
+      if (busy) {
+        return;
+      }
+      panel.hidden = true;
+    }
+    videoButton.addEventListener(
+      "click",
+      () => {
+        enterMeeting("video");
+      }
+    );
+    voiceButton.addEventListener(
+      "click",
+      () => {
+        enterMeeting("voice");
+      }
+    );
     microphoneButton.addEventListener(
       "click",
       toggleMicrophone
@@ -32869,10 +33084,13 @@
       "click",
       endMeeting
     );
-    closeButton.addEventListener("click", () => {
-      panel.hidden = true;
-    });
+    closeButton.addEventListener(
+      "click",
+      closeMeetingPanel
+    );
     updateControls();
-    console.log("CodeView LiveKit meeting controls initialized.");
+    console.log(
+      "CodeView LiveKit meeting controls initialized."
+    );
   });
 })();

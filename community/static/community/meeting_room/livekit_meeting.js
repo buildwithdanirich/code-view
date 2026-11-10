@@ -1,18 +1,21 @@
 /**
- * CodeView — LiveKit video and voice meetings.
+ * CodeView — LiveKit Video and Voice Meetings
  *
- * Responsibilities:
- * 1. Start or join a private group meeting through Django.
- * 2. Connect to LiveKit using credentials issued by Django.
- * 3. Display local and remote participants.
- * 4. Control microphone and camera.
- * 5. Leave without ending the meeting.
- * 6. End the meeting through Django when authorized.
+ * Features:
+ * 1. Start a private group meeting.
+ * 2. Join an existing group meeting.
+ * 3. Prevent duplicate meetings during simultaneous requests.
+ * 4. Display local and remote participants.
+ * 5. Enable and disable microphone and camera.
+ * 6. Leave without ending the meeting for everyone.
+ * 7. Allow authorized developers to end the meeting.
+ * 8. Clean up audio and video elements.
  *
  * Security:
- * - Django checks group membership and meeting permissions.
- * - LiveKit access tokens are obtained from Django, not stored here.
- * - POST requests include Django's CSRF token.
+ * - Django verifies group membership.
+ * - Django generates LiveKit access tokens.
+ * - Django controls who can end meetings.
+ * - All meeting requests use POST and CSRF protection.
  */
 
 import {
@@ -26,16 +29,32 @@ document.addEventListener("DOMContentLoaded", () => {
     "use strict";
 
     // --------------------------------------------------
-    // 1. Find the existing HTML elements.
+    // 1. GET HTML ELEMENTS
     // --------------------------------------------------
 
-    const videoButton = document.getElementById("livekit-video-call");
-    const voiceButton = document.getElementById("livekit-voice-call");
-    const panel = document.getElementById("livekit-meeting-panel");
+    const videoButton = document.getElementById(
+        "livekit-video-call"
+    );
 
-    const title = document.getElementById("livekit-meeting-title");
-    const status = document.getElementById("livekit-meeting-status");
-    const participants = document.getElementById("livekit-participants");
+    const voiceButton = document.getElementById(
+        "livekit-voice-call"
+    );
+
+    const panel = document.getElementById(
+        "livekit-meeting-panel"
+    );
+
+    const title = document.getElementById(
+        "livekit-meeting-title"
+    );
+
+    const status = document.getElementById(
+        "livekit-meeting-status"
+    );
+
+    const participants = document.getElementById(
+        "livekit-participants"
+    );
 
     const microphoneButton = document.getElementById(
         "livekit-toggle-microphone"
@@ -57,7 +76,8 @@ document.addEventListener("DOMContentLoaded", () => {
         "livekit-close-panel"
     );
 
-    // Do nothing if this script loads on another page.
+
+    // Stop if the meeting interface is not on this page.
     if (
         !videoButton ||
         !voiceButton ||
@@ -74,41 +94,57 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
     }
 
-    // Django endpoint URLs supplied by the HTML template.
+
+    // --------------------------------------------------
+    // 2. DJANGO MEETING ENDPOINTS
+    // --------------------------------------------------
+
     const startUrl = panel.dataset.startUrl;
     const joinUrl = panel.dataset.joinUrl;
     const endUrl = panel.dataset.endUrl;
 
     if (!startUrl || !joinUrl || !endUrl) {
-        console.error("CodeView: Meeting URLs are missing.");
-        status.textContent = "Meeting configuration is incomplete.";
+        console.error(
+            "CodeView: LiveKit meeting URLs are missing."
+        );
+
+        status.textContent =
+            "Meeting configuration is incomplete.";
+
         return;
     }
 
+
     // --------------------------------------------------
-    // 2. Store the current meeting state.
+    // 3. MEETING STATE
     // --------------------------------------------------
 
+    // Current LiveKit room connection.
     let room = null;
+
+    // Prevent overlapping meeting actions.
     let busy = false;
+
+    // Current meeting type: video or voice.
     let meetingMode = null;
+
+    // Developer who created the meeting.
     let meetingCreatorId = null;
 
-    const currentUserId = Number(
-        document.body.dataset.currentUserId
-    );
+    // Permission supplied by Django.
+    let canEndMeeting = false;
 
-    // A group owner may also end meetings. The backend
-    // remains responsible for enforcing that permission.
-    const isGroupOwner =
-        panel.dataset.canEndMeeting === "true";
+    // Track media elements attached to the page.
+    const attachedMedia = new Map();
+
 
     // --------------------------------------------------
-    // 3. Read Django's CSRF token.
+    // 4. READ DJANGO CSRF TOKEN
     // --------------------------------------------------
 
     function getCsrfToken() {
-        // Prefer the token rendered by Django in an existing form.
+
+        // First check Django's existing forms.
         const csrfInput = document.querySelector(
             'input[name="csrfmiddlewaretoken"]'
         );
@@ -117,24 +153,30 @@ document.addEventListener("DOMContentLoaded", () => {
             return csrfInput.value;
         }
 
-        // Fall back to Django's CSRF cookie.
+        // Otherwise read the CSRF cookie.
         const cookie = document.cookie
             .split(";")
             .map((item) => item.trim())
-            .find((item) => item.startsWith("csrftoken="));
+            .find((item) => {
+                return item.startsWith("csrftoken=");
+            });
 
         if (!cookie) {
             return "";
         }
 
-        return decodeURIComponent(cookie.substring("csrftoken=".length));
+        return decodeURIComponent(
+            cookie.substring("csrftoken=".length)
+        );
     }
 
+
     // --------------------------------------------------
-    // 4. Send a protected POST request to Django.
+    // 5. SEND POST REQUEST TO DJANGO
     // --------------------------------------------------
 
     async function postMeetingRequest(url) {
+
         const response = await fetch(url, {
             method: "POST",
 
@@ -142,6 +184,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             headers: {
                 "X-CSRFToken": getCsrfToken(),
+
                 "X-Requested-With": "XMLHttpRequest",
             },
         });
@@ -151,14 +194,8 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             data = await response.json();
         } catch {
-            throw new Error(
-                "The server returned an invalid meeting response."
-            );
-        }
-
-        if (!response.ok || data.success !== true) {
             const error = new Error(
-                data.error || "The meeting request failed."
+                "The server returned an invalid meeting response."
             );
 
             error.status = response.status;
@@ -166,43 +203,91 @@ document.addEventListener("DOMContentLoaded", () => {
             throw error;
         }
 
+        if (!response.ok || data.success !== true) {
+
+            const error = new Error(
+                data.error || "The meeting request failed."
+            );
+
+            error.status = response.status;
+
+            // Preserve Django's machine-readable error code.
+            error.code = data.code || null;
+
+            throw error;
+        }
+
         return data;
     }
 
+
     // --------------------------------------------------
-    // 5. Update the meeting interface.
+    // 6. DISPLAY MEETING STATUS
     // --------------------------------------------------
 
     function setStatus(message) {
         status.textContent = message;
     }
 
-    function updateControls() {
-        const connected =
+
+    // --------------------------------------------------
+    // 7. CHECK CONNECTION
+    // --------------------------------------------------
+
+    function isConnected() {
+        return (
             room !== null &&
-            room.state === "connected";
+            room.state === "connected"
+        );
+    }
 
-        const microphoneEnabled =
+
+    // --------------------------------------------------
+    // 8. RESET MEETING PERMISSIONS
+    // --------------------------------------------------
+
+    function resetMeetingPermissions() {
+
+        meetingCreatorId = null;
+
+        canEndMeeting = false;
+
+        meetingMode = null;
+    }
+
+
+    // --------------------------------------------------
+    // 9. UPDATE BUTTONS
+    // --------------------------------------------------
+
+    function updateControls() {
+
+        const connected = isConnected();
+
+        const microphoneEnabled = (
             connected &&
-            room.localParticipant.isMicrophoneEnabled;
+            room.localParticipant.isMicrophoneEnabled
+        );
 
-        const cameraEnabled =
+        const cameraEnabled = (
             connected &&
-            room.localParticipant.isCameraEnabled;
+            room.localParticipant.isCameraEnabled
+        );
 
+        // Media controls require an active connection.
         microphoneButton.disabled = !connected || busy;
+
         cameraButton.disabled = !connected || busy;
+
         leaveButton.disabled = !connected || busy;
 
-        // Django will perform the final permission check.
-        const canEnd =
-            isGroupOwner ||
-            (
-                meetingCreatorId !== null &&
-                meetingCreatorId === currentUserId
-            );
-
-        endButton.disabled = !connected || busy || !canEnd;
+        // Django provides the permission.
+        // The backend still checks authorization.
+        endButton.disabled = (
+            !connected ||
+            busy ||
+            !canEndMeeting
+        );
 
         microphoneButton.textContent = microphoneEnabled
             ? "🎙 Mute Microphone"
@@ -212,21 +297,100 @@ document.addEventListener("DOMContentLoaded", () => {
             ? "📹 Turn Camera Off"
             : "📹 Turn Camera On";
 
+        // Developers cannot start another connection
+        // while they are already connected.
         videoButton.disabled = busy || connected;
+
         voiceButton.disabled = busy || connected;
     }
 
+
+    // --------------------------------------------------
+    // 10. UPDATE BUSY STATE
+    // --------------------------------------------------
+
     function setBusy(value) {
+
         busy = value;
+
         updateControls();
     }
 
+
     // --------------------------------------------------
-    // 6. Display participants and their media.
+    // 11. SAVE MEETING PERMISSIONS
+    // --------------------------------------------------
+
+    function saveMeetingPermissions(credentials) {
+
+        // Identify the meeting creator.
+        meetingCreatorId = Number(
+            credentials.started_by
+        );
+
+        // Django determines whether this developer
+        // may end the meeting for everyone.
+        canEndMeeting = (
+            credentials.can_end_meeting === true
+        );
+
+        updateControls();
+    }
+
+
+    // --------------------------------------------------
+    // 12. CLEAN UP ATTACHED MEDIA
+    // --------------------------------------------------
+
+    function cleanupMedia() {
+
+        // Detach audio and video elements from their tracks.
+        for (const [track, elements] of attachedMedia) {
+
+            for (const element of elements) {
+
+                try {
+                    track.detach(element);
+                } catch (error) {
+                    console.warn(
+                        "CodeView: Media detach failed.",
+                        error
+                    );
+                }
+
+                element.remove();
+            }
+        }
+
+        attachedMedia.clear();
+
+        // Remove participant tiles.
+        participants.replaceChildren();
+    }
+
+
+    // --------------------------------------------------
+    // 13. REGISTER ATTACHED MEDIA
+    // --------------------------------------------------
+
+    function registerMedia(track, element) {
+
+        if (!attachedMedia.has(track)) {
+            attachedMedia.set(track, new Set());
+        }
+
+        attachedMedia.get(track).add(element);
+    }
+
+
+    // --------------------------------------------------
+    // 14. DISPLAY PARTICIPANTS
     // --------------------------------------------------
 
     function renderParticipants() {
-        participants.replaceChildren();
+
+        // Remove old media attachments before rebuilding.
+        cleanupMedia();
 
         if (!room) {
             return;
@@ -238,13 +402,16 @@ document.addEventListener("DOMContentLoaded", () => {
         ];
 
         for (const participant of allParticipants) {
+
             const tile = document.createElement("div");
+
             tile.className = "livekit-participant";
 
             const name = document.createElement("strong");
 
-            const isLocal =
-                participant === room.localParticipant;
+            const isLocal = (
+                participant === room.localParticipant
+            );
 
             name.textContent = isLocal
                 ? "You"
@@ -256,105 +423,209 @@ document.addEventListener("DOMContentLoaded", () => {
 
             tile.appendChild(name);
 
-            const mediaContainer = document.createElement("div");
-            mediaContainer.className = "livekit-participant-media";
+            const mediaContainer = document.createElement(
+                "div"
+            );
+
+            mediaContainer.className =
+                "livekit-participant-media";
 
             let hasVideo = false;
 
-            for (const publication of participant.trackPublications.values()) {
+            for (
+                const publication
+                of participant.trackPublications.values()
+            ) {
+
                 const track = publication.track;
 
                 if (!track || publication.isMuted) {
                     continue;
                 }
 
+                // ------------------------------------------
+                // VIDEO
+                // ------------------------------------------
+
                 if (track.kind === Track.Kind.Video) {
+
                     const videoElement = track.attach();
 
                     videoElement.autoplay = true;
+
                     videoElement.playsInline = true;
 
+                    // Prevent hearing yourself through
+                    // locally attached media.
                     if (isLocal) {
                         videoElement.muted = true;
                     }
 
-                    mediaContainer.appendChild(videoElement);
+                    registerMedia(
+                        track,
+                        videoElement
+                    );
+
+                    mediaContainer.appendChild(
+                        videoElement
+                    );
+
                     hasVideo = true;
                 }
+
+                // ------------------------------------------
+                // AUDIO
+                // ------------------------------------------
 
                 if (
                     track.kind === Track.Kind.Audio &&
                     !isLocal
                 ) {
+
                     const audioElement = track.attach();
 
                     audioElement.autoplay = true;
 
-                    mediaContainer.appendChild(audioElement);
+                    registerMedia(
+                        track,
+                        audioElement
+                    );
+
+                    mediaContainer.appendChild(
+                        audioElement
+                    );
                 }
             }
 
+            // Show a placeholder when the camera is off.
             if (!hasVideo) {
-                const placeholder = document.createElement("p");
+
+                const placeholder = document.createElement(
+                    "p"
+                );
 
                 placeholder.textContent = "Camera off";
 
-                mediaContainer.appendChild(placeholder);
+                mediaContainer.appendChild(
+                    placeholder
+                );
             }
 
             tile.appendChild(mediaContainer);
+
             participants.appendChild(tile);
         }
     }
 
+
     // --------------------------------------------------
-    // 7. Register LiveKit event listeners.
+    // 15. REGISTER LIVEKIT EVENTS
     // --------------------------------------------------
 
     function registerRoomEvents(activeRoom) {
+
+        // Refresh only when this is the current room.
         const refresh = () => {
-            if (room === activeRoom) {
-                renderParticipants();
-                updateControls();
-            }
-        };
 
-        activeRoom.on(RoomEvent.ParticipantConnected, refresh);
-        activeRoom.on(RoomEvent.ParticipantDisconnected, refresh);
-
-        activeRoom.on(RoomEvent.TrackSubscribed, refresh);
-        activeRoom.on(RoomEvent.TrackUnsubscribed, refresh);
-
-        activeRoom.on(RoomEvent.TrackPublished, refresh);
-        activeRoom.on(RoomEvent.TrackUnpublished, refresh);
-        activeRoom.on(RoomEvent.TrackMuted, refresh);
-        activeRoom.on(RoomEvent.TrackUnmuted, refresh);
-
-        activeRoom.on(RoomEvent.Disconnected, () => {
             if (room !== activeRoom) {
                 return;
             }
 
-            room = null;
-            meetingMode = null;
-            meetingCreatorId = null;
+            renderParticipants();
 
-            participants.replaceChildren();
-
-            setStatus("Disconnected from meeting.");
             updateControls();
-        });
+        };
+
+
+        // A developer joins the meeting.
+        activeRoom.on(
+            RoomEvent.ParticipantConnected,
+            refresh
+        );
+
+        // A developer leaves the meeting.
+        activeRoom.on(
+            RoomEvent.ParticipantDisconnected,
+            refresh
+        );
+
+        // A media track becomes available.
+        activeRoom.on(
+            RoomEvent.TrackSubscribed,
+            refresh
+        );
+
+        // A media track becomes unavailable.
+        activeRoom.on(
+            RoomEvent.TrackUnsubscribed,
+            refresh
+        );
+
+        // A participant publishes media.
+        activeRoom.on(
+            RoomEvent.TrackPublished,
+            refresh
+        );
+
+        // A participant stops publishing media.
+        activeRoom.on(
+            RoomEvent.TrackUnpublished,
+            refresh
+        );
+
+        // Microphone or camera muted.
+        activeRoom.on(
+            RoomEvent.TrackMuted,
+            refresh
+        );
+
+        // Microphone or camera unmuted.
+        activeRoom.on(
+            RoomEvent.TrackUnmuted,
+            refresh
+        );
+
+
+        // ----------------------------------------------
+        // ROOM DISCONNECTED
+        // ----------------------------------------------
+
+        activeRoom.on(
+            RoomEvent.Disconnected,
+            () => {
+
+                if (room !== activeRoom) {
+                    return;
+                }
+
+                cleanupMedia();
+
+                room = null;
+
+                resetMeetingPermissions();
+
+                setStatus(
+                    "Disconnected from meeting."
+                );
+
+                updateControls();
+            }
+        );
     }
 
+
     // --------------------------------------------------
-    // 8. Connect to LiveKit.
+    // 16. CONNECT TO LIVEKIT
     // --------------------------------------------------
 
     async function connectToLiveKit(credentials, mode) {
+
         const serverUrl = credentials.url;
+
         const accessToken = credentials.token;
 
         if (!serverUrl || !accessToken) {
+
             throw new Error(
                 "Django did not return valid LiveKit credentials."
             );
@@ -366,166 +637,352 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         room = newRoom;
+
         meetingMode = mode;
 
         registerRoomEvents(newRoom);
 
         try {
-            setStatus("Connecting to LiveKit...");
 
-            await newRoom.connect(serverUrl, accessToken);
+            setStatus(
+                "Connecting to LiveKit..."
+            );
 
-            // Voice meetings start with the camera disabled.
-            // Video meetings attempt to enable both devices.
-            await newRoom.localParticipant.setMicrophoneEnabled(true);
+            // Establish the secure LiveKit connection.
+            await newRoom.connect(
+                serverUrl,
+                accessToken
+            );
 
-            if (mode === "video") {
-                await newRoom.localParticipant.setCameraEnabled(true);
+            // Save permissions only after connecting.
+            saveMeetingPermissions(credentials);
+
+            // ------------------------------------------
+            // ENABLE MICROPHONE
+            // ------------------------------------------
+
+            try {
+
+                await newRoom.localParticipant
+                    .setMicrophoneEnabled(true);
+
+            } catch (error) {
+
+                console.warn(
+                    "CodeView: Microphone unavailable.",
+                    error
+                );
+
+                setStatus(
+                    "Connected. Microphone access is unavailable."
+                );
             }
 
-            title.textContent = mode === "video"
-                ? "Video Meeting"
-                : "Voice Meeting";
 
-            setStatus("Connected to meeting.");
+            // ------------------------------------------
+            // ENABLE CAMERA FOR VIDEO CALLS
+            // ------------------------------------------
+
+            if (mode === "video") {
+
+                try {
+
+                    await newRoom.localParticipant
+                        .setCameraEnabled(true);
+
+                } catch (error) {
+
+                    console.warn(
+                        "CodeView: Camera unavailable.",
+                        error
+                    );
+
+                    setStatus(
+                        "Connected. Camera access is unavailable."
+                    );
+                }
+            }
+
+            title.textContent = (
+                mode === "video"
+                    ? "Video Meeting"
+                    : "Voice Meeting"
+            );
 
             renderParticipants();
+
+            // Do not overwrite a device error with
+            // a generic connection message.
+            if (
+                newRoom.localParticipant.isMicrophoneEnabled &&
+                (
+                    mode === "voice" ||
+                    newRoom.localParticipant.isCameraEnabled
+                )
+            ) {
+
+                setStatus(
+                    "Connected to meeting."
+                );
+            }
+
+            updateControls();
+
         } catch (error) {
-            await newRoom.disconnect();
+
+            // Disconnect a partially established room.
+            try {
+
+                await newRoom.disconnect();
+
+            } catch (disconnectError) {
+
+                console.warn(
+                    "CodeView: Disconnect failed.",
+                    disconnectError
+                );
+            }
+
+            cleanupMedia();
 
             if (room === newRoom) {
                 room = null;
-                meetingMode = null;
             }
+
+            resetMeetingPermissions();
+
+            updateControls();
 
             throw error;
         }
     }
 
+
     // --------------------------------------------------
-    // 9. Start or join a meeting.
+    // 17. START OR JOIN A MEETING
     // --------------------------------------------------
 
     async function enterMeeting(mode) {
+
         if (busy || room) {
             return;
         }
 
         panel.hidden = false;
+
         setBusy(true);
 
         try {
-            setStatus("Checking for an active meeting...");
 
-            let startedMeeting = null;
+            setStatus(
+                "Checking for an active meeting..."
+            );
 
-            // First try joining an existing meeting.
+            let credentials = null;
+
+            // ------------------------------------------
+            // FIRST: TRY JOINING AN EXISTING MEETING
+            // ------------------------------------------
+
             try {
-                const joinResponse = await postMeetingRequest(joinUrl);
 
-                await connectToLiveKit(
-                    joinResponse.meeting,
-                    mode
+                const joinResponse = await postMeetingRequest(
+                    joinUrl
                 );
 
-                return;
+                credentials = joinResponse.meeting;
+
             } catch (error) {
-                // Only attempt to start a meeting when Django
-                // reports that no meeting exists (404).
-                // Do not bypass permission or validation errors.
-                if (error.status !== 404) {
+
+                // Only start a meeting when Django explicitly
+                // reports that no active meeting exists.
+                if (
+                    error.status !== 404 ||
+                    error.code !== "no_active_meeting"
+                ) {
                     throw error;
                 }
-            }
 
-            setStatus("Starting a new meeting...");
 
-            const startResponse = await postMeetingRequest(startUrl);
+                // --------------------------------------
+                // SECOND: START A NEW MEETING
+                // --------------------------------------
 
-            startedMeeting = startResponse.meeting;
-
-            if (startedMeeting) {
-                meetingCreatorId = Number(
-                    startedMeeting.started_by
+                setStatus(
+                    "Starting a new meeting..."
                 );
+
+                try {
+
+                    await postMeetingRequest(
+                        startUrl
+                    );
+
+                } catch (startError) {
+
+                    // Another developer may have started
+                    // the meeting at the same time.
+                    //
+                    // Retry joining only if Django reports
+                    // that an active meeting already exists.
+                    //
+                    // Never retry on permission errors.
+                    const alreadyActive = (
+                        startError.status === 400 &&
+                        startError.message.includes(
+                            "already has an active meeting"
+                        )
+                    );
+
+                    if (!alreadyActive) {
+                        throw startError;
+                    }
+
+                    setStatus(
+                        "Another developer started the meeting. Joining..."
+                    );
+                }
+
+
+                // --------------------------------------
+                // THIRD: REQUEST LIVEKIT CREDENTIALS
+                // --------------------------------------
+
+                const joinResponse = await postMeetingRequest(
+                    joinUrl
+                );
+
+                credentials = joinResponse.meeting;
             }
 
-            // Starting creates the meeting; joining issues
-            // the LiveKit URL and access token.
-            const joinResponse = await postMeetingRequest(joinUrl);
+
+            // ------------------------------------------
+            // CONNECT TO LIVEKIT
+            // ------------------------------------------
 
             await connectToLiveKit(
-                joinResponse.meeting,
+                credentials,
                 mode
             );
-        } catch (error) {
-            console.error("CodeView meeting error:", error);
 
-            setStatus(error.message || "Unable to join meeting.");
+        } catch (error) {
+
+            console.error(
+                "CodeView meeting error:",
+                error
+            );
+
+            setStatus(
+                error.message ||
+                "Unable to join meeting."
+            );
+
+            // Ensure a failed attempt does not leave
+            // stale permissions or media elements.
+            if (!isConnected()) {
+
+                cleanupMedia();
+
+                resetMeetingPermissions();
+            }
+
         } finally {
+
             setBusy(false);
         }
     }
 
+
     // --------------------------------------------------
-    // 10. Toggle the microphone.
+    // 18. TOGGLE MICROPHONE
     // --------------------------------------------------
 
     async function toggleMicrophone() {
-        if (!room || busy) {
+
+        if (!isConnected() || busy) {
             return;
         }
 
         setBusy(true);
 
         try {
-            const enabled =
-                room.localParticipant.isMicrophoneEnabled;
 
-            await room.localParticipant.setMicrophoneEnabled(
-                !enabled
+            const enabled = (
+                room.localParticipant.isMicrophoneEnabled
             );
 
+            await room.localParticipant
+                .setMicrophoneEnabled(!enabled);
+
             renderParticipants();
+
         } catch (error) {
-            setStatus(error.message || "Microphone update failed.");
+
+            console.error(
+                "CodeView microphone error:",
+                error
+            );
+
+            setStatus(
+                error.message ||
+                "Unable to update microphone."
+            );
+
         } finally {
+
             setBusy(false);
         }
     }
 
+
     // --------------------------------------------------
-    // 11. Toggle the camera.
+    // 19. TOGGLE CAMERA
     // --------------------------------------------------
 
     async function toggleCamera() {
-        if (!room || busy) {
+
+        if (!isConnected() || busy) {
             return;
         }
 
         setBusy(true);
 
         try {
-            const enabled =
-                room.localParticipant.isCameraEnabled;
 
-            await room.localParticipant.setCameraEnabled(
-                !enabled
+            const enabled = (
+                room.localParticipant.isCameraEnabled
             );
 
+            await room.localParticipant
+                .setCameraEnabled(!enabled);
+
             renderParticipants();
+
         } catch (error) {
-            setStatus(error.message || "Camera update failed.");
+
+            console.error(
+                "CodeView camera error:",
+                error
+            );
+
+            setStatus(
+                error.message ||
+                "Unable to update camera."
+            );
+
         } finally {
+
             setBusy(false);
         }
     }
 
+
     // --------------------------------------------------
-    // 12. Leave without ending the group meeting.
+    // 20. LEAVE MEETING
     // --------------------------------------------------
 
     async function leaveMeeting() {
+
         if (!room || busy) {
             return;
         }
@@ -533,28 +990,54 @@ document.addEventListener("DOMContentLoaded", () => {
         setBusy(true);
 
         try {
+
             const currentRoom = room;
 
+            // Leaving does not end the meeting for others.
             await currentRoom.disconnect();
 
-            room = null;
-            meetingMode = null;
-            meetingCreatorId = null;
+            cleanupMedia();
 
-            participants.replaceChildren();
+            if (room === currentRoom) {
+                room = null;
+            }
 
-            setStatus("You left the meeting.");
+            resetMeetingPermissions();
+
+            setStatus(
+                "You left the meeting."
+            );
+
+        } catch (error) {
+
+            console.error(
+                "CodeView leave meeting error:",
+                error
+            );
+
+            setStatus(
+                error.message ||
+                "Unable to leave meeting."
+            );
+
         } finally {
+
             setBusy(false);
         }
     }
 
+
     // --------------------------------------------------
-    // 13. End the meeting through Django.
+    // 21. END MEETING FOR EVERYONE
     // --------------------------------------------------
 
     async function endMeeting() {
-        if (!room || busy) {
+
+        if (
+            !isConnected() ||
+            busy ||
+            !canEndMeeting
+        ) {
             return;
         }
 
@@ -569,39 +1052,96 @@ document.addEventListener("DOMContentLoaded", () => {
         setBusy(true);
 
         try {
-            setStatus("Ending meeting...");
 
-            await postMeetingRequest(endUrl);
+            setStatus(
+                "Ending meeting..."
+            );
+
+            // Django checks whether this developer
+            // is authorized to end the meeting.
+            await postMeetingRequest(
+                endUrl
+            );
 
             const currentRoom = room;
 
-            await currentRoom.disconnect();
+            // Disconnect this developer.
+            if (currentRoom) {
+
+                await currentRoom.disconnect();
+            }
+
+            cleanupMedia();
 
             room = null;
-            meetingMode = null;
-            meetingCreatorId = null;
 
-            participants.replaceChildren();
+            resetMeetingPermissions();
 
-            setStatus("Meeting ended.");
+            setStatus(
+                "Meeting ended."
+            );
+
         } catch (error) {
-            setStatus(error.message || "Unable to end meeting.");
+
+            console.error(
+                "CodeView end meeting error:",
+                error
+            );
+
+            setStatus(
+                error.message ||
+                "Unable to end meeting."
+            );
+
         } finally {
+
             setBusy(false);
         }
     }
 
+
     // --------------------------------------------------
-    // 14. Connect the HTML buttons to their functions.
+    // 22. CLOSE MEETING PANEL
     // --------------------------------------------------
 
-    videoButton.addEventListener("click", () => {
-        enterMeeting("video");
-    });
+    function closeMeetingPanel() {
 
-    voiceButton.addEventListener("click", () => {
-        enterMeeting("voice");
-    });
+        // Do not hide controls during an active call.
+        if (isConnected()) {
+
+            setStatus(
+                "Leave the meeting before closing this panel."
+            );
+
+            return;
+        }
+
+        // Also prevent hiding the panel while connecting.
+        if (busy) {
+            return;
+        }
+
+        panel.hidden = true;
+    }
+
+
+    // --------------------------------------------------
+    // 23. BUTTON EVENT LISTENERS
+    // --------------------------------------------------
+
+    videoButton.addEventListener(
+        "click",
+        () => {
+            enterMeeting("video");
+        }
+    );
+
+    voiceButton.addEventListener(
+        "click",
+        () => {
+            enterMeeting("voice");
+        }
+    );
 
     microphoneButton.addEventListener(
         "click",
@@ -623,16 +1163,19 @@ document.addEventListener("DOMContentLoaded", () => {
         endMeeting
     );
 
-    closeButton.addEventListener("click", () => {
-        // Hiding the panel must not silently disconnect a call.
-        panel.hidden = true;
-    });
+    closeButton.addEventListener(
+        "click",
+        closeMeetingPanel
+    );
+
 
     // --------------------------------------------------
-    // 15. Initialize the interface.
+    // 24. INITIALIZE MEETING CONTROLS
     // --------------------------------------------------
 
     updateControls();
 
-    console.log("CodeView LiveKit meeting controls initialized.");
+    console.log(
+        "CodeView LiveKit meeting controls initialized."
+    );
 });

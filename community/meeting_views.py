@@ -124,17 +124,40 @@ def join_meeting_view(request, group_id):
 
     The service checks current membership before issuing
     a short-lived LiveKit access token.
+
+    If no active meeting exists, return HTTP 404 with a
+    specific error code so the frontend can start one.
     """
 
     try:
+        # Ask the meeting service to verify membership
+        # and generate the developer's LiveKit credentials.
         credentials = async_to_sync(join_group_meeting)(
             group_id,
             request.user,
         )
 
-    except Exception as error:
+    except ValidationError as error:
+        # A missing active meeting is an expected situation.
+        # Tell the frontend it may attempt to start one.
+        if error.messages == ["This group has no active meeting."]:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": "This group has no active meeting.",
+                    "code": "no_active_meeting",
+                },
+                status=404,
+            )
+
+        # Preserve HTTP 400 for other validation failures.
         return _meeting_error_response(error)
 
+    except Exception as error:
+        # Preserve existing permission and server error handling.
+        return _meeting_error_response(error)
+
+    # Return the LiveKit credentials and meeting permissions.
     return JsonResponse(
         {
             "success": True,
@@ -143,7 +166,6 @@ def join_meeting_view(request, group_id):
         },
         status=200,
     )
-
 
 @login_required
 @require_POST

@@ -100,12 +100,21 @@ def _mark_ended(meeting_id):
             meeting.save(update_fields=["status", "ended_at"])
         return meeting
 
-
 def _active_meeting_for_member(group_id, user_id):
     group = _private_group_for_member(group_id, user_id)
-    meeting = GroupMeeting.objects.filter(group=group, status="active").first()
+
+    # Load the meeting and its group together.
+    # Prevents an additional database query inside the async function.
+    meeting = (
+        GroupMeeting.objects
+        .select_related("group")
+        .filter(group=group, status="active")
+        .first()
+    )
+
     if meeting is None:
         raise ValidationError("This group has no active meeting.")
+
     return meeting
 
 
@@ -145,11 +154,24 @@ async def start_group_meeting(group_id, user):
 
 
 async def join_group_meeting(group_id, user):
-    """Authorize a current member and issue a short-lived room token."""
+    """
+    Authorize a current group member and issue a LiveKit token.
+
+    Also return meeting information so the frontend knows
+    whether the current developer can end the meeting.
+    """
+
+    # Verify LiveKit configuration.
     url, key, secret = _credentials()
+
+    # Verify that the developer belongs to the private group
+    # and that an active meeting exists.
     meeting = await sync_to_async(
-        _active_meeting_for_member, thread_sensitive=True
+        _active_meeting_for_member,
+        thread_sensitive=True,
     )(group_id, user.pk)
+
+    # Generate a short-lived LiveKit access token.
     token = (
         api.AccessToken(key, secret)
         .with_identity(str(user.pk))
@@ -165,7 +187,24 @@ async def join_group_meeting(group_id, user):
         )
         .to_jwt()
     )
-    return {"url": url, "token": token, "room_name": str(meeting.room_name)}
+
+    # The meeting creator and group owner can end the call.
+    # Django will independently enforce this permission
+    # when the developer requests to end the meeting.
+    can_end_meeting = (
+        user.pk == meeting.started_by_id
+        or user.pk == meeting.group.owner_id
+    )
+
+    # Return the credentials and meeting information.
+    return {
+        "url": url,
+        "token": token,
+        "room_name": str(meeting.room_name),
+        "meeting_id": meeting.pk,
+        "started_by": meeting.started_by_id,
+        "can_end_meeting": can_end_meeting,
+    }
 
 
 async def end_group_meeting(group_id, user):
