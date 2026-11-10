@@ -4,16 +4,48 @@ This service must be called from authenticated Django views. It does not
 replace authentication, CSRF protection, webhooks, or recovery workers.
 """
 
+import logging
 from datetime import timedelta
 
 from asgiref.sync import sync_to_async
+from channels.layers import get_channel_layer
 from django.conf import settings
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
+from django.urls import reverse
 from django.utils import timezone
 from livekit import api
 
 from .models import GroupMeeting, GroupMember, ProjectGroup
+
+logger = logging.getLogger(__name__)
+
+
+async def _broadcast_meeting_event(meeting, event_type):
+    """Best-effort delivery; notifications never contain LiveKit secrets."""
+    layer = get_channel_layer()
+    if layer is None:
+        logger.warning("No channel layer configured for meeting notifications")
+        return
+    data = {
+        "type": event_type,
+        "group_id": meeting.group_id,
+        "meeting_id": meeting.pk,
+    }
+    if event_type == "meeting_started":
+        data["started_by"] = meeting.started_by_id
+        data["meeting_url"] = reverse(
+            "meeting_room", kwargs={"group_id": meeting.group_id}
+        )
+    try:
+        await layer.group_send(
+            f"group_meeting_notifications_{meeting.group_id}",
+            {"type": "meeting.notification", "data": data},
+        )
+    except Exception:
+        # A notification outage must not turn a successful LiveKit operation
+        # into an apparent failure and tempt the user to repeat it.
+        logger.exception("Unable to broadcast %s for meeting %s", event_type, meeting.pk)
 
 
 def _credentials():
@@ -108,6 +140,7 @@ async def start_group_meeting(group_id, user):
         # still requires a separate reconciliation worker before production.
         await sync_to_async(_mark_ended, thread_sensitive=True)(meeting.pk)
         raise
+    await _broadcast_meeting_event(meeting, "meeting_started")
     return meeting
 
 
@@ -146,6 +179,7 @@ async def end_group_meeting(group_id, user):
             api.DeleteRoomRequest(room=str(meeting.room_name))
         )
     await sync_to_async(_mark_ended, thread_sensitive=True)(meeting.pk)
+    await _broadcast_meeting_event(meeting, "meeting_ended")
     return True
 
 

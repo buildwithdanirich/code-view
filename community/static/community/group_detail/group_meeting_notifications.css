@@ -1,0 +1,242 @@
+/*
+=========================================================
+CODEVIEW — GROUP MEETING NOTIFICATIONS
+=========================================================
+
+Purpose:
+- Display meeting notifications.
+- Style the Join Meeting button.
+- Support desktop and mobile screens.
+- Keep notification styles separate from existing features.
+*/
+
+
+/* =====================================================
+   1. MEETING NOTIFICATION CONTAINER
+===================================================== */
+
+.group-meeting-notification {
+    position: fixed;
+
+    top: 85px;
+    right: 24px;
+
+    width: 360px;
+    max-width: calc(100vw - 32px);
+
+    padding: 20px;
+
+    background: #ffffff;
+
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #2563eb;
+
+    border-radius: 12px;
+
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+
+    z-index: 1000;
+
+    animation: meetingNotificationSlideIn 0.25s ease-out;
+}
+
+
+/* Never display a notification marked as hidden. */
+
+.group-meeting-notification[hidden] {
+    display: none !important;
+}
+
+
+/* =====================================================
+   2. NOTIFICATION HEADER
+===================================================== */
+
+.group-meeting-notification-header {
+    display: flex;
+
+    align-items: flex-start;
+    justify-content: space-between;
+
+    gap: 12px;
+
+    margin-bottom: 12px;
+}
+
+
+/* =====================================================
+   3. NOTIFICATION TITLE
+===================================================== */
+
+.group-meeting-notification-title {
+    margin: 0;
+
+    font-size: 16px;
+    font-weight: 700;
+
+    color: #0f172a;
+}
+
+
+/* =====================================================
+   4. NOTIFICATION MESSAGE
+===================================================== */
+
+.group-meeting-notification-message {
+    margin: 0 0 16px;
+
+    font-size: 14px;
+    line-height: 1.6;
+
+    color: #475569;
+}
+
+
+/* =====================================================
+   5. JOIN MEETING BUTTON
+===================================================== */
+
+.group-meeting-notification-join {
+    display: inline-flex;
+
+    align-items: center;
+    justify-content: center;
+
+    padding: 10px 18px;
+
+    background: #2563eb;
+
+    color: #ffffff;
+
+    border: none;
+    border-radius: 8px;
+
+    font-size: 14px;
+    font-weight: 600;
+
+    text-decoration: none;
+
+    cursor: pointer;
+
+    transition:
+        background-color 0.2s ease,
+        transform 0.2s ease;
+}
+
+
+.group-meeting-notification-join:hover {
+    background: #1d4ed8;
+
+    transform: translateY(-1px);
+}
+
+
+.group-meeting-notification-join:focus-visible {
+    outline: 3px solid #93c5fd;
+    outline-offset: 3px;
+}
+
+
+/* =====================================================
+   6. DISMISS BUTTON
+===================================================== */
+
+.group-meeting-notification-dismiss {
+    display: inline-flex;
+
+    align-items: center;
+    justify-content: center;
+
+    width: 30px;
+    height: 30px;
+
+    padding: 0;
+
+    background: transparent;
+
+    border: none;
+    border-radius: 6px;
+
+    color: #64748b;
+
+    font-size: 20px;
+
+    cursor: pointer;
+}
+
+
+.group-meeting-notification-dismiss:hover {
+    background: #f1f5f9;
+
+    color: #0f172a;
+}
+
+
+.group-meeting-notification-dismiss:focus-visible {
+    outline: 3px solid #93c5fd;
+    outline-offset: 2px;
+}
+
+
+/* =====================================================
+   7. ENTRY ANIMATION
+===================================================== */
+
+@keyframes meetingNotificationSlideIn {
+    from {
+        opacity: 0;
+
+        transform: translateY(-12px);
+    }
+
+    to {
+        opacity: 1;
+
+        transform: translateY(0);
+    }
+}
+
+
+/* =====================================================
+   8. MOBILE RESPONSIVENESS
+===================================================== */
+
+@media (max-width: 600px) {
+    .group-meeting-notification {
+        top: 70px;
+
+        right: 16px;
+        left: 16px;
+
+        width: auto;
+
+        padding: 16px;
+    }
+
+    .group-meeting-notification-title {
+        font-size: 15px;
+    }
+
+    .group-meeting-notification-message {
+        font-size: 13px;
+    }
+
+    .group-meeting-notification-join {
+        width: 100%;
+    }
+}
+
+
+/* =====================================================
+   9. ACCESSIBILITY
+===================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    .group-meeting-notification {
+        animation: none;
+    }
+
+    .group-meeting-notification-join {
+        transition: none;
+    }
+}

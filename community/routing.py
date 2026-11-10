@@ -9,6 +9,7 @@ Features:
 3. Owner repository request notifications.
 4. Member repository approval/rejection notifications.
 5. Group-wide repository synchronization.
+6. Private-group voice/video meeting notifications.
 """
 
 from django.urls import re_path
@@ -19,6 +20,7 @@ from .consumers import (
     RepositoryNotificationConsumer,
     RepositoryMemberNotificationConsumer,
     GroupRepositoryUpdateConsumer,
+    GroupMeetingNotificationConsumer,
 )
 
 
@@ -67,6 +69,19 @@ websocket_urlpatterns = [
     re_path(
         r"^ws/groups/(?P<group_id>\d+)/repository-updates/$",
         GroupRepositoryUpdateConsumer.as_asgi(),
+    ),
+
+    # ========================================================
+    # 6. PRIVATE-GROUP MEETING NOTIFICATIONS
+    # ========================================================
+
+    # Only authenticated, authorized private-group members
+    # can establish a meeting notification connection.
+    #
+    # The consumer checks membership before accepting.
+    re_path(
+        r"^ws/groups/(?P<group_id>\d+)/meetings/notifications/$",
+        GroupMeetingNotificationConsumer.as_asgi(),
     ),
 
 ]

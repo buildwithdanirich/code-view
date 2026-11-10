@@ -22,11 +22,15 @@
     <link rel="stylesheet" href="{% static 'community/group_detail/group_discussions.css' %}">
     <link rel="stylesheet" href="{% static 'community/group_detail/group_chat.css' %}">
     <link rel="stylesheet" href="{% static 'community/group_detail/group_members.css' %}">
+    <link rel="stylesheet" href="{% static 'community/group_detail/group_meeting_notifications.css' %}">
 </head>
 
 <body
     data-current-user-id="{{ request.user.id }}"
     data-discussion-socket-url="{% if request.is_secure %}wss{% else %}ws{% endif %}://{{ request.get_host }}/ws/groups/{{ group.id }}/discussions/"
+    {% if group.is_private and is_member %}
+    data-meeting-notification-socket-url="{% if request.is_secure %}wss{% else %}ws{% endif %}://{{ request.get_host }}/ws/groups/{{ group.id }}/meetings/notifications/"
+    {% endif %}
 >
 
     <!-- =====================================================
@@ -233,6 +237,41 @@
 
                 {% endif %}
 
+
+                {% if group.is_private and is_member %}
+                    <!-- Real-time meeting alert; populated by external JavaScript. -->
+                    <section
+                        id="group-meeting-notification"
+                        class="group-meeting-notification"
+                        aria-label="Private group meeting notification"
+                        aria-live="polite"
+                        hidden
+                    >
+                        <div class="group-meeting-notification-content">
+                            <strong id="group-meeting-notification-title">
+                                Meeting started
+                            </strong>
+                            <p id="group-meeting-notification-message">
+                                A developer started a group meeting.
+                            </p>
+                        </div>
+                        <a
+                            id="group-meeting-notification-join"
+                            class="group-meeting-notification-join"
+                            href="{% url 'meeting_room' group.id %}"
+                        >
+                            Join Meeting
+                        </a>
+                        <button
+                            id="group-meeting-notification-dismiss"
+                            class="group-meeting-notification-dismiss"
+                            type="button"
+                            aria-label="Dismiss meeting notification"
+                        >
+                            ×
+                        </button>
+                    </section>
+                {% endif %}
 
                 <!-- =================================================
                      4. WORKSPACE HEADING
@@ -1158,7 +1197,7 @@
 
                             <p class="workspace-section-description">
                                 Private development groups support
-                                a maximum of 15 members, including the owner.
+                                a maximum of 10 members, including the owner.
                             </p>
 
                         {% else %}
@@ -1512,6 +1551,14 @@
         src="{% static 'community/group_detail/developer_search.js' %}"
         defer
     ></script>
+
+    {% if group.is_private and is_member %}
+        <!-- Receives live meeting start/end notifications. -->
+        <script
+            src="{% static 'community/group_detail/group_meeting_notifications.js' %}"
+            defer
+        ></script>
+    {% endif %}
 
 </body>
 </html>

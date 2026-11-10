@@ -1077,28 +1077,56 @@ class RepositoryConnectionRequest(models.Model):
         ]
 
     def clean(self):
-        """Validate repository connection requests."""
+        """
+        Validate repository connection requests.
+
+        Security rules:
+        - Pending and approved requests require current membership.
+        - Pending and approved requests must belong to the
+          current membership and ownership generations.
+        - Historical requests can remain saved even when
+          membership or ownership changes.
+        """
 
         super().clean()
 
         if not self.group_id or not self.requested_by_id:
             return
 
-        # Repository connections belong to private groups only.
+        # --------------------------------------------------------
+        # 1. VERIFY THE GROUP TYPE
+        # --------------------------------------------------------
+
         if not self.group.is_private:
             raise ValidationError(
                 "Repository connection requests are only "
                 "allowed in private development groups."
             )
 
-        # The owner does not need to request permission.
+        # --------------------------------------------------------
+        # 2. HISTORICAL REQUESTS
+        # --------------------------------------------------------
+
+        # These statuses do not grant repository permissions.
+        # Allow historical records to be saved even when
+        # the developer's membership is no longer valid.
+        if self.status in ("rejected", "cancelled", "used"):
+            return
+
+        # --------------------------------------------------------
+        # 3. OWNER CANNOT REQUEST PERMISSION
+        # --------------------------------------------------------
+
         if self.requested_by_id == self.group.owner_id:
             raise ValidationError(
                 "Group owners do not need repository "
                 "connection approval."
             )
 
-        # Confirm the requester is still a group member.
+        # --------------------------------------------------------
+        # 4. VERIFY CURRENT MEMBERSHIP
+        # --------------------------------------------------------
+
         membership = GroupMember.objects.filter(
             group_id=self.group_id,
             user_id=self.requested_by_id,
@@ -1110,14 +1138,23 @@ class RepositoryConnectionRequest(models.Model):
                 "repository connection permission."
             )
 
-        # A request must belong to the current membership period.
-        if self.membership_generation != membership.membership_generation:
+        # --------------------------------------------------------
+        # 5. VERIFY MEMBERSHIP GENERATION
+        # --------------------------------------------------------
+
+        if (
+            self.membership_generation
+            != membership.membership_generation
+        ):
             raise ValidationError(
                 "Repository connection request membership "
                 "is no longer valid."
             )
 
-        # A request must belong to the current ownership period.
+        # --------------------------------------------------------
+        # 6. VERIFY OWNERSHIP GENERATION
+        # --------------------------------------------------------
+
         if (
             self.owner_membership_generation
             != self.group.owner_membership_generation
