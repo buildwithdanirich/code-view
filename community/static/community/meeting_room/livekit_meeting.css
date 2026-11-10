@@ -1,0 +1,146 @@
+/* CodeView LiveKit meeting panel.
+   Scoped styles avoid changing GitHub explorer and group chat. */
+
+.cv-livekit-panel {
+    box-sizing: border-box;
+    margin: 0 0 1.5rem;
+    padding: 1.25rem;
+    border: 1px solid #334155;
+    border-radius: 14px;
+    background: #0f172a;
+    color: #f8fafc;
+}
+
+/* The HTML hidden attribute must always take precedence. */
+.cv-livekit-panel[hidden],
+.cv-livekit-panel [hidden] {
+    display: none !important;
+}
+
+.cv-livekit-panel *,
+.cv-livekit-panel *::before,
+.cv-livekit-panel *::after {
+    box-sizing: border-box;
+}
+
+.cv-livekit-panel-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.cv-livekit-panel-header h2 {
+    margin: 0 0 0.35rem;
+    color: #f8fafc;
+    font-size: 1.25rem;
+}
+
+#livekit-meeting-status {
+    margin: 0;
+    color: #cbd5e1;
+    font-size: 0.9rem;
+    overflow-wrap: anywhere;
+}
+
+.cv-livekit-participants {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+    gap: 0.85rem;
+    min-height: 150px;
+    margin-bottom: 1rem;
+}
+
+/* JavaScript can add a participant tile with this class. */
+.cv-livekit-participant {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 180px;
+    overflow: hidden;
+    border: 1px solid #475569;
+    border-radius: 12px;
+    background: #1e293b;
+}
+
+.cv-livekit-participant video {
+    display: block;
+    width: 100%;
+    max-height: 320px;
+    min-height: 180px;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    background: #020617;
+}
+
+.cv-livekit-participant audio {
+    display: none;
+}
+
+.cv-livekit-participant-name {
+    padding: 0.6rem 0.8rem;
+    color: #f8fafc;
+    font-size: 0.9rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.cv-livekit-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+}
+
+.cv-livekit-panel button {
+    padding: 0.65rem 0.9rem;
+    border: 1px solid #64748b;
+    border-radius: 8px;
+    background: #334155;
+    color: #fff;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.cv-livekit-panel button:hover:not(:disabled) {
+    background: #475569;
+}
+
+.cv-livekit-panel button:focus-visible {
+    outline: 3px solid #38bdf8;
+    outline-offset: 3px;
+}
+
+.cv-livekit-panel button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+#livekit-leave-meeting {
+    border-color: #f59e0b;
+}
+
+#livekit-end-meeting {
+    border-color: #ef4444;
+    background: #991b1b;
+}
+
+#livekit-end-meeting:hover:not(:disabled) {
+    background: #b91c1c;
+}
+
+@media (max-width: 600px) {
+    .cv-livekit-panel {
+        padding: 0.9rem;
+    }
+
+    .cv-livekit-panel-header {
+        flex-direction: column;
+    }
+
+    .cv-livekit-controls button {
+        flex: 1 1 100%;
+    }
+}

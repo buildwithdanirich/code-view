@@ -1,0 +1,26 @@
+{
+  "name": "code-view",
+  "version": "1.0.0",
+  "description": "Independent Django-based developer collaboration platform. This project does **not** include a browser IDE, Docker, sandboxes, runners, code execution, or a Code Board.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/danielakpa/code-view.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/danielakpa/code-view/issues"
+  },
+  "homepage": "https://github.com/danielakpa/code-view#readme",
+  "dependencies": {
+    "livekit-client": "^2.23.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}

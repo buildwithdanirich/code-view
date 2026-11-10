@@ -20,6 +20,12 @@
         href="{% static 'community/meeting_room/meeting_room.css' %}"
     >
 
+    <!-- LiveKit meeting interface styles -->
+<link
+    rel="stylesheet"
+    href="{% static 'community/meeting_room/livekit_meeting.css' %}"
+>
+
     <!-- Syntax highlighting -->
     <link
         rel="stylesheet"
@@ -184,22 +190,33 @@
                 <div class="cv-meeting-actions">
 
                     <!-- Video Call -->
-                    <button
-                        type="button"
-                        class="cv-call-button"
-                        disabled
-                    >
-                        📹 Video Call
-                    </button>
+ <!-- ====================================
+     LIVEKIT VIDEO CALL
+===================================== -->
 
-                    <!-- Voice Call -->
-                    <button
-                        type="button"
-                        class="cv-call-button"
-                        disabled
-                    >
-                        🎙 Voice Call
-                    </button>
+<button
+    type="button"
+    id="livekit-video-call"
+    class="cv-call-button"
+    aria-controls="livekit-meeting-panel"
+    disabled
+>
+    📹 Video Call
+</button>
+
+<!-- ====================================
+     LIVEKIT VOICE CALL
+===================================== -->
+
+<button
+    type="button"
+    id="livekit-voice-call"
+    class="cv-call-button"
+    aria-controls="livekit-meeting-panel"
+    disabled
+>
+    🎙 Voice Call
+</button>
 
                     <!-- Team Chat -->
                     <button
@@ -221,6 +238,92 @@
                 </div>
 
             </section>
+
+            <!-- ====================================
+     LIVEKIT VIDEO AND VOICE MEETING
+===================================== -->
+
+<section
+    id="livekit-meeting-panel"
+    class="livekit-meeting-panel"
+    aria-label="Group video and voice meeting"
+    data-start-url="{% url 'start_group_meeting' group.id %}"
+    data-join-url="{% url 'join_group_meeting' group.id %}"
+    data-end-url="{% url 'end_group_meeting' group.id %}"
+    hidden
+>
+    <!-- Meeting heading -->
+    <div class="livekit-meeting-header">
+
+        <div>
+            <h2 id="livekit-meeting-title">
+                Group Meeting
+            </h2>
+
+            <p
+                id="livekit-meeting-status"
+                role="status"
+                aria-live="polite"
+            >
+                Not connected
+            </p>
+        </div>
+
+        <button
+            type="button"
+            id="livekit-close-panel"
+            aria-label="Close meeting panel"
+        >
+            &times;
+        </button>
+
+    </div>
+
+    <!-- Participant video/audio tiles -->
+    <div
+        id="livekit-participants"
+        class="livekit-participants"
+        aria-label="Meeting participants"
+    ></div>
+
+    <!-- Meeting controls -->
+    <div class="livekit-meeting-controls">
+
+        <button
+            type="button"
+            id="livekit-toggle-microphone"
+            disabled
+        >
+            🎙 Microphone
+        </button>
+
+        <button
+            type="button"
+            id="livekit-toggle-camera"
+            disabled
+        >
+            📹 Camera
+        </button>
+
+        <button
+            type="button"
+            id="livekit-leave-meeting"
+            disabled
+        >
+            🚪 Leave Meeting
+        </button>
+
+        <button
+            type="button"
+            id="livekit-end-meeting"
+            disabled
+        >
+            🛑 End Meeting
+        </button>
+
+    </div>
+
+</section>
 
             <!-- ====================================
                  GITHUB REPOSITORY CARD
@@ -1010,6 +1113,12 @@
         defer
     ></script>
 {% endif %}
+
+<!-- LiveKit video and voice meeting functionality -->
+<script
+    src="{% static 'community/meeting_room/livekit_meeting.bundle.js' %}"
+    defer
+></script>
 
 </body>
 
