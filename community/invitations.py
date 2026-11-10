@@ -96,10 +96,10 @@ def send_group_invitation(group, invited_by, invited_user):
             user_id=group.owner_id,
         ).count()
 
-        # The owner counts as one member.
-        if member_count >= 14:
+        # Maximum: 9 developers + 1 owner.
+        if member_count >= 9:
             raise ValidationError(
-                "This private group already has 15 members."
+                "This private group already has 10 members."
             )
 
         # Look for an invitation sent previously.
@@ -226,10 +226,10 @@ def accept_group_invitation(invitation_id, user):
             user_id=group.owner_id,
         ).count()
 
-        # Maximum: 14 members + 1 owner.
-        if member_count >= 14:
+        # Maximum: 9 developers + 1 owner.
+        if member_count >= 9:
             raise ValidationError(
-                "This private group has reached its 15-member limit."
+                "This private group has reached its 10-member limit."
             )
 
         # Add the invited developer to the group.

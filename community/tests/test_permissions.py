@@ -113,14 +113,33 @@ class GroupPermissionTests(TestCase):
             )
         )
 
-    def test_administrator_can_manage_members(self):
-        """An administrator can manage group members."""
+    def test_administrator_cannot_manage_members(self):
+        """
+        Only the group owner has administrator permissions.
 
-        self.assertTrue(
-            is_group_admin(self.private_group, self.admin)
+        A developer with role="admin" who is not the owner
+        must not receive administrative permissions.
+        """
+
+        # The developer has an admin role in the database,
+        # but is not the actual group owner.
+        self.assertFalse(
+            is_group_owner(
+                self.private_group,
+                self.admin,
+            )
         )
 
-        self.assertTrue(
+        # Only the owner is recognized as a group administrator.
+        self.assertFalse(
+            is_group_admin(
+                self.private_group,
+                self.admin,
+            )
+        )
+
+        # A non-owner cannot invite or remove group members.
+        self.assertFalse(
             can_manage_group_members(
                 self.private_group,
                 self.admin,
