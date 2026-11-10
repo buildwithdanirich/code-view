@@ -234,3 +234,75 @@ GITHUB_OAUTH_CALLBACK_URL = os.environ.get(
     "GITHUB_OAUTH_CALLBACK_URL",
     "http://127.0.0.1:8000/github/callback/",
 )
+
+# ============================================================
+# LIVEKIT VOICE AND VIDEO MEETING CONFIGURATION
+# ============================================================
+
+# LiveKit handles real-time audio, video, and screen sharing.
+#
+# Django is responsible for:
+# 1. Authenticating developers.
+# 2. Checking private group membership.
+# 3. Creating secure meeting access tokens.
+# 4. Enforcing CodeView's meeting permissions.
+#
+# LiveKit is responsible for transmitting audio and video.
+
+
+# WebSocket URL of the LiveKit server.
+#
+# Local development and production can use different URLs.
+#
+# Example:
+# wss://your-project.livekit.cloud
+#
+# Never hardcode the server address in application logic.
+LIVEKIT_URL = os.environ.get(
+    "LIVEKIT_URL",
+    "",
+).strip()
+
+
+# Public identifier for the LiveKit project.
+#
+# This identifies the project when Django generates tokens.
+LIVEKIT_API_KEY = os.environ.get(
+    "LIVEKIT_API_KEY",
+    "",
+).strip()
+
+
+# Secret used by Django to sign LiveKit access tokens.
+#
+# SECURITY:
+# Never expose this secret in HTML, JavaScript,
+# API responses, or GitHub.
+LIVEKIT_API_SECRET = os.environ.get(
+    "LIVEKIT_API_SECRET",
+    "",
+).strip()
+
+
+# Maximum number of developers allowed in one meeting.
+#
+# CodeView currently allows:
+# 1 group owner + 9 additional developers = 10 participants.
+LIVEKIT_MAX_PARTICIPANTS = 10
+
+
+# Maximum number of active meetings per private group.
+#
+# This is a CodeView business rule.
+# It must be enforced by the meeting service.
+LIVEKIT_MAX_ACTIVE_MEETINGS_PER_GROUP = 1
+
+
+# Maximum lifetime of a newly generated meeting token.
+#
+# A short lifetime limits how long an unused token
+# remains valid.
+#
+# This does not automatically disconnect a participant
+# when the token expires.
+LIVEKIT_TOKEN_TTL_SECONDS = 600

@@ -11,6 +11,7 @@ Features:
 - GitHub repository integration
 - Repository connection approval requests
 - Meeting rooms
+- LiveKit voice/video meeting actions
 """
 
 from django.urls import path
@@ -23,6 +24,9 @@ from . import invitation_views
 
 # GitHub repository connection approval functionality.
 from . import repository_request_views
+
+# LiveKit meeting actions.
+from . import meeting_views
 
 
 urlpatterns = [
@@ -246,10 +250,36 @@ urlpatterns = [
     # 10. PRIVATE-GROUP MEETING ROOM
     # ========================================================
 
+    # Existing meeting page.
     path(
         "<int:group_id>/meeting/",
         views.meeting_room,
         name="meeting_room",
+    ),
+
+    # ========================================================
+    # 11. LIVEKIT MEETING ACTIONS
+    # ========================================================
+
+    # Any accepted member can start a meeting.
+    path(
+        "<int:group_id>/meeting/start/",
+        meeting_views.start_meeting_view,
+        name="start_group_meeting",
+    ),
+
+    # Any accepted member can join an active meeting.
+    path(
+        "<int:group_id>/meeting/join/",
+        meeting_views.join_meeting_view,
+        name="join_group_meeting",
+    ),
+
+    # Only the creator or group owner can end a meeting.
+    path(
+        "<int:group_id>/meeting/end/",
+        meeting_views.end_meeting_view,
+        name="end_group_meeting",
     ),
 
 ]

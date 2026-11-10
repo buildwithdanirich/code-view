@@ -707,3 +707,106 @@ class GroupRepositoryUpdateConsumer(MembershipRevocationMixin, AsyncJsonWebsocke
             current_identity is not None
             and current_identity == self.access_identity
         )
+
+# ============================================================
+# 6. PRIVATE GROUP MEETING NOTIFICATION CONSUMER
+# ============================================================
+
+class GroupMeetingNotificationConsumer(
+    MembershipRevocationMixin,
+    AsyncJsonWebsocketConsumer,
+):
+    """Deliver meeting lifecycle events to current private-group members."""
+
+    async def connect(self):
+        self.user = self.scope["user"]
+        self.group_id = self.scope["url_route"]["kwargs"]["group_id"]
+        self.room_group_name = f"group_meeting_notifications_{self.group_id}"
+        self.joined_group = False
+        self.joined_revocation_group = False
+
+        if not self.user.is_authenticated:
+            await self.close(code=4401)
+            return
+
+        # Capture the exact ownership/membership generation at connection time.
+        self.access_identity = await self.get_access_identity()
+        if self.access_identity is None:
+            await self.close(code=4403)
+            return
+
+        await self.channel_layer.group_add(
+            self.room_group_name,
+            self.channel_name,
+        )
+        self.joined_group = True
+        await self.subscribe_to_revocations()
+
+        # Recheck after subscribing to close the connection-time race window.
+        if not await self.has_current_access():
+            await self.disconnect(4403)
+            await self.close(code=4403)
+            return
+
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        await self.unsubscribe_from_revocations()
+        if getattr(self, "joined_group", False):
+            await self.channel_layer.group_discard(
+                self.room_group_name,
+                self.channel_name,
+            )
+            self.joined_group = False
+
+    async def meeting_notification(self, event):
+        """Forward only valid meeting events after checking current access."""
+        if not await self.has_current_access():
+            await self.close(code=4403)
+            return
+
+        data = event.get("data", {})
+        if not isinstance(data, dict):
+            return
+        if data.get("type") not in ("meeting_started", "meeting_ended"):
+            return
+        if str(data.get("group_id")) != str(self.group_id):
+            return
+
+        # Never forward a LiveKit access token or API credentials.
+        safe_data = {
+            "type": data["type"],
+            "group_id": self.group_id,
+            "meeting_id": data.get("meeting_id"),
+        }
+        if data["type"] == "meeting_started":
+            safe_data["started_by"] = data.get("started_by")
+            safe_data["meeting_url"] = data.get("meeting_url")
+
+        await self.send_json(safe_data)
+
+    @database_sync_to_async
+    def get_access_identity(self):
+        """Authorize only current members of private development groups."""
+        group = ProjectGroup.objects.filter(
+            pk=self.group_id,
+            is_private=True,
+        ).first()
+        if group is None:
+            return None
+        if group.owner_id == self.user.pk:
+            return ("owner", group.owner_membership_generation)
+
+        membership = GroupMember.objects.filter(
+            group_id=self.group_id,
+            user_id=self.user.pk,
+        ).first()
+        if membership is None:
+            return None
+        return ("member", membership.membership_generation)
+
+    async def has_current_access(self):
+        return (
+            self.access_identity is not None
+            and await self.get_access_identity() == self.access_identity
+        )

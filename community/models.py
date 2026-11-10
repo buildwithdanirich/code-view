@@ -123,7 +123,7 @@ class GroupMember(models.Model):
         Enforce the private-group limit.
 
         Maximum:
-            1 owner + 14 other developers = 15 people.
+            1 owner + 9 other developers = 10 people.
 
         Normal chat groups have no fixed membership limit.
         """
@@ -151,10 +151,10 @@ class GroupMember(models.Model):
         if self.user_id == self.group.owner_id:
             return
 
-        if members.count() >= 14:
+        if members.count() >= 9:
             raise ValidationError(
                 "Private development groups cannot exceed "
-                "15 people, including the owner."
+                "10 people, including the owner."
             )
 
     def save(self, *args, **kwargs):
@@ -1138,3 +1138,106 @@ class RepositoryConnectionRequest(models.Model):
             f"{self.requested_by} - {self.group.name} "
             f"({self.status})"
         )
+
+# ============================================================
+# 12. PRIVATE GROUP LIVEKIT MEETING
+# ============================================================
+
+class GroupMeeting(models.Model):
+    """Track LiveKit meetings for private development groups.
+
+    PostgreSQL guarantees at most one active meeting per group.
+    LiveKit room capacity and participant permissions are enforced
+    separately by the meeting service and LiveKit.
+    """
+
+    STATUS_CHOICES = [
+        ("active", "Active"),
+        ("ended", "Ended"),
+    ]
+
+    group = models.ForeignKey(
+        ProjectGroup,
+        on_delete=models.CASCADE,
+        related_name="meetings",
+    )
+
+    # A UUID is a unique, unguessable room identifier.
+    room_name = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        editable=False,
+    )
+
+    started_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="started_group_meetings",
+    )
+
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default="active",
+    )
+
+    started_at = models.DateTimeField(auto_now_add=True)
+
+    ended_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        ordering = ["-started_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["group"],
+                condition=models.Q(status="active"),
+                name="unique_active_group_meeting",
+            ),
+        ]
+
+    def clean(self):
+        """Allow private-group members to create meetings."""
+        super().clean()
+
+        if not self.group_id or not self.started_by_id:
+            return
+
+        if not self.group.is_private:
+            raise ValidationError(
+                "Only private development groups can have meetings."
+            )
+
+        # Check membership when creating a meeting. Historical meeting
+        # records remain valid if the creator later leaves the group.
+        if self._state.adding:
+            is_owner = self.started_by_id == self.group.owner_id
+            is_member = GroupMember.objects.filter(
+                group_id=self.group_id,
+                user_id=self.started_by_id,
+            ).exists()
+
+            if not is_owner and not is_member:
+                raise ValidationError(
+                    "Only current private group members can start a meeting."
+                )
+
+        if self.status == "active" and self.ended_at is not None:
+            raise ValidationError(
+                "An active meeting cannot have an end time."
+            )
+
+        if self.status == "ended" and self.ended_at is None:
+            raise ValidationError(
+                "An ended meeting must have an end time."
+            )
+
+    def save(self, *args, **kwargs):
+        """Validate meeting records before saving."""
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.group.name} meeting ({self.status})"
