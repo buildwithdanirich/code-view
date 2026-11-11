@@ -32572,6 +32572,7 @@
     let meetingMode = null;
     let canEndMeeting = false;
     let canShareScreen = false;
+    let previousBodyOverflow = null;
     const attachedMedia = /* @__PURE__ */ new Map();
     const participantTiles = /* @__PURE__ */ new Map();
     const meetingLayout = document.createElement("div");
@@ -32594,6 +32595,20 @@
     );
     meetingLayout.appendChild(presentation);
     meetingLayout.appendChild(participants);
+    function openMeetingPanel() {
+      panel.hidden = false;
+      if (previousBodyOverflow === null) {
+        previousBodyOverflow = document.body.style.overflow;
+      }
+      document.body.style.overflow = "hidden";
+    }
+    function hideMeetingPanel() {
+      panel.hidden = true;
+      if (previousBodyOverflow !== null) {
+        document.body.style.overflow = previousBodyOverflow;
+        previousBodyOverflow = null;
+      }
+    }
     function getCsrfToken() {
       const input = document.querySelector(
         'input[name="csrfmiddlewaretoken"]'
@@ -32642,7 +32657,9 @@
       status.textContent = message;
     }
     function isConnected() {
-      return Boolean(room && room.state === "connected");
+      return Boolean(
+        room && room.state === "connected"
+      );
     }
     function resetMeetingPermissions() {
       canEndMeeting = false;
@@ -32679,11 +32696,7 @@
         "aria-pressed",
         String(screenSharing)
       );
-      if (!canShareScreen) {
-        screenShareButton.title = "Only the meeting creator can share their screen.";
-      } else {
-        screenShareButton.title = "";
-      }
+      screenShareButton.title = canShareScreen ? "" : "Only the meeting creator can share their screen.";
     }
     function getParticipantTile(participant) {
       const identity = participant.identity;
@@ -32861,6 +32874,17 @@
       presentationMedia.replaceChildren();
       updatePresentation();
     }
+    function handleDisconnected(activeRoom) {
+      if (room !== activeRoom) {
+        return;
+      }
+      cleanupMedia();
+      room = null;
+      resetMeetingPermissions();
+      setStatus("Disconnected from meeting.");
+      hideMeetingPanel();
+      updateControls();
+    }
     function registerRoomEvents(activeRoom) {
       const refresh = (participant) => {
         if (room !== activeRoom) {
@@ -32970,14 +32994,7 @@
       activeRoom.on(
         RoomEvent.Disconnected,
         () => {
-          if (room !== activeRoom) {
-            return;
-          }
-          cleanupMedia();
-          room = null;
-          resetMeetingPermissions();
-          setStatus("Disconnected from meeting.");
-          updateControls();
+          handleDisconnected(activeRoom);
         }
       );
     }
@@ -33051,7 +33068,7 @@
       if (busy || room) {
         return;
       }
-      panel.hidden = false;
+      openMeetingPanel();
       setBusy(true);
       try {
         setStatus("Checking for an active meeting...");
@@ -33096,6 +33113,7 @@
         if (!isConnected()) {
           cleanupMedia();
           resetMeetingPermissions();
+          hideMeetingPanel();
         }
       } finally {
         setBusy(false);
@@ -33188,12 +33206,10 @@
       try {
         const currentRoom = room;
         await currentRoom.disconnect();
-        cleanupMedia();
         if (room === currentRoom) {
-          room = null;
+          handleDisconnected(currentRoom);
         }
-        resetMeetingPermissions();
-        setStatus("You left the meeting.");
+        hideMeetingPanel();
       } catch (error) {
         console.error(
           "CodeView leave meeting error:",
@@ -33223,11 +33239,12 @@
         const currentRoom = room;
         if (currentRoom) {
           await currentRoom.disconnect();
+          if (room === currentRoom) {
+            handleDisconnected(currentRoom);
+          }
         }
-        cleanupMedia();
-        room = null;
-        resetMeetingPermissions();
         setStatus("Meeting ended.");
+        hideMeetingPanel();
       } catch (error) {
         console.error(
           "CodeView end meeting error:",
@@ -33250,7 +33267,7 @@
       if (busy) {
         return;
       }
-      panel.hidden = true;
+      hideMeetingPanel();
     }
     videoButton.addEventListener(
       "click",
@@ -33284,6 +33301,7 @@
       "click",
       closeMeetingPanel
     );
+    hideMeetingPanel();
     updatePresentation();
     updateControls();
     console.log(

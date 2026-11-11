@@ -3,17 +3,18 @@
  *
  * Features:
  * - Start or join private group meetings.
+ * - Full-screen meeting interface.
  * - Microphone and camera controls.
  * - Creator-only screen sharing.
- * - Separate screen presentation and participant videos.
- * - Automatic cleanup when browser screen sharing stops.
+ * - Large screen presentation with participant sidebar.
+ * - Automatic cleanup when screen sharing stops.
  * - Leave without ending the meeting.
  * - End meetings with Django authorization.
+ * - Return to CodeView after leaving or disconnecting.
  *
  * Security:
  * Django issues permission-restricted LiveKit tokens.
- * Frontend permissions improve the UI but do not replace
- * LiveKit's server-side publishing restrictions.
+ * Frontend permissions do not replace server-side checks.
  */
 
 import { Room, RoomEvent, Track } from "livekit-client";
@@ -103,7 +104,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const endUrl = panel.dataset.endUrl;
 
     if (!startUrl || !joinUrl || !endUrl) {
-        status.textContent = "Meeting configuration is incomplete.";
+        status.textContent =
+            "Meeting configuration is incomplete.";
+
         return;
     }
 
@@ -115,52 +118,54 @@ document.addEventListener("DOMContentLoaded", () => {
     let busy = false;
     let meetingMode = null;
 
-    // Permissions returned by Django.
     let canEndMeeting = false;
     let canShareScreen = false;
 
-    // Track media elements without repeatedly recreating them.
+    // Remember the original page scrolling behavior.
+    let previousBodyOverflow = null;
+
+    // Track attached audio and video elements.
     const attachedMedia = new Map();
 
-    // Participant identity -> participant tile.
+    // Store participant tiles by LiveKit identity.
     const participantTiles = new Map();
 
     // =====================================================
-    // 4. CREATE SCREEN PRESENTATION AREA
+    // 4. CREATE PRESENTATION LAYOUT
     // =====================================================
 
-    /*
-     * The HTML already contains #livekit-participants.
-     *
-     * We create a separate presentation element using JS.
-     * This avoids placing the shared screen inside a
-     * participant's camera tile.
-     *
-     * CSS styling will be handled in its own file next.
-     */
+    // The original HTML already contains #livekit-participants.
+    // Create a wrapper for the presentation and cameras.
 
     const meetingLayout = document.createElement("div");
+
     meetingLayout.className = "livekit-meeting-layout";
 
     const presentation = document.createElement("section");
+
     presentation.className = "livekit-presentation";
     presentation.hidden = true;
 
     const presentationHeader = document.createElement("div");
-    presentationHeader.className = "livekit-presentation-header";
+
+    presentationHeader.className =
+        "livekit-presentation-header";
 
     const presentationTitle = document.createElement("strong");
+
     presentationTitle.textContent = "Screen Sharing";
 
     const presentationMedia = document.createElement("div");
-    presentationMedia.className = "livekit-presentation-media";
+
+    presentationMedia.className =
+        "livekit-presentation-media";
 
     presentationHeader.appendChild(presentationTitle);
 
     presentation.appendChild(presentationHeader);
     presentation.appendChild(presentationMedia);
 
-    // Preserve the original participant container.
+    // Move the existing participant container into the layout.
     participants.parentNode.insertBefore(
         meetingLayout,
         participants
@@ -170,7 +175,35 @@ document.addEventListener("DOMContentLoaded", () => {
     meetingLayout.appendChild(participants);
 
     // =====================================================
-    // 5. CSRF PROTECTION
+    // 5. FULL-SCREEN PANEL MANAGEMENT
+    // =====================================================
+
+    function openMeetingPanel() {
+        // Display the full-screen meeting interface.
+        panel.hidden = false;
+
+        // Prevent the workspace from scrolling behind it.
+        if (previousBodyOverflow === null) {
+            previousBodyOverflow = document.body.style.overflow;
+        }
+
+        document.body.style.overflow = "hidden";
+    }
+
+    function hideMeetingPanel() {
+        // Hide the full-screen meeting interface.
+        panel.hidden = true;
+
+        // Restore the original workspace scrolling behavior.
+        if (previousBodyOverflow !== null) {
+            document.body.style.overflow = previousBodyOverflow;
+
+            previousBodyOverflow = null;
+        }
+    }
+
+    // =====================================================
+    // 6. CSRF PROTECTION
     // =====================================================
 
     function getCsrfToken() {
@@ -197,7 +230,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // =====================================================
-    // 6. DJANGO REQUESTS
+    // 7. DJANGO REQUESTS
     // =====================================================
 
     async function postMeetingRequest(url) {
@@ -220,6 +253,7 @@ document.addEventListener("DOMContentLoaded", () => {
             );
 
             error.status = response.status;
+
             throw error;
         }
 
@@ -238,7 +272,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // =====================================================
-    // 7. CONNECTION HELPERS
+    // 8. CONNECTION HELPERS
     // =====================================================
 
     function setStatus(message) {
@@ -246,7 +280,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function isConnected() {
-        return Boolean(room && room.state === "connected");
+        return Boolean(
+            room && room.state === "connected"
+        );
     }
 
     function resetMeetingPermissions() {
@@ -257,11 +293,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function setBusy(value) {
         busy = value;
+
         updateControls();
     }
 
     // =====================================================
-    // 8. UPDATE MEETING BUTTONS
+    // 9. UPDATE MEETING CONTROLS
     // =====================================================
 
     function updateControls() {
@@ -289,7 +326,7 @@ document.addEventListener("DOMContentLoaded", () => {
         microphoneButton.disabled = !connected || busy;
         cameraButton.disabled = !connected || busy;
 
-        // Only the meeting creator can share.
+        // Only the creator can share their screen.
         screenShareButton.disabled = (
             !connected ||
             busy ||
@@ -298,6 +335,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         leaveButton.disabled = !connected || busy;
 
+        // Creator or group owner can end the meeting.
         endButton.disabled = (
             !connected ||
             busy ||
@@ -321,16 +359,13 @@ document.addEventListener("DOMContentLoaded", () => {
             String(screenSharing)
         );
 
-        if (!canShareScreen) {
-            screenShareButton.title =
-                "Only the meeting creator can share their screen.";
-        } else {
-            screenShareButton.title = "";
-        }
+        screenShareButton.title = canShareScreen
+            ? ""
+            : "Only the meeting creator can share their screen.";
     }
 
     // =====================================================
-    // 9. PARTICIPANT TILE MANAGEMENT
+    // 10. PARTICIPANT TILE MANAGEMENT
     // =====================================================
 
     function getParticipantTile(participant) {
@@ -341,10 +376,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         const tile = document.createElement("div");
+
         tile.className = "livekit-participant";
         tile.dataset.identity = identity;
 
         const name = document.createElement("strong");
+
         name.className = "livekit-participant-name";
 
         const isLocal = (
@@ -361,6 +398,7 @@ document.addEventListener("DOMContentLoaded", () => {
             );
 
         const mediaContainer = document.createElement("div");
+
         mediaContainer.className =
             "livekit-participant-media";
 
@@ -380,7 +418,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // =====================================================
-    // 10. TRACK ATTACHMENT
+    // 11. ATTACH AUDIO AND VIDEO TRACKS
     // =====================================================
 
     function attachParticipantTrack(
@@ -392,7 +430,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        // Prevent duplicate attachment.
+        // Avoid attaching the same track twice.
         if (attachedMedia.has(track)) {
             return;
         }
@@ -401,7 +439,7 @@ document.addEventListener("DOMContentLoaded", () => {
             participant === room.localParticipant
         );
 
-        // Never play our own audio back to ourselves.
+        // Never play our own microphone audio.
         if (
             isLocal &&
             track.kind === Track.Kind.Audio
@@ -416,6 +454,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const tileData = getParticipantTile(participant);
 
         const element = track.attach();
+
         element.autoplay = true;
 
         if (track.kind === Track.Kind.Video) {
@@ -430,8 +469,7 @@ document.addEventListener("DOMContentLoaded", () => {
             isScreenShare &&
             track.kind === Track.Kind.Video
         ) {
-            // Screen-sharing video goes into the main
-            // presentation area, not the camera tile.
+            // Put screen sharing into the large presentation.
             element.classList.add(
                 "livekit-screen-share-video"
             );
@@ -450,8 +488,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 `${name} is sharing a screen`;
 
         } else {
-            // Camera video and remote audio remain associated
-            // with the participant's tile.
+            // Camera and remote audio stay in participant tiles.
             if (track.kind === Track.Kind.Video) {
                 element.classList.add(
                     "livekit-camera-video"
@@ -471,7 +508,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // =====================================================
-    // 11. DETACH TRACKS
+    // 12. DETACH MEDIA TRACKS
     // =====================================================
 
     function detachTrack(track) {
@@ -491,13 +528,14 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         entry.element.remove();
+
         attachedMedia.delete(track);
 
         updatePresentation();
     }
 
     // =====================================================
-    // 12. PRESENTATION LAYOUT
+    // 13. UPDATE SCREEN-SHARING LAYOUT
     // =====================================================
 
     function updatePresentation() {
@@ -507,8 +545,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const hasScreenShare = screenVideos.length > 0;
 
+        // Hide presentation when nobody is sharing.
         presentation.hidden = !hasScreenShare;
 
+        // Switch between camera grid and presentation layout.
         meetingLayout.classList.toggle(
             "livekit-is-presenting",
             hasScreenShare
@@ -525,7 +565,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // =====================================================
-    // 13. SYNCHRONIZE PARTICIPANT TRACKS
+    // 14. SYNCHRONIZE PARTICIPANT TRACKS
     // =====================================================
 
     function syncParticipant(participant) {
@@ -534,6 +574,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         const tileData = getParticipantTile(participant);
+
         const activeTracks = new Set();
 
         for (
@@ -555,7 +596,7 @@ document.addEventListener("DOMContentLoaded", () => {
             );
         }
 
-        // Remove tracks no longer active for this participant.
+        // Remove tracks that are no longer active.
         for (const [track, entry] of attachedMedia) {
             if (
                 entry.participantIdentity === participant.identity &&
@@ -609,7 +650,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // =====================================================
-    // 14. REMOVE PARTICIPANTS
+    // 15. REMOVE PARTICIPANTS
     // =====================================================
 
     function removeParticipant(participant) {
@@ -625,6 +666,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (tileData) {
             tileData.tile.remove();
+
             participantTiles.delete(identity);
         }
 
@@ -632,7 +674,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // =====================================================
-    // 15. CLEAN UP MEDIA
+    // 16. CLEAN UP MEDIA
     // =====================================================
 
     function cleanupMedia() {
@@ -641,6 +683,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         participantTiles.clear();
+
         participants.replaceChildren();
         presentationMedia.replaceChildren();
 
@@ -648,7 +691,31 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // =====================================================
-    // 16. LIVEKIT EVENTS
+    // 17. HANDLE MEETING DISCONNECTION
+    // =====================================================
+
+    function handleDisconnected(activeRoom) {
+        // Ignore events from an older room.
+        if (room !== activeRoom) {
+            return;
+        }
+
+        cleanupMedia();
+
+        room = null;
+
+        resetMeetingPermissions();
+
+        setStatus("Disconnected from meeting.");
+
+        // Return to the normal CodeView workspace.
+        hideMeetingPanel();
+
+        updateControls();
+    }
+
+    // =====================================================
+    // 18. LIVEKIT EVENTS
     // =====================================================
 
     function registerRoomEvents(activeRoom) {
@@ -681,6 +748,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
 
                 removeParticipant(participant);
+
                 updateControls();
             }
         );
@@ -710,6 +778,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
 
                 detachTrack(track);
+
                 refresh(participant);
             }
         );
@@ -758,8 +827,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         );
 
-        // These events also handle the browser's native
-        // "Stop Sharing" button.
+        // Handles publishing and browser screen-share stopping.
         activeRoom.on(
             RoomEvent.LocalTrackPublished,
             () => {
@@ -782,26 +850,17 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         );
 
+        // Handles normal and unexpected disconnections.
         activeRoom.on(
             RoomEvent.Disconnected,
             () => {
-                if (room !== activeRoom) {
-                    return;
-                }
-
-                cleanupMedia();
-                room = null;
-
-                resetMeetingPermissions();
-
-                setStatus("Disconnected from meeting.");
-                updateControls();
+                handleDisconnected(activeRoom);
             }
         );
     }
 
     // =====================================================
-    // 17. CONNECT TO LIVEKIT
+    // 19. CONNECT TO LIVEKIT
     // =====================================================
 
     async function connectToLiveKit(credentials, mode) {
@@ -829,7 +888,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 credentials.token
             );
 
-            // Permissions come from Django.
+            // Django supplies these permissions.
             canEndMeeting = (
                 credentials.can_end_meeting === true
             );
@@ -843,6 +902,7 @@ document.addEventListener("DOMContentLoaded", () => {
             try {
                 await newRoom.localParticipant
                     .setMicrophoneEnabled(true);
+
             } catch (error) {
                 deviceError = true;
 
@@ -856,6 +916,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 try {
                     await newRoom.localParticipant
                         .setCameraEnabled(true);
+
                 } catch (error) {
                     deviceError = true;
 
@@ -883,6 +944,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (error) {
             try {
                 await newRoom.disconnect();
+
             } catch (disconnectError) {
                 console.warn(
                     "CodeView: Disconnect failed.",
@@ -897,6 +959,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             resetMeetingPermissions();
+
             updateControls();
 
             throw error;
@@ -904,7 +967,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // =====================================================
-    // 18. START OR JOIN A MEETING
+    // 20. START OR JOIN MEETING
     // =====================================================
 
     async function enterMeeting(mode) {
@@ -912,7 +975,9 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        panel.hidden = false;
+        // Open the full-screen meeting interface.
+        openMeetingPanel();
+
         setBusy(true);
 
         try {
@@ -939,6 +1004,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 try {
                     await postMeetingRequest(startUrl);
+
                 } catch (startError) {
                     const alreadyActive = (
                         startError.status === 400 &&
@@ -976,7 +1042,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (!isConnected()) {
                 cleanupMedia();
+
                 resetMeetingPermissions();
+
+                // Return to the workspace if joining failed.
+                hideMeetingPanel();
             }
 
         } finally {
@@ -985,7 +1055,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // =====================================================
-    // 19. MICROPHONE
+    // 21. MICROPHONE CONTROL
     // =====================================================
 
     async function toggleMicrophone() {
@@ -1020,7 +1090,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // =====================================================
-    // 20. CAMERA
+    // 22. CAMERA CONTROL
     // =====================================================
 
     async function toggleCamera() {
@@ -1055,7 +1125,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // =====================================================
-    // 21. CREATOR-ONLY SCREEN SHARING
+    // 23. CREATOR-ONLY SCREEN SHARING
     // =====================================================
 
     async function toggleScreenSharing() {
@@ -1110,7 +1180,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // =====================================================
-    // 22. LEAVE MEETING
+    // 24. LEAVE MEETING
     // =====================================================
 
     async function leaveMeeting() {
@@ -1125,15 +1195,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
             await currentRoom.disconnect();
 
-            cleanupMedia();
-
+            // The Disconnected event normally performs cleanup.
+            // Also clean up here if the event has not done so.
             if (room === currentRoom) {
-                room = null;
+                handleDisconnected(currentRoom);
             }
 
-            resetMeetingPermissions();
-
-            setStatus("You left the meeting.");
+            // Return to CodeView.
+            hideMeetingPanel();
 
         } catch (error) {
             console.error(
@@ -1151,7 +1220,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // =====================================================
-    // 23. END MEETING
+    // 25. END MEETING
     // =====================================================
 
     async function endMeeting() {
@@ -1176,21 +1245,23 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             setStatus("Ending meeting...");
 
-            // Django independently verifies authorization.
+            // Django verifies creator/group-owner permission.
             await postMeetingRequest(endUrl);
 
             const currentRoom = room;
 
             if (currentRoom) {
                 await currentRoom.disconnect();
+
+                if (room === currentRoom) {
+                    handleDisconnected(currentRoom);
+                }
             }
 
-            cleanupMedia();
-            room = null;
-
-            resetMeetingPermissions();
-
             setStatus("Meeting ended.");
+
+            // Return to the normal CodeView workspace.
+            hideMeetingPanel();
 
         } catch (error) {
             console.error(
@@ -1208,7 +1279,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // =====================================================
-    // 24. CLOSE PANEL
+    // 26. CLOSE PANEL
     // =====================================================
 
     function closeMeetingPanel() {
@@ -1224,11 +1295,11 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        panel.hidden = true;
+        hideMeetingPanel();
     }
 
     // =====================================================
-    // 25. BUTTON EVENTS
+    // 27. BUTTON EVENTS
     // =====================================================
 
     videoButton.addEventListener(
@@ -1272,8 +1343,11 @@ document.addEventListener("DOMContentLoaded", () => {
     );
 
     // =====================================================
-    // 26. INITIALIZE
+    // 28. INITIALIZE
     // =====================================================
+
+    // Ensure the original workspace starts normally.
+    hideMeetingPanel();
 
     updatePresentation();
     updateControls();
