@@ -1,21 +1,22 @@
 /**
- * CodeView — LiveKit Video and Voice Meetings
+ * CodeView — LiveKit Voice, Video and Screen Sharing
  *
  * Features:
- * 1. Start a private group meeting.
- * 2. Join an existing group meeting.
- * 3. Prevent duplicate meetings during simultaneous requests.
- * 4. Display local and remote participants.
- * 5. Enable and disable microphone and camera.
- * 6. Leave without ending the meeting for everyone.
- * 7. Allow authorized developers to end the meeting.
- * 8. Clean up audio and video elements.
+ * - Start or join a private development group meeting.
+ * - Voice and video calls.
+ * - Microphone and camera controls.
+ * - Screen sharing.
+ * - Display local and remote participants.
+ * - Leave without ending the meeting for everyone.
+ * - End meetings with Django authorization.
+ * - Handle participant connections and disconnections.
+ * - Clean up media tracks and HTML elements.
  *
  * Security:
  * - Django verifies group membership.
  * - Django generates LiveKit access tokens.
- * - Django controls who can end meetings.
- * - All meeting requests use POST and CSRF protection.
+ * - Django controls meeting termination permissions.
+ * - POST requests use CSRF protection.
  */
 
 import {
@@ -28,9 +29,9 @@ import {
 document.addEventListener("DOMContentLoaded", () => {
     "use strict";
 
-    // --------------------------------------------------
-    // 1. GET HTML ELEMENTS
-    // --------------------------------------------------
+    // ==================================================
+    // 1. HTML ELEMENTS
+    // ==================================================
 
     const videoButton = document.getElementById(
         "livekit-video-call"
@@ -64,6 +65,10 @@ document.addEventListener("DOMContentLoaded", () => {
         "livekit-toggle-camera"
     );
 
+    const screenShareButton = document.getElementById(
+        "livekit-toggle-screen-share"
+    );
+
     const leaveButton = document.getElementById(
         "livekit-leave-meeting"
     );
@@ -76,8 +81,7 @@ document.addEventListener("DOMContentLoaded", () => {
         "livekit-close-panel"
     );
 
-
-    // Stop if the meeting interface is not on this page.
+    // Stop initialization if the interface is incomplete.
     if (
         !videoButton ||
         !voiceButton ||
@@ -87,27 +91,28 @@ document.addEventListener("DOMContentLoaded", () => {
         !participants ||
         !microphoneButton ||
         !cameraButton ||
+        !screenShareButton ||
         !leaveButton ||
         !endButton ||
         !closeButton
     ) {
+        console.error(
+            "CodeView: LiveKit interface elements are missing."
+        );
+
         return;
     }
 
 
-    // --------------------------------------------------
-    // 2. DJANGO MEETING ENDPOINTS
-    // --------------------------------------------------
+    // ==================================================
+    // 2. DJANGO ENDPOINTS
+    // ==================================================
 
     const startUrl = panel.dataset.startUrl;
     const joinUrl = panel.dataset.joinUrl;
     const endUrl = panel.dataset.endUrl;
 
     if (!startUrl || !joinUrl || !endUrl) {
-        console.error(
-            "CodeView: LiveKit meeting URLs are missing."
-        );
-
         status.textContent =
             "Meeting configuration is incomplete.";
 
@@ -115,36 +120,34 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
 
-    // --------------------------------------------------
+    // ==================================================
     // 3. MEETING STATE
-    // --------------------------------------------------
+    // ==================================================
 
-    // Current LiveKit room connection.
     let room = null;
 
-    // Prevent overlapping meeting actions.
+    // Prevent simultaneous button actions.
     let busy = false;
 
-    // Current meeting type: video or voice.
+    // Current meeting mode.
     let meetingMode = null;
 
-    // Developer who created the meeting.
-    let meetingCreatorId = null;
-
-    // Permission supplied by Django.
+    // Django supplies this permission.
     let canEndMeeting = false;
 
-    // Track media elements attached to the page.
+    // Store HTML elements associated with media tracks.
     const attachedMedia = new Map();
 
+    // Store participant tiles without repeatedly rebuilding them.
+    const participantTiles = new Map();
 
-    // --------------------------------------------------
-    // 4. READ DJANGO CSRF TOKEN
-    // --------------------------------------------------
+
+    // ==================================================
+    // 4. CSRF TOKEN
+    // ==================================================
 
     function getCsrfToken() {
 
-        // First check Django's existing forms.
         const csrfInput = document.querySelector(
             'input[name="csrfmiddlewaretoken"]'
         );
@@ -153,7 +156,6 @@ document.addEventListener("DOMContentLoaded", () => {
             return csrfInput.value;
         }
 
-        // Otherwise read the CSRF cookie.
         const cookie = document.cookie
             .split(";")
             .map((item) => item.trim())
@@ -171,9 +173,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
 
-    // --------------------------------------------------
-    // 5. SEND POST REQUEST TO DJANGO
-    // --------------------------------------------------
+    // ==================================================
+    // 5. SEND REQUEST TO DJANGO
+    // ==================================================
 
     async function postMeetingRequest(url) {
 
@@ -184,7 +186,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
             headers: {
                 "X-CSRFToken": getCsrfToken(),
-
                 "X-Requested-With": "XMLHttpRequest",
             },
         });
@@ -206,12 +207,10 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!response.ok || data.success !== true) {
 
             const error = new Error(
-                data.error || "The meeting request failed."
+                data.error || "Meeting request failed."
             );
 
             error.status = response.status;
-
-            // Preserve Django's machine-readable error code.
             error.code = data.code || null;
 
             throw error;
@@ -221,18 +220,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
 
-    // --------------------------------------------------
-    // 6. DISPLAY MEETING STATUS
-    // --------------------------------------------------
+    // ==================================================
+    // 6. STATUS AND CONNECTION
+    // ==================================================
 
     function setStatus(message) {
         status.textContent = message;
     }
-
-
-    // --------------------------------------------------
-    // 7. CHECK CONNECTION
-    // --------------------------------------------------
 
     function isConnected() {
         return (
@@ -241,53 +235,54 @@ document.addEventListener("DOMContentLoaded", () => {
         );
     }
 
-
-    // --------------------------------------------------
-    // 8. RESET MEETING PERMISSIONS
-    // --------------------------------------------------
-
     function resetMeetingPermissions() {
-
-        meetingCreatorId = null;
-
         canEndMeeting = false;
-
         meetingMode = null;
     }
 
 
-    // --------------------------------------------------
-    // 9. UPDATE BUTTONS
-    // --------------------------------------------------
+    // ==================================================
+    // 7. UPDATE BUTTONS
+    // ==================================================
 
     function updateControls() {
 
         const connected = isConnected();
 
-        const microphoneEnabled = (
-            connected &&
-            room.localParticipant.isMicrophoneEnabled
+        const localParticipant = connected
+            ? room.localParticipant
+            : null;
+
+        const microphoneEnabled = Boolean(
+            localParticipant &&
+            localParticipant.isMicrophoneEnabled
         );
 
-        const cameraEnabled = (
-            connected &&
-            room.localParticipant.isCameraEnabled
+        const cameraEnabled = Boolean(
+            localParticipant &&
+            localParticipant.isCameraEnabled
         );
 
-        // Media controls require an active connection.
+        const screenSharing = Boolean(
+            localParticipant &&
+            localParticipant.isScreenShareEnabled
+        );
+
         microphoneButton.disabled = !connected || busy;
-
         cameraButton.disabled = !connected || busy;
+
+        screenShareButton.disabled = !connected || busy;
 
         leaveButton.disabled = !connected || busy;
 
-        // Django provides the permission.
-        // The backend still checks authorization.
         endButton.disabled = (
             !connected ||
             busy ||
             !canEndMeeting
         );
+
+        videoButton.disabled = busy || connected;
+        voiceButton.disabled = busy || connected;
 
         microphoneButton.textContent = microphoneEnabled
             ? "🎙 Mute Microphone"
@@ -297,299 +292,476 @@ document.addEventListener("DOMContentLoaded", () => {
             ? "📹 Turn Camera Off"
             : "📹 Turn Camera On";
 
-        // Developers cannot start another connection
-        // while they are already connected.
-        videoButton.disabled = busy || connected;
+        screenShareButton.textContent = screenSharing
+            ? "🛑 Stop Sharing"
+            : "🖥 Share Screen";
 
-        voiceButton.disabled = busy || connected;
+        screenShareButton.setAttribute(
+            "aria-pressed",
+            String(screenSharing)
+        );
     }
 
-
-    // --------------------------------------------------
-    // 10. UPDATE BUSY STATE
-    // --------------------------------------------------
 
     function setBusy(value) {
-
         busy = value;
-
         updateControls();
     }
 
 
-    // --------------------------------------------------
-    // 11. SAVE MEETING PERMISSIONS
-    // --------------------------------------------------
+    // ==================================================
+    // 8. MEDIA MANAGEMENT
+    // ==================================================
 
-    function saveMeetingPermissions(credentials) {
+    function detachTrack(track) {
 
-        // Identify the meeting creator.
-        meetingCreatorId = Number(
-            credentials.started_by
-        );
+        const elements = attachedMedia.get(track);
 
-        // Django determines whether this developer
-        // may end the meeting for everyone.
-        canEndMeeting = (
-            credentials.can_end_meeting === true
-        );
+        if (!elements) {
+            return;
+        }
 
-        updateControls();
+        for (const element of elements) {
+
+            try {
+                track.detach(element);
+            } catch (error) {
+                console.warn(
+                    "CodeView: Unable to detach media.",
+                    error
+                );
+            }
+
+            element.remove();
+        }
+
+        attachedMedia.delete(track);
     }
 
-
-    // --------------------------------------------------
-    // 12. CLEAN UP ATTACHED MEDIA
-    // --------------------------------------------------
 
     function cleanupMedia() {
 
-        // Detach audio and video elements from their tracks.
-        for (const [track, elements] of attachedMedia) {
-
-            for (const element of elements) {
-
-                try {
-                    track.detach(element);
-                } catch (error) {
-                    console.warn(
-                        "CodeView: Media detach failed.",
-                        error
-                    );
-                }
-
-                element.remove();
-            }
+        for (const track of [...attachedMedia.keys()]) {
+            detachTrack(track);
         }
 
-        attachedMedia.clear();
-
-        // Remove participant tiles.
+        participantTiles.clear();
         participants.replaceChildren();
     }
 
 
-    // --------------------------------------------------
-    // 13. REGISTER ATTACHED MEDIA
-    // --------------------------------------------------
+    // ==================================================
+    // 9. PARTICIPANT TILES
+    // ==================================================
 
-    function registerMedia(track, element) {
+    function getParticipantTile(participant) {
 
-        if (!attachedMedia.has(track)) {
-            attachedMedia.set(track, new Set());
+        const identity = participant.identity;
+
+        if (participantTiles.has(identity)) {
+            return participantTiles.get(identity);
         }
 
-        attachedMedia.get(track).add(element);
+        const tile = document.createElement("div");
+
+        tile.className = "livekit-participant";
+
+        tile.dataset.identity = identity;
+
+        const name = document.createElement("strong");
+
+        const isLocal = (
+            room &&
+            participant === room.localParticipant
+        );
+
+        name.textContent = isLocal
+            ? "You"
+            : (
+                participant.name ||
+                participant.identity ||
+                "Developer"
+            );
+
+        const mediaContainer = document.createElement("div");
+
+        mediaContainer.className =
+            "livekit-participant-media";
+
+        tile.appendChild(name);
+        tile.appendChild(mediaContainer);
+
+        participants.appendChild(tile);
+
+        const tileData = {
+            tile,
+            mediaContainer,
+        };
+
+        participantTiles.set(identity, tileData);
+
+        return tileData;
     }
 
 
-    // --------------------------------------------------
-    // 14. DISPLAY PARTICIPANTS
-    // --------------------------------------------------
+    // ==================================================
+    // 10. ATTACH MEDIA TRACK
+    // ==================================================
 
-    function renderParticipants() {
+    function attachParticipantTrack(
+        participant,
+        track,
+        publication
+    ) {
 
-        // Remove old media attachments before rebuilding.
-        cleanupMedia();
+        if (!room || !track || publication.isMuted) {
+            return;
+        }
+
+        // Do not attach the same track twice.
+        if (attachedMedia.has(track)) {
+            return;
+        }
+
+        const tileData = getParticipantTile(participant);
+
+        const isLocal = (
+            participant === room.localParticipant
+        );
+
+        // Do not play our own microphone audio.
+        if (
+            track.kind === Track.Kind.Audio &&
+            isLocal
+        ) {
+            return;
+        }
+
+        const element = track.attach();
+
+        element.autoplay = true;
+
+        if (track.kind === Track.Kind.Video) {
+
+            element.playsInline = true;
+
+            if (isLocal) {
+                element.muted = true;
+            }
+
+            // Distinguish screen sharing from camera video.
+            if (
+                publication.source === Track.Source.ScreenShare
+            ) {
+
+                element.classList.add(
+                    "livekit-screen-share-video"
+                );
+
+                tileData.tile.classList.add(
+                    "livekit-has-screen-share"
+                );
+
+            } else {
+
+                element.classList.add(
+                    "livekit-camera-video"
+                );
+            }
+        }
+
+        tileData.mediaContainer.appendChild(element);
+
+        attachedMedia.set(track, new Set([element]));
+    }
+
+
+    // ==================================================
+    // 11. SYNCHRONIZE PARTICIPANT MEDIA
+    // ==================================================
+
+    function syncParticipant(participant) {
 
         if (!room) {
             return;
         }
 
-        const allParticipants = [
-            room.localParticipant,
-            ...room.remoteParticipants.values(),
-        ];
+        const tileData = getParticipantTile(participant);
 
-        for (const participant of allParticipants) {
+        const activeTracks = new Set();
 
-            const tile = document.createElement("div");
+        for (
+            const publication
+            of participant.trackPublications.values()
+        ) {
 
-            tile.className = "livekit-participant";
+            const track = publication.track;
 
-            const name = document.createElement("strong");
+            if (!track || publication.isMuted) {
+                continue;
+            }
 
-            const isLocal = (
-                participant === room.localParticipant
+            activeTracks.add(track);
+
+            attachParticipantTrack(
+                participant,
+                track,
+                publication
             );
+        }
 
-            name.textContent = isLocal
-                ? "You"
-                : (
-                    participant.name ||
-                    participant.identity ||
-                    "Developer"
-                );
+        // Remove media that is no longer published or active.
+        for (
+            const publication
+            of participant.trackPublications.values()
+        ) {
 
-            tile.appendChild(name);
+            const track = publication.track;
 
-            const mediaContainer = document.createElement(
-                "div"
-            );
-
-            mediaContainer.className =
-                "livekit-participant-media";
-
-            let hasVideo = false;
-
-            for (
-                const publication
-                of participant.trackPublications.values()
+            if (
+                track &&
+                publication.isMuted &&
+                attachedMedia.has(track)
             ) {
-
-                const track = publication.track;
-
-                if (!track || publication.isMuted) {
-                    continue;
-                }
-
-                // ------------------------------------------
-                // VIDEO
-                // ------------------------------------------
-
-                if (track.kind === Track.Kind.Video) {
-
-                    const videoElement = track.attach();
-
-                    videoElement.autoplay = true;
-
-                    videoElement.playsInline = true;
-
-                    // Prevent hearing yourself through
-                    // locally attached media.
-                    if (isLocal) {
-                        videoElement.muted = true;
-                    }
-
-                    registerMedia(
-                        track,
-                        videoElement
-                    );
-
-                    mediaContainer.appendChild(
-                        videoElement
-                    );
-
-                    hasVideo = true;
-                }
-
-                // ------------------------------------------
-                // AUDIO
-                // ------------------------------------------
-
-                if (
-                    track.kind === Track.Kind.Audio &&
-                    !isLocal
-                ) {
-
-                    const audioElement = track.attach();
-
-                    audioElement.autoplay = true;
-
-                    registerMedia(
-                        track,
-                        audioElement
-                    );
-
-                    mediaContainer.appendChild(
-                        audioElement
-                    );
-                }
+                detachTrack(track);
             }
+        }
 
-            // Show a placeholder when the camera is off.
-            if (!hasVideo) {
+        // Show a placeholder when no video is available.
+        const hasVideo = [...tileData.mediaContainer.children]
+            .some((element) => {
+                return element.tagName === "VIDEO";
+            });
 
-                const placeholder = document.createElement(
-                    "p"
-                );
+        let placeholder = tileData.mediaContainer.querySelector(
+            ".livekit-camera-placeholder"
+        );
 
-                placeholder.textContent = "Camera off";
+        if (!hasVideo && !placeholder) {
 
-                mediaContainer.appendChild(
-                    placeholder
-                );
+            placeholder = document.createElement("p");
+
+            placeholder.className =
+                "livekit-camera-placeholder";
+
+            placeholder.textContent = "Camera off";
+
+            tileData.mediaContainer.appendChild(placeholder);
+
+        } else if (hasVideo && placeholder) {
+
+            placeholder.remove();
+        }
+
+        // Update screen-sharing presentation.
+        const hasScreenShare = Boolean(
+            tileData.mediaContainer.querySelector(
+                ".livekit-screen-share-video"
+            )
+        );
+
+        tileData.tile.classList.toggle(
+            "livekit-has-screen-share",
+            hasScreenShare
+        );
+    }
+
+
+    function removeParticipant(participant) {
+
+        const identity = participant.identity;
+
+        const tileData = participantTiles.get(identity);
+
+        if (!tileData) {
+            return;
+        }
+
+        for (
+            const publication
+            of participant.trackPublications.values()
+        ) {
+
+            if (publication.track) {
+                detachTrack(publication.track);
             }
+        }
 
-            tile.appendChild(mediaContainer);
+        tileData.tile.remove();
 
-            participants.appendChild(tile);
+        participantTiles.delete(identity);
+    }
+
+
+    function syncAllParticipants() {
+
+        if (!room) {
+            return;
+        }
+
+        syncParticipant(room.localParticipant);
+
+        for (
+            const participant
+            of room.remoteParticipants.values()
+        ) {
+            syncParticipant(participant);
         }
     }
 
 
-    // --------------------------------------------------
-    // 15. REGISTER LIVEKIT EVENTS
-    // --------------------------------------------------
+    // ==================================================
+    // 12. REGISTER LIVEKIT EVENTS
+    // ==================================================
 
     function registerRoomEvents(activeRoom) {
 
-        // Refresh only when this is the current room.
-        const refresh = () => {
+        const refresh = (participant) => {
 
             if (room !== activeRoom) {
                 return;
             }
 
-            renderParticipants();
+            if (participant) {
+                syncParticipant(participant);
+            } else {
+                syncAllParticipants();
+            }
 
             updateControls();
         };
 
 
-        // A developer joins the meeting.
+        // A developer joins.
         activeRoom.on(
             RoomEvent.ParticipantConnected,
-            refresh
+            (participant) => {
+                refresh(participant);
+            }
         );
 
-        // A developer leaves the meeting.
+
+        // A developer leaves.
         activeRoom.on(
             RoomEvent.ParticipantDisconnected,
-            refresh
+            (participant) => {
+
+                if (room !== activeRoom) {
+                    return;
+                }
+
+                removeParticipant(participant);
+                updateControls();
+            }
         );
 
-        // A media track becomes available.
+
+        // A remote track becomes available.
         activeRoom.on(
             RoomEvent.TrackSubscribed,
-            refresh
+            (track, publication, participant) => {
+
+                if (room !== activeRoom) {
+                    return;
+                }
+
+                attachParticipantTrack(
+                    participant,
+                    track,
+                    publication
+                );
+
+                refresh(participant);
+            }
         );
 
-        // A media track becomes unavailable.
+
+        // A remote track becomes unavailable.
         activeRoom.on(
             RoomEvent.TrackUnsubscribed,
-            refresh
+            (track, publication, participant) => {
+
+                if (room !== activeRoom) {
+                    return;
+                }
+
+                detachTrack(track);
+                refresh(participant);
+            }
         );
 
-        // A participant publishes media.
+
+        // A track is published.
         activeRoom.on(
             RoomEvent.TrackPublished,
-            refresh
+            (publication, participant) => {
+                refresh(participant);
+            }
         );
 
-        // A participant stops publishing media.
+
+        // A track is unpublished.
         activeRoom.on(
             RoomEvent.TrackUnpublished,
-            refresh
+            (publication, participant) => {
+
+                if (room !== activeRoom) {
+                    return;
+                }
+
+                if (publication.track) {
+                    detachTrack(publication.track);
+                }
+
+                refresh(participant);
+            }
         );
 
-        // Microphone or camera muted.
+
+        // Microphone, camera, or screen share is muted.
         activeRoom.on(
             RoomEvent.TrackMuted,
-            refresh
+            (publication, participant) => {
+
+                if (room !== activeRoom) {
+                    return;
+                }
+
+                if (publication.track) {
+                    detachTrack(publication.track);
+                }
+
+                refresh(participant);
+            }
         );
 
-        // Microphone or camera unmuted.
+
+        // Microphone, camera, or screen share is unmuted.
         activeRoom.on(
             RoomEvent.TrackUnmuted,
-            refresh
+            (publication, participant) => {
+                refresh(participant);
+            }
         );
 
 
-        // ----------------------------------------------
-        // ROOM DISCONNECTED
-        // ----------------------------------------------
+        // Local media publication changes.
+        activeRoom.on(
+            RoomEvent.LocalTrackPublished,
+            () => {
+                refresh(activeRoom.localParticipant);
+            }
+        );
 
+        activeRoom.on(
+            RoomEvent.LocalTrackUnpublished,
+            () => {
+                refresh(activeRoom.localParticipant);
+            }
+        );
+
+
+        // Browser or LiveKit disconnects.
         activeRoom.on(
             RoomEvent.Disconnected,
             () => {
@@ -614,14 +786,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
 
-    // --------------------------------------------------
-    // 16. CONNECT TO LIVEKIT
-    // --------------------------------------------------
+    // ==================================================
+    // 13. CONNECT TO LIVEKIT
+    // ==================================================
 
     async function connectToLiveKit(credentials, mode) {
 
         const serverUrl = credentials.url;
-
         const accessToken = credentials.token;
 
         if (!serverUrl || !accessToken) {
@@ -637,30 +808,27 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         room = newRoom;
-
         meetingMode = mode;
 
         registerRoomEvents(newRoom);
 
         try {
 
-            setStatus(
-                "Connecting to LiveKit..."
-            );
+            setStatus("Connecting to LiveKit...");
 
-            // Establish the secure LiveKit connection.
             await newRoom.connect(
                 serverUrl,
                 accessToken
             );
 
-            // Save permissions only after connecting.
-            saveMeetingPermissions(credentials);
+            // Django decides who can end the meeting.
+            canEndMeeting = (
+                credentials.can_end_meeting === true
+            );
 
-            // ------------------------------------------
-            // ENABLE MICROPHONE
-            // ------------------------------------------
+            let deviceError = false;
 
+            // Enable microphone.
             try {
 
                 await newRoom.localParticipant
@@ -668,21 +836,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
             } catch (error) {
 
+                deviceError = true;
+
                 console.warn(
                     "CodeView: Microphone unavailable.",
                     error
                 );
-
-                setStatus(
-                    "Connected. Microphone access is unavailable."
-                );
             }
 
-
-            // ------------------------------------------
-            // ENABLE CAMERA FOR VIDEO CALLS
-            // ------------------------------------------
-
+            // Enable camera only for video meetings.
             if (mode === "video") {
 
                 try {
@@ -692,13 +854,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 } catch (error) {
 
+                    deviceError = true;
+
                     console.warn(
                         "CodeView: Camera unavailable.",
                         error
-                    );
-
-                    setStatus(
-                        "Connected. Camera access is unavailable."
                     );
                 }
             }
@@ -709,34 +869,26 @@ document.addEventListener("DOMContentLoaded", () => {
                     : "Voice Meeting"
             );
 
-            renderParticipants();
+            syncAllParticipants();
 
-            // Do not overwrite a device error with
-            // a generic connection message.
-            if (
-                newRoom.localParticipant.isMicrophoneEnabled &&
-                (
-                    mode === "voice" ||
-                    newRoom.localParticipant.isCameraEnabled
-                )
-            ) {
+            if (deviceError) {
 
                 setStatus(
-                    "Connected to meeting."
+                    "Connected. Some devices are unavailable."
                 );
+
+            } else {
+
+                setStatus("Connected to meeting.");
             }
 
             updateControls();
 
         } catch (error) {
 
-            // Disconnect a partially established room.
             try {
-
                 await newRoom.disconnect();
-
             } catch (disconnectError) {
-
                 console.warn(
                     "CodeView: Disconnect failed.",
                     disconnectError
@@ -750,7 +902,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             resetMeetingPermissions();
-
             updateControls();
 
             throw error;
@@ -758,9 +909,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
 
-    // --------------------------------------------------
-    // 17. START OR JOIN A MEETING
-    // --------------------------------------------------
+    // ==================================================
+    // 14. START OR JOIN MEETING
+    // ==================================================
 
     async function enterMeeting(mode) {
 
@@ -780,22 +931,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
             let credentials = null;
 
-            // ------------------------------------------
-            // FIRST: TRY JOINING AN EXISTING MEETING
-            // ------------------------------------------
-
             try {
 
-                const joinResponse = await postMeetingRequest(
+                // Join an existing meeting first.
+                const response = await postMeetingRequest(
                     joinUrl
                 );
 
-                credentials = joinResponse.meeting;
+                credentials = response.meeting;
 
             } catch (error) {
 
-                // Only start a meeting when Django explicitly
-                // reports that no active meeting exists.
+                // Only create a meeting if none exists.
                 if (
                     error.status !== 404 ||
                     error.code !== "no_active_meeting"
@@ -803,30 +950,15 @@ document.addEventListener("DOMContentLoaded", () => {
                     throw error;
                 }
 
-
-                // --------------------------------------
-                // SECOND: START A NEW MEETING
-                // --------------------------------------
-
-                setStatus(
-                    "Starting a new meeting..."
-                );
+                setStatus("Starting a new meeting...");
 
                 try {
 
-                    await postMeetingRequest(
-                        startUrl
-                    );
+                    await postMeetingRequest(startUrl);
 
                 } catch (startError) {
 
-                    // Another developer may have started
-                    // the meeting at the same time.
-                    //
-                    // Retry joining only if Django reports
-                    // that an active meeting already exists.
-                    //
-                    // Never retry on permission errors.
+                    // Handle two developers starting together.
                     const alreadyActive = (
                         startError.status === 400 &&
                         startError.message.includes(
@@ -837,28 +969,14 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (!alreadyActive) {
                         throw startError;
                     }
-
-                    setStatus(
-                        "Another developer started the meeting. Joining..."
-                    );
                 }
 
-
-                // --------------------------------------
-                // THIRD: REQUEST LIVEKIT CREDENTIALS
-                // --------------------------------------
-
-                const joinResponse = await postMeetingRequest(
+                const response = await postMeetingRequest(
                     joinUrl
                 );
 
-                credentials = joinResponse.meeting;
+                credentials = response.meeting;
             }
-
-
-            // ------------------------------------------
-            // CONNECT TO LIVEKIT
-            // ------------------------------------------
 
             await connectToLiveKit(
                 credentials,
@@ -877,12 +995,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 "Unable to join meeting."
             );
 
-            // Ensure a failed attempt does not leave
-            // stale permissions or media elements.
             if (!isConnected()) {
-
                 cleanupMedia();
-
                 resetMeetingPermissions();
             }
 
@@ -893,9 +1007,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
 
-    // --------------------------------------------------
-    // 18. TOGGLE MICROPHONE
-    // --------------------------------------------------
+    // ==================================================
+    // 15. TOGGLE MICROPHONE
+    // ==================================================
 
     async function toggleMicrophone() {
 
@@ -907,14 +1021,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
 
-            const enabled = (
-                room.localParticipant.isMicrophoneEnabled
+            const local = room.localParticipant;
+
+            await local.setMicrophoneEnabled(
+                !local.isMicrophoneEnabled
             );
 
-            await room.localParticipant
-                .setMicrophoneEnabled(!enabled);
-
-            renderParticipants();
+            syncParticipant(local);
 
         } catch (error) {
 
@@ -935,9 +1048,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
 
-    // --------------------------------------------------
-    // 19. TOGGLE CAMERA
-    // --------------------------------------------------
+    // ==================================================
+    // 16. TOGGLE CAMERA
+    // ==================================================
 
     async function toggleCamera() {
 
@@ -949,14 +1062,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
 
-            const enabled = (
-                room.localParticipant.isCameraEnabled
+            const local = room.localParticipant;
+
+            await local.setCameraEnabled(
+                !local.isCameraEnabled
             );
 
-            await room.localParticipant
-                .setCameraEnabled(!enabled);
-
-            renderParticipants();
+            syncParticipant(local);
 
         } catch (error) {
 
@@ -977,9 +1089,70 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
 
-    // --------------------------------------------------
-    // 20. LEAVE MEETING
-    // --------------------------------------------------
+    // ==================================================
+    // 17. TOGGLE SCREEN SHARING
+    // ==================================================
+
+    async function toggleScreenSharing() {
+
+        if (!isConnected() || busy) {
+            return;
+        }
+
+        setBusy(true);
+
+        try {
+
+            const local = room.localParticipant;
+
+            const currentlySharing = (
+                local.isScreenShareEnabled
+            );
+
+            // LiveKit asks the browser to select a screen.
+            await local.setScreenShareEnabled(
+                !currentlySharing
+            );
+
+            syncParticipant(local);
+
+            setStatus(
+                local.isScreenShareEnabled
+                    ? "You are sharing your screen."
+                    : "Screen sharing stopped."
+            );
+
+        } catch (error) {
+
+            console.error(
+                "CodeView screen sharing error:",
+                error
+            );
+
+            if (error.name === "NotAllowedError") {
+
+                setStatus(
+                    "Screen sharing was cancelled or denied."
+                );
+
+            } else {
+
+                setStatus(
+                    error.message ||
+                    "Unable to share screen."
+                );
+            }
+
+        } finally {
+
+            setBusy(false);
+        }
+    }
+
+
+    // ==================================================
+    // 18. LEAVE MEETING
+    // ==================================================
 
     async function leaveMeeting() {
 
@@ -993,7 +1166,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const currentRoom = room;
 
-            // Leaving does not end the meeting for others.
             await currentRoom.disconnect();
 
             cleanupMedia();
@@ -1004,9 +1176,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             resetMeetingPermissions();
 
-            setStatus(
-                "You left the meeting."
-            );
+            setStatus("You left the meeting.");
 
         } catch (error) {
 
@@ -1027,9 +1197,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
 
-    // --------------------------------------------------
-    // 21. END MEETING FOR EVERYONE
-    // --------------------------------------------------
+    // ==================================================
+    // 19. END MEETING FOR EVERYONE
+    // ==================================================
 
     async function endMeeting() {
 
@@ -1053,21 +1223,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
 
-            setStatus(
-                "Ending meeting..."
-            );
+            setStatus("Ending meeting...");
 
-            // Django checks whether this developer
-            // is authorized to end the meeting.
-            await postMeetingRequest(
-                endUrl
-            );
+            // Django verifies permission before ending.
+            await postMeetingRequest(endUrl);
 
             const currentRoom = room;
 
-            // Disconnect this developer.
             if (currentRoom) {
-
                 await currentRoom.disconnect();
             }
 
@@ -1077,9 +1240,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             resetMeetingPermissions();
 
-            setStatus(
-                "Meeting ended."
-            );
+            setStatus("Meeting ended.");
 
         } catch (error) {
 
@@ -1100,13 +1261,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
 
-    // --------------------------------------------------
-    // 22. CLOSE MEETING PANEL
-    // --------------------------------------------------
+    // ==================================================
+    // 20. CLOSE MEETING PANEL
+    // ==================================================
 
     function closeMeetingPanel() {
 
-        // Do not hide controls during an active call.
         if (isConnected()) {
 
             setStatus(
@@ -1116,7 +1276,6 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        // Also prevent hiding the panel while connecting.
         if (busy) {
             return;
         }
@@ -1125,22 +1284,18 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
 
-    // --------------------------------------------------
-    // 23. BUTTON EVENT LISTENERS
-    // --------------------------------------------------
+    // ==================================================
+    // 21. EVENT LISTENERS
+    // ==================================================
 
     videoButton.addEventListener(
         "click",
-        () => {
-            enterMeeting("video");
-        }
+        () => enterMeeting("video")
     );
 
     voiceButton.addEventListener(
         "click",
-        () => {
-            enterMeeting("voice");
-        }
+        () => enterMeeting("voice")
     );
 
     microphoneButton.addEventListener(
@@ -1151,6 +1306,11 @@ document.addEventListener("DOMContentLoaded", () => {
     cameraButton.addEventListener(
         "click",
         toggleCamera
+    );
+
+    screenShareButton.addEventListener(
+        "click",
+        toggleScreenSharing
     );
 
     leaveButton.addEventListener(
@@ -1169,13 +1329,13 @@ document.addEventListener("DOMContentLoaded", () => {
     );
 
 
-    // --------------------------------------------------
-    // 24. INITIALIZE MEETING CONTROLS
-    // --------------------------------------------------
+    // ==================================================
+    // 22. INITIALIZE
+    // ==================================================
 
     updateControls();
 
     console.log(
-        "CodeView LiveKit meeting controls initialized."
+        "CodeView LiveKit voice, video and screen sharing initialized."
     );
 });
