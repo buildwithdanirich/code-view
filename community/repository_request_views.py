@@ -28,6 +28,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .models import (
+    GroupMeeting,
     GroupMember,
     ProjectGroup,
     RepositoryConnectionRequest,
@@ -165,6 +166,17 @@ def request_repository_connection(request, group_id):
             return HttpResponseForbidden(
                 "Repository connections are only available "
                 "to private development groups."
+            )
+
+        # Block repository requests during an active meeting.
+        if GroupMeeting.objects.filter(
+            group=group,
+            status="active",
+        ).exists():
+            return HttpResponseForbidden(
+                "Repository connections are locked while "
+                "a group meeting is active. "
+                "Please wait until the meeting ends."
             )
 
         # Owners can connect repositories without approval.
@@ -325,6 +337,17 @@ def approve_repository_connection(request, group_id, request_id):
                 "Only the private group owner can approve requests."
             )
 
+        # Block repository decisions during an active meeting.
+        if GroupMeeting.objects.filter(
+            group=group,
+            status="active",
+        ).exists():
+            return HttpResponseForbidden(
+                "Repository connections are locked while "
+                "a group meeting is active. "
+                "Please wait until the meeting ends."
+            )
+
         # Lock the request to prevent simultaneous decisions.
         connection_request = get_object_or_404(
             RepositoryConnectionRequest.objects.select_for_update(),
@@ -460,6 +483,17 @@ def reject_repository_connection(request, group_id, request_id):
         if not group.is_private or group.owner_id != request.user.id:
             return HttpResponseForbidden(
                 "Only the private group owner can reject requests."
+            )
+
+        # Block repository decisions during an active meeting.
+        if GroupMeeting.objects.filter(
+            group=group,
+            status="active",
+        ).exists():
+            return HttpResponseForbidden(
+                "Repository connections are locked while "
+                "a group meeting is active. "
+                "Please wait until the meeting ends."
             )
 
         # Lock the request to prevent simultaneous decisions.

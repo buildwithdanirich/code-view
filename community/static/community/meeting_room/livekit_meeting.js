@@ -120,6 +120,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let canEndMeeting = false;
     let canShareScreen = false;
+    let isMeetingCreator = false;
 
     // Remember the original page scrolling behavior.
     let previousBodyOverflow = null;
@@ -288,6 +289,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function resetMeetingPermissions() {
         canEndMeeting = false;
         canShareScreen = false;
+        isMeetingCreator = false;
         meetingMode = null;
     }
 
@@ -333,7 +335,13 @@ document.addEventListener("DOMContentLoaded", () => {
             !canShareScreen
         );
 
-        leaveButton.disabled = !connected || busy;
+        // The creator must end the meeting instead of leaving.
+        leaveButton.hidden = isMeetingCreator;
+        leaveButton.disabled = (
+            !connected ||
+            busy ||
+            isMeetingCreator
+        );
 
         // Creator or group owner can end the meeting.
         endButton.disabled = (
@@ -538,6 +546,32 @@ document.addEventListener("DOMContentLoaded", () => {
     // 13. UPDATE SCREEN-SHARING LAYOUT
     // =====================================================
 
+    /**
+     * Remove local screen-sharing media after sharing stops.
+     *
+     * This restores the normal camera layout without
+     * disconnecting the developer from LiveKit.
+     */
+    function removeStoppedLocalScreenShare() {
+        if (
+            !room ||
+            room.localParticipant.isScreenShareEnabled
+        ) {
+            return;
+        }
+
+        const localIdentity = room.localParticipant.identity;
+
+        for (const [track, entry] of [...attachedMedia]) {
+            if (
+                entry.participantIdentity === localIdentity &&
+                entry.isScreenShare
+            ) {
+                detachTrack(track);
+            }
+        }
+    }
+
     function updatePresentation() {
         const screenVideos = presentationMedia.querySelectorAll(
             ".livekit-screen-share-video"
@@ -694,7 +728,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // 17. HANDLE MEETING DISCONNECTION
     // =====================================================
 
+    
     function handleDisconnected(activeRoom) {
+        console.trace("CodeView: Meeting disconnected");
         // Ignore events from an older room.
         if (room !== activeRoom) {
             return;
@@ -847,6 +883,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
 
                 refresh(activeRoom.localParticipant);
+
+                // Restore the camera grid if the browser
+                // stopped publishing the shared screen.
+                removeStoppedLocalScreenShare();
             }
         );
 
@@ -895,6 +935,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
             canShareScreen = (
                 credentials.can_share_screen === true
+            );
+
+            // Prefer Django's explicit creator permission.
+            //
+            // Temporary fallback:
+            // Currently only the meeting creator can share.
+            // Remove this fallback when participant screen
+            // sharing permissions are introduced.
+            isMeetingCreator = (
+                typeof credentials.is_meeting_creator === "boolean"
+                    ? credentials.is_meeting_creator
+                    : canShareScreen
             );
 
             let deviceError = false;
@@ -1150,7 +1202,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 !currentlySharing
             );
 
+            // Do not disconnect or close the meeting.
+            // Only remove the stopped presentation track.
+            if (!local.isScreenShareEnabled) {
+                removeStoppedLocalScreenShare();
+            }
+
             syncParticipant(local);
+            updatePresentation();
 
             setStatus(
                 local.isScreenShareEnabled
@@ -1184,7 +1243,14 @@ document.addEventListener("DOMContentLoaded", () => {
     // =====================================================
 
     async function leaveMeeting() {
-        if (!room || busy) {
+        console.trace("CodeView: Leave Meeting called");
+        if (!room || busy || isMeetingCreator) {
+            if (isMeetingCreator) {
+                setStatus(
+                    "Meeting creators must use End Meeting."
+                );
+            }
+
             return;
         }
 
@@ -1224,6 +1290,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // =====================================================
 
     async function endMeeting() {
+        console.trace("CodeView: End Meeting called");
         if (
             !isConnected() ||
             busy ||
@@ -1285,7 +1352,9 @@ document.addEventListener("DOMContentLoaded", () => {
     function closeMeetingPanel() {
         if (isConnected()) {
             setStatus(
-                "Leave the meeting before closing this panel."
+                isMeetingCreator
+                    ? "End the meeting before closing this panel."
+                    : "Leave the meeting before closing this panel."
             );
 
             return;

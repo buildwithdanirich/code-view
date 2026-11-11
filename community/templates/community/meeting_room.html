@@ -339,7 +339,12 @@
                  GITHUB REPOSITORY CARD
             ===================================== -->
 
-            <section class="github-repository-section">
+            <section
+                class="github-repository-section"
+                id="github-repository-section"
+                data-repository-locked="{% if repository_locked %}true{% else %}false{% endif %}"
+                data-meeting-status-url="{% url 'group_meeting_status' group.id %}"
+            >
 
                 <div class="repository-card-header">
 
@@ -360,6 +365,18 @@
                     {% endif %}
 
                 </div>
+
+                <!-- Meeting lock notice. JavaScript can update its visibility. -->
+                <p
+                    id="repository-meeting-lock-message"
+                    class="repository-meeting-lock-notice"
+                    role="status"
+                    aria-live="polite"
+                    {% if not repository_locked %}hidden{% endif %}
+                >
+                    🔒 Repository connections are temporarily locked while a
+                    group meeting is active. You can still browse the connected repository.
+                </p>
 
                 <!-- ====================================
                      CONNECTED REPOSITORY INFORMATION
@@ -435,6 +452,7 @@
                         <form
                             method="POST"
                             action="{% url 'connect_group_repository' group.id %}"
+                                        data-repository-mutation
                             class="repository-form"
                         >
 
@@ -446,7 +464,11 @@
 
                             {{ repository_form.repository_url }}
 
-                            <button type="submit">
+                            <button
+                                            type="submit"
+                                            data-repository-mutation-control
+                                            {% if repository_locked %}disabled aria-disabled="true"{% endif %}
+                                        >
 
                                 {% if repository %}
                                     Change Repository
@@ -501,11 +523,16 @@
                                     <form
                                         method="POST"
                                         action="{% url 'approve_repository_connection' group.id connection_request.id %}"
+                                        data-repository-mutation
                                     >
 
                                         {% csrf_token %}
 
-                                        <button type="submit">
+                                        <button
+                                            type="submit"
+                                            data-repository-mutation-control
+                                            {% if repository_locked %}disabled aria-disabled="true"{% endif %}
+                                        >
                                             Approve
                                         </button>
 
@@ -515,11 +542,16 @@
                                     <form
                                         method="POST"
                                         action="{% url 'reject_repository_connection' group.id connection_request.id %}"
+                                        data-repository-mutation
                                     >
 
                                         {% csrf_token %}
 
-                                        <button type="submit">
+                                        <button
+                                            type="submit"
+                                            data-repository-mutation-control
+                                            {% if repository_locked %}disabled aria-disabled="true"{% endif %}
+                                        >
                                             Reject
                                         </button>
 
@@ -585,6 +617,7 @@
                                 <form
                                     method="POST"
                                     action="{% url 'connect_group_repository' group.id %}"
+                                        data-repository-mutation
                                     class="repository-form"
                                 >
 
@@ -596,7 +629,11 @@
 
                                     {{ repository_form.repository_url }}
 
-                                    <button type="submit">
+                                    <button
+                                            type="submit"
+                                            data-repository-mutation-control
+                                            {% if repository_locked %}disabled aria-disabled="true"{% endif %}
+                                        >
                                         Connect Repository
                                     </button>
 
@@ -613,11 +650,16 @@
                             <form
                                 method="POST"
                                 action="{% url 'request_repository_connection' group.id %}"
+                                        data-repository-mutation
                             >
 
                                 {% csrf_token %}
 
-                                <button type="submit">
+                                <button
+                                            type="submit"
+                                            data-repository-mutation-control
+                                            {% if repository_locked %}disabled aria-disabled="true"{% endif %}
+                                        >
                                     Request Repository Connection
                                 </button>
 
@@ -1123,6 +1165,12 @@
         defer
     ></script>
 {% endif %}
+
+<!-- Keep repository connection controls synchronized with Django meeting status. -->
+<script
+    src="{% static 'community/meeting_room/repository_meeting_lock.js' %}"
+    defer
+></script>
 
 <!-- LiveKit video and voice meeting functionality -->
 <script

@@ -48,6 +48,7 @@ from .github_auth import (
 )
 
 from .models import (
+    GroupMeeting,
     GroupMember,
     GroupRepository,
     ProjectGroup,
@@ -177,6 +178,18 @@ def start_github_authorization(request, group_id):
         id=group_id,
         is_private=True,
     )
+
+    # Block GitHub authorization while a meeting is active.
+    # The final repository save has a separate locked check.
+    if GroupMeeting.objects.filter(
+        group=group,
+        status="active",
+    ).exists():
+        return HttpResponseForbidden(
+            "GitHub repository connections are locked while "
+            "a group meeting is active. "
+            "Please wait until the meeting ends."
+        )
 
     # Check CodeView group permissions first.
     if not has_repository_connection_permission(
@@ -568,6 +581,19 @@ def github_oauth_callback(request):
         is_private=True,
     )
 
+    # Reject OAuth completion if a meeting is already active.
+    # This avoids unnecessary GitHub verification requests.
+    # The final save still checks again under a database lock.
+    if GroupMeeting.objects.filter(
+        group=group,
+        status="active",
+    ).exists():
+        return HttpResponseForbidden(
+            "GitHub repository connections are locked while "
+            "a group meeting is active. "
+            "Please wait until the meeting ends."
+        )
+
     # Check whether the group owner changed during authorization.
     if str(group.owner_membership_generation) != owner_generation:
         return HttpResponseForbidden(
@@ -697,6 +723,24 @@ def github_oauth_callback(request):
             .select_for_update()
             .get(id=group.id)
         )
+
+        # ====================================================
+        # BLOCK REPOSITORY CHANGES DURING ACTIVE MEETINGS
+        # ====================================================
+
+        # The ProjectGroup row is locked by select_for_update().
+        # Meeting creation locks the same row.
+        # This prevents concurrent meeting starts and repository
+        # replacements from bypassing the restriction.
+        if GroupMeeting.objects.filter(
+            group=locked_group,
+            status="active",
+        ).exists():
+            return HttpResponseForbidden(
+                "GitHub repository connections are locked while "
+                "a group meeting is active. "
+                "Please wait until the meeting ends."
+            )
 
         # Reject ownership changes during the OAuth process.
         if (

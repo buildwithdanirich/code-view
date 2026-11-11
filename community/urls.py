@@ -281,5 +281,16 @@ urlpatterns = [
         meeting_views.end_meeting_view,
         name="end_group_meeting",
     ),
+        # ========================================================
+    # CHECK ACTIVE MEETING STATUS
+    # ========================================================
+
+    # Accepted private group members can check whether
+    # repository connection changes are currently locked.
+    path(
+        "<int:group_id>/meeting/status/",
+        meeting_views.meeting_status_view,
+        name="group_meeting_status",
+    ),
 
 ]

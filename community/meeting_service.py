@@ -470,6 +470,7 @@ async def join_group_meeting(group_id, user):
         # Used by the frontend to display meeting controls.
         "can_end_meeting": can_end_meeting,
 
+        "is_meeting_creator": is_meeting_creator,
         # NEW: Used by the frontend to control screen sharing.
         "can_share_screen": can_share_screen,
     }

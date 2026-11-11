@@ -32572,6 +32572,7 @@
     let meetingMode = null;
     let canEndMeeting = false;
     let canShareScreen = false;
+    let isMeetingCreator = false;
     let previousBodyOverflow = null;
     const attachedMedia = /* @__PURE__ */ new Map();
     const participantTiles = /* @__PURE__ */ new Map();
@@ -32664,6 +32665,7 @@
     function resetMeetingPermissions() {
       canEndMeeting = false;
       canShareScreen = false;
+      isMeetingCreator = false;
       meetingMode = null;
     }
     function setBusy(value) {
@@ -32687,7 +32689,8 @@
       microphoneButton.disabled = !connected || busy;
       cameraButton.disabled = !connected || busy;
       screenShareButton.disabled = !connected || busy || !canShareScreen;
-      leaveButton.disabled = !connected || busy;
+      leaveButton.hidden = isMeetingCreator;
+      leaveButton.disabled = !connected || busy || isMeetingCreator;
       endButton.disabled = !connected || busy || !canEndMeeting;
       microphoneButton.textContent = microphoneEnabled ? "\u{1F399} Mute Microphone" : "\u{1F399} Enable Microphone";
       cameraButton.textContent = cameraEnabled ? "\u{1F4F9} Turn Camera Off" : "\u{1F4F9} Turn Camera On";
@@ -32782,6 +32785,17 @@
       attachedMedia.delete(track);
       updatePresentation();
     }
+    function removeStoppedLocalScreenShare() {
+      if (!room || room.localParticipant.isScreenShareEnabled) {
+        return;
+      }
+      const localIdentity = room.localParticipant.identity;
+      for (const [track, entry] of [...attachedMedia]) {
+        if (entry.participantIdentity === localIdentity && entry.isScreenShare) {
+          detachTrack2(track);
+        }
+      }
+    }
     function updatePresentation() {
       const screenVideos = presentationMedia.querySelectorAll(
         ".livekit-screen-share-video"
@@ -32875,6 +32889,7 @@
       updatePresentation();
     }
     function handleDisconnected(activeRoom) {
+      console.trace("CodeView: Meeting disconnected");
       if (room !== activeRoom) {
         return;
       }
@@ -32989,6 +33004,7 @@
             detachTrack2(publication.track);
           }
           refresh(activeRoom.localParticipant);
+          removeStoppedLocalScreenShare();
         }
       );
       activeRoom.on(
@@ -33019,6 +33035,7 @@
         );
         canEndMeeting = credentials.can_end_meeting === true;
         canShareScreen = credentials.can_share_screen === true;
+        isMeetingCreator = typeof credentials.is_meeting_creator === "boolean" ? credentials.is_meeting_creator : canShareScreen;
         let deviceError = false;
         try {
           await newRoom.localParticipant.setMicrophoneEnabled(true);
@@ -33176,7 +33193,11 @@
         await local.setScreenShareEnabled(
           !currentlySharing
         );
+        if (!local.isScreenShareEnabled) {
+          removeStoppedLocalScreenShare();
+        }
         syncParticipant(local);
+        updatePresentation();
         setStatus(
           local.isScreenShareEnabled ? "You are sharing your screen." : "Screen sharing stopped."
         );
@@ -33199,7 +33220,13 @@
       }
     }
     async function leaveMeeting() {
-      if (!room || busy) {
+      console.trace("CodeView: Leave Meeting called");
+      if (!room || busy || isMeetingCreator) {
+        if (isMeetingCreator) {
+          setStatus(
+            "Meeting creators must use End Meeting."
+          );
+        }
         return;
       }
       setBusy(true);
@@ -33223,6 +33250,7 @@
       }
     }
     async function endMeeting() {
+      console.trace("CodeView: End Meeting called");
       if (!isConnected() || busy || !canEndMeeting) {
         return;
       }
@@ -33260,7 +33288,7 @@
     function closeMeetingPanel() {
       if (isConnected()) {
         setStatus(
-          "Leave the meeting before closing this panel."
+          isMeetingCreator ? "End the meeting before closing this panel." : "Leave the meeting before closing this panel."
         );
         return;
       }

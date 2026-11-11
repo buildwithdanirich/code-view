@@ -4,23 +4,35 @@ HTTP endpoints for CodeView private group meetings.
 The views handle browser requests.
 The meeting service handles permissions and LiveKit operations.
 
-All meeting actions require:
+Meeting actions require:
 - An authenticated developer.
 - An HTTP POST request.
 - Django CSRF protection.
+
+Meeting status checks require:
+- An authenticated developer.
+- An HTTP GET request.
+- Accepted membership in the private group.
 """
 
 import logging
 
 from asgiref.sync import async_to_sync
+
 from django.contrib.auth.decorators import login_required
+
 from django.core.exceptions import (
     ObjectDoesNotExist,
     PermissionDenied,
     ValidationError,
 )
+
 from django.http import JsonResponse
-from django.views.decorators.http import require_POST
+
+from django.views.decorators.http import (
+    require_GET,
+    require_POST,
+)
 
 from .meeting_service import (
     start_group_meeting,
@@ -28,8 +40,20 @@ from .meeting_service import (
     end_group_meeting,
 )
 
+from .models import (
+    GroupMeeting,
+    ProjectGroup,
+)
+
+from .permissions import is_group_member
+
+
 logger = logging.getLogger(__name__)
 
+
+# ============================================================
+# 1. MEETING ERROR HANDLING
+# ============================================================
 
 def _meeting_error_response(error):
     """
@@ -81,6 +105,10 @@ def _meeting_error_response(error):
     )
 
 
+# ============================================================
+# 2. START MEETING
+# ============================================================
+
 @login_required
 @require_POST
 def start_meeting_view(request, group_id):
@@ -116,6 +144,10 @@ def start_meeting_view(request, group_id):
     )
 
 
+# ============================================================
+# 3. JOIN MEETING
+# ============================================================
+
 @login_required
 @require_POST
 def join_meeting_view(request, group_id):
@@ -130,17 +162,16 @@ def join_meeting_view(request, group_id):
     """
 
     try:
-        # Ask the meeting service to verify membership
-        # and generate the developer's LiveKit credentials.
         credentials = async_to_sync(join_group_meeting)(
             group_id,
             request.user,
         )
 
     except ValidationError as error:
-        # A missing active meeting is an expected situation.
-        # Tell the frontend it may attempt to start one.
-        if error.messages == ["This group has no active meeting."]:
+
+        if error.messages == [
+            "This group has no active meeting."
+        ]:
             return JsonResponse(
                 {
                     "success": False,
@@ -150,14 +181,11 @@ def join_meeting_view(request, group_id):
                 status=404,
             )
 
-        # Preserve HTTP 400 for other validation failures.
         return _meeting_error_response(error)
 
     except Exception as error:
-        # Preserve existing permission and server error handling.
         return _meeting_error_response(error)
 
-    # Return the LiveKit credentials and meeting permissions.
     return JsonResponse(
         {
             "success": True,
@@ -166,6 +194,11 @@ def join_meeting_view(request, group_id):
         },
         status=200,
     )
+
+
+# ============================================================
+# 4. END MEETING
+# ============================================================
 
 @login_required
 @require_POST
@@ -192,3 +225,93 @@ def end_meeting_view(request, group_id):
         },
         status=200,
     )
+
+
+# ============================================================
+# 5. CHECK MEETING STATUS
+# ============================================================
+
+@login_required
+@require_GET
+def meeting_status_view(request, group_id):
+    """
+    Check whether a private group has an active meeting.
+
+    This endpoint is used by the repository-lock JavaScript.
+
+    Security:
+    - Only authenticated developers can access it.
+    - Only accepted group members can check the status.
+    - The response does not expose LiveKit credentials.
+    """
+
+    # --------------------------------------------------------
+    # 1. Find the requested group.
+    # --------------------------------------------------------
+
+    try:
+        group = ProjectGroup.objects.get(
+            pk=group_id,
+        )
+
+    except ProjectGroup.DoesNotExist:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "Group not found.",
+            },
+            status=404,
+        )
+
+    # --------------------------------------------------------
+    # 2. Ensure this is a private development group.
+    # --------------------------------------------------------
+
+    if not group.is_private:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "Meeting status is only available for private groups.",
+            },
+            status=403,
+        )
+
+    # --------------------------------------------------------
+    # 3. Verify group membership.
+    # --------------------------------------------------------
+
+    if not is_group_member(group, request.user):
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "You must belong to this group.",
+            },
+            status=403,
+        )
+
+    # --------------------------------------------------------
+    # 4. Check PostgreSQL for an active meeting.
+    # --------------------------------------------------------
+
+    meeting_active = GroupMeeting.objects.filter(
+        group=group,
+        status="active",
+    ).exists()
+
+    # --------------------------------------------------------
+    # 5. Return the current meeting status.
+    # --------------------------------------------------------
+
+    response = JsonResponse(
+        {
+            "success": True,
+            "meeting_active": meeting_active,
+            "repository_locked": meeting_active,
+        },
+        status=200,
+    )
+
+    # Prevent browsers or proxies from caching stale lock status.
+    response["Cache-Control"] = "no-store"
+
+    return response

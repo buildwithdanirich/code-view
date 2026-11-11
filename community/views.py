@@ -75,6 +75,7 @@ from .forms import (
 )
 from .models import (
     ProjectGroup,
+    GroupMeeting,  # Tracks active and ended LiveKit meetings.
     GroupMember,
     GroupInvitation,  # Stores private group invitations.
     GroupDiscussion,
@@ -854,6 +855,16 @@ def meeting_room(request, group_id):
         request.user,
     )
 
+        # ========================================================
+    # REPOSITORY CONNECTION LOCK DURING ACTIVE MEETINGS
+    # ========================================================
+
+    # Check whether this private group has an active meeting.
+    repository_locked = GroupMeeting.objects.filter(
+        group=group,
+        status="active",
+    ).exists()
+
     # ========================================================
     # 3. LOAD REPOSITORY CONNECTION REQUESTS
     # ========================================================
@@ -957,7 +968,8 @@ def meeting_room(request, group_id):
             "my_repository_request": my_repository_request,
             "can_request_repository": can_request_repository,
             "can_connect_repository": can_connect_repository,
-
+            # Tell the interface whether repository changes are locked.
+            "repository_locked": repository_locked,
             # Existing group chat.
             "chat_messages": recent_messages,
         },
@@ -1886,6 +1898,22 @@ def connect_group_repository(request, group_id):
             .select_for_update()
             .get(id=group.id)
         )
+
+        # ====================================================
+        # BLOCK REPOSITORY CHANGES DURING ACTIVE MEETINGS
+        # ====================================================
+
+        # Check whether this group has an active meeting.
+        # The group row is already locked by select_for_update().
+        if GroupMeeting.objects.filter(
+            group=locked_group,
+            status="active",
+        ).exists():
+            return HttpResponseForbidden(
+                "Repository connections are locked while "
+                "a group meeting is active. "
+                "Please wait until the meeting ends."
+            )
 
         # Recheck permission after acquiring the lock.
         if not has_repository_connection_permission(
