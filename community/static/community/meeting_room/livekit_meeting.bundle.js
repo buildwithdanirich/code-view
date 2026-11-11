@@ -32556,7 +32556,7 @@
     );
     if (!videoButton || !voiceButton || !panel || !title || !status || !participants || !microphoneButton || !cameraButton || !screenShareButton || !leaveButton || !endButton || !closeButton) {
       console.error(
-        "CodeView: LiveKit interface elements are missing."
+        "CodeView: Required LiveKit HTML elements are missing."
       );
       return;
     }
@@ -32571,18 +32571,37 @@
     let busy = false;
     let meetingMode = null;
     let canEndMeeting = false;
+    let canShareScreen = false;
     const attachedMedia = /* @__PURE__ */ new Map();
     const participantTiles = /* @__PURE__ */ new Map();
+    const meetingLayout = document.createElement("div");
+    meetingLayout.className = "livekit-meeting-layout";
+    const presentation = document.createElement("section");
+    presentation.className = "livekit-presentation";
+    presentation.hidden = true;
+    const presentationHeader = document.createElement("div");
+    presentationHeader.className = "livekit-presentation-header";
+    const presentationTitle = document.createElement("strong");
+    presentationTitle.textContent = "Screen Sharing";
+    const presentationMedia = document.createElement("div");
+    presentationMedia.className = "livekit-presentation-media";
+    presentationHeader.appendChild(presentationTitle);
+    presentation.appendChild(presentationHeader);
+    presentation.appendChild(presentationMedia);
+    participants.parentNode.insertBefore(
+      meetingLayout,
+      participants
+    );
+    meetingLayout.appendChild(presentation);
+    meetingLayout.appendChild(participants);
     function getCsrfToken() {
-      const csrfInput = document.querySelector(
+      const input = document.querySelector(
         'input[name="csrfmiddlewaretoken"]'
       );
-      if (csrfInput && csrfInput.value) {
-        return csrfInput.value;
+      if (input && input.value) {
+        return input.value;
       }
-      const cookie = document.cookie.split(";").map((item) => item.trim()).find((item) => {
-        return item.startsWith("csrftoken=");
-      });
+      const cookie = document.cookie.split(";").map((value) => value.trim()).find((value) => value.startsWith("csrftoken="));
       if (!cookie) {
         return "";
       }
@@ -32623,31 +32642,36 @@
       status.textContent = message;
     }
     function isConnected() {
-      return room !== null && room.state === "connected";
+      return Boolean(room && room.state === "connected");
     }
     function resetMeetingPermissions() {
       canEndMeeting = false;
+      canShareScreen = false;
       meetingMode = null;
+    }
+    function setBusy(value) {
+      busy = value;
+      updateControls();
     }
     function updateControls() {
       const connected = isConnected();
-      const localParticipant = connected ? room.localParticipant : null;
+      const local = connected ? room.localParticipant : null;
       const microphoneEnabled = Boolean(
-        localParticipant && localParticipant.isMicrophoneEnabled
+        local && local.isMicrophoneEnabled
       );
       const cameraEnabled = Boolean(
-        localParticipant && localParticipant.isCameraEnabled
+        local && local.isCameraEnabled
       );
       const screenSharing = Boolean(
-        localParticipant && localParticipant.isScreenShareEnabled
+        local && local.isScreenShareEnabled
       );
-      microphoneButton.disabled = !connected || busy;
-      cameraButton.disabled = !connected || busy;
-      screenShareButton.disabled = !connected || busy;
-      leaveButton.disabled = !connected || busy;
-      endButton.disabled = !connected || busy || !canEndMeeting;
       videoButton.disabled = busy || connected;
       voiceButton.disabled = busy || connected;
+      microphoneButton.disabled = !connected || busy;
+      cameraButton.disabled = !connected || busy;
+      screenShareButton.disabled = !connected || busy || !canShareScreen;
+      leaveButton.disabled = !connected || busy;
+      endButton.disabled = !connected || busy || !canEndMeeting;
       microphoneButton.textContent = microphoneEnabled ? "\u{1F399} Mute Microphone" : "\u{1F399} Enable Microphone";
       cameraButton.textContent = cameraEnabled ? "\u{1F4F9} Turn Camera Off" : "\u{1F4F9} Turn Camera On";
       screenShareButton.textContent = screenSharing ? "\u{1F6D1} Stop Sharing" : "\u{1F5A5} Share Screen";
@@ -32655,35 +32679,11 @@
         "aria-pressed",
         String(screenSharing)
       );
-    }
-    function setBusy(value) {
-      busy = value;
-      updateControls();
-    }
-    function detachTrack2(track) {
-      const elements = attachedMedia.get(track);
-      if (!elements) {
-        return;
+      if (!canShareScreen) {
+        screenShareButton.title = "Only the meeting creator can share their screen.";
+      } else {
+        screenShareButton.title = "";
       }
-      for (const element of elements) {
-        try {
-          track.detach(element);
-        } catch (error) {
-          console.warn(
-            "CodeView: Unable to detach media.",
-            error
-          );
-        }
-        element.remove();
-      }
-      attachedMedia.delete(track);
-    }
-    function cleanupMedia() {
-      for (const track of [...attachedMedia.keys()]) {
-        detachTrack2(track);
-      }
-      participantTiles.clear();
-      participants.replaceChildren();
     }
     function getParticipantTile(participant) {
       const identity = participant.identity;
@@ -32694,6 +32694,7 @@
       tile.className = "livekit-participant";
       tile.dataset.identity = identity;
       const name = document.createElement("strong");
+      name.className = "livekit-participant-name";
       const isLocal = room && participant === room.localParticipant;
       name.textContent = isLocal ? "You" : participant.name || participant.identity || "Developer";
       const mediaContainer = document.createElement("div");
@@ -32715,11 +32716,12 @@
       if (attachedMedia.has(track)) {
         return;
       }
-      const tileData = getParticipantTile(participant);
       const isLocal = participant === room.localParticipant;
-      if (track.kind === Track.Kind.Audio && isLocal) {
+      if (isLocal && track.kind === Track.Kind.Audio) {
         return;
       }
+      const isScreenShare = publication.source === Track.Source.ScreenShare;
+      const tileData = getParticipantTile(participant);
       const element = track.attach();
       element.autoplay = true;
       if (track.kind === Track.Kind.Video) {
@@ -32727,24 +32729,66 @@
         if (isLocal) {
           element.muted = true;
         }
-        if (publication.source === Track.Source.ScreenShare) {
-          element.classList.add(
-            "livekit-screen-share-video"
-          );
-          tileData.tile.classList.add(
-            "livekit-has-screen-share"
-          );
-        } else {
+      }
+      if (isScreenShare && track.kind === Track.Kind.Video) {
+        element.classList.add(
+          "livekit-screen-share-video"
+        );
+        presentationMedia.appendChild(element);
+        const name = isLocal ? "You" : participant.name || participant.identity || "Developer";
+        presentationTitle.textContent = `${name} is sharing a screen`;
+      } else {
+        if (track.kind === Track.Kind.Video) {
           element.classList.add(
             "livekit-camera-video"
           );
         }
+        tileData.mediaContainer.appendChild(element);
       }
-      tileData.mediaContainer.appendChild(element);
-      attachedMedia.set(track, /* @__PURE__ */ new Set([element]));
+      attachedMedia.set(track, {
+        element,
+        participantIdentity: participant.identity,
+        isScreenShare
+      });
+      updatePresentation();
+    }
+    function detachTrack2(track) {
+      const entry = attachedMedia.get(track);
+      if (!entry) {
+        return;
+      }
+      try {
+        track.detach(entry.element);
+      } catch (error) {
+        console.warn(
+          "CodeView: Unable to detach media.",
+          error
+        );
+      }
+      entry.element.remove();
+      attachedMedia.delete(track);
+      updatePresentation();
+    }
+    function updatePresentation() {
+      const screenVideos = presentationMedia.querySelectorAll(
+        ".livekit-screen-share-video"
+      );
+      const hasScreenShare = screenVideos.length > 0;
+      presentation.hidden = !hasScreenShare;
+      meetingLayout.classList.toggle(
+        "livekit-is-presenting",
+        hasScreenShare
+      );
+      participants.classList.toggle(
+        "livekit-participants-sidebar",
+        hasScreenShare
+      );
+      if (!hasScreenShare) {
+        presentationTitle.textContent = "Screen Sharing";
+      }
     }
     function syncParticipant(participant) {
-      if (!room) {
+      if (!room || !participant) {
         return;
       }
       const tileData = getParticipantTile(participant);
@@ -32761,49 +32805,29 @@
           publication
         );
       }
-      for (const publication of participant.trackPublications.values()) {
-        const track = publication.track;
-        if (track && publication.isMuted && attachedMedia.has(track)) {
+      for (const [track, entry] of attachedMedia) {
+        if (entry.participantIdentity === participant.identity && !activeTracks.has(track)) {
           detachTrack2(track);
         }
       }
-      const hasVideo = [...tileData.mediaContainer.children].some((element) => {
-        return element.tagName === "VIDEO";
-      });
+      const hasCamera = Boolean(
+        tileData.mediaContainer.querySelector(
+          ".livekit-camera-video"
+        )
+      );
       let placeholder = tileData.mediaContainer.querySelector(
         ".livekit-camera-placeholder"
       );
-      if (!hasVideo && !placeholder) {
+      if (!hasCamera && !placeholder) {
         placeholder = document.createElement("p");
         placeholder.className = "livekit-camera-placeholder";
         placeholder.textContent = "Camera off";
         tileData.mediaContainer.appendChild(placeholder);
-      } else if (hasVideo && placeholder) {
+      }
+      if (hasCamera && placeholder) {
         placeholder.remove();
       }
-      const hasScreenShare = Boolean(
-        tileData.mediaContainer.querySelector(
-          ".livekit-screen-share-video"
-        )
-      );
-      tileData.tile.classList.toggle(
-        "livekit-has-screen-share",
-        hasScreenShare
-      );
-    }
-    function removeParticipant(participant) {
-      const identity = participant.identity;
-      const tileData = participantTiles.get(identity);
-      if (!tileData) {
-        return;
-      }
-      for (const publication of participant.trackPublications.values()) {
-        if (publication.track) {
-          detachTrack2(publication.track);
-        }
-      }
-      tileData.tile.remove();
-      participantTiles.delete(identity);
+      updatePresentation();
     }
     function syncAllParticipants() {
       if (!room) {
@@ -32813,6 +32837,29 @@
       for (const participant of room.remoteParticipants.values()) {
         syncParticipant(participant);
       }
+    }
+    function removeParticipant(participant) {
+      const identity = participant.identity;
+      for (const [track, entry] of attachedMedia) {
+        if (entry.participantIdentity === identity) {
+          detachTrack2(track);
+        }
+      }
+      const tileData = participantTiles.get(identity);
+      if (tileData) {
+        tileData.tile.remove();
+        participantTiles.delete(identity);
+      }
+      updatePresentation();
+    }
+    function cleanupMedia() {
+      for (const track of [...attachedMedia.keys()]) {
+        detachTrack2(track);
+      }
+      participantTiles.clear();
+      participants.replaceChildren();
+      presentationMedia.replaceChildren();
+      updatePresentation();
     }
     function registerRoomEvents(activeRoom) {
       const refresh = (participant) => {
@@ -32910,7 +32957,13 @@
       );
       activeRoom.on(
         RoomEvent.LocalTrackUnpublished,
-        () => {
+        (publication) => {
+          if (room !== activeRoom) {
+            return;
+          }
+          if (publication.track) {
+            detachTrack2(publication.track);
+          }
           refresh(activeRoom.localParticipant);
         }
       );
@@ -32923,17 +32976,13 @@
           cleanupMedia();
           room = null;
           resetMeetingPermissions();
-          setStatus(
-            "Disconnected from meeting."
-          );
+          setStatus("Disconnected from meeting.");
           updateControls();
         }
       );
     }
     async function connectToLiveKit(credentials, mode) {
-      const serverUrl = credentials.url;
-      const accessToken = credentials.token;
-      if (!serverUrl || !accessToken) {
+      if (!credentials.url || !credentials.token) {
         throw new Error(
           "Django did not return valid LiveKit credentials."
         );
@@ -32948,10 +32997,11 @@
       try {
         setStatus("Connecting to LiveKit...");
         await newRoom.connect(
-          serverUrl,
-          accessToken
+          credentials.url,
+          credentials.token
         );
         canEndMeeting = credentials.can_end_meeting === true;
+        canShareScreen = credentials.can_share_screen === true;
         let deviceError = false;
         try {
           await newRoom.localParticipant.setMicrophoneEnabled(true);
@@ -32975,13 +33025,9 @@
         }
         title.textContent = mode === "video" ? "Video Meeting" : "Voice Meeting";
         syncAllParticipants();
-        if (deviceError) {
-          setStatus(
-            "Connected. Some devices are unavailable."
-          );
-        } else {
-          setStatus("Connected to meeting.");
-        }
+        setStatus(
+          deviceError ? "Connected. Some devices are unavailable." : "Connected to meeting."
+        );
         updateControls();
       } catch (error) {
         try {
@@ -33008,10 +33054,8 @@
       panel.hidden = false;
       setBusy(true);
       try {
-        setStatus(
-          "Checking for an active meeting..."
-        );
-        let credentials = null;
+        setStatus("Checking for an active meeting...");
+        let credentials;
         try {
           const response = await postMeetingRequest(
             joinUrl
@@ -33104,7 +33148,7 @@
       }
     }
     async function toggleScreenSharing() {
-      if (!isConnected() || busy) {
+      if (!isConnected() || busy || !canShareScreen) {
         return;
       }
       setBusy(true);
@@ -33240,9 +33284,10 @@
       "click",
       closeMeetingPanel
     );
+    updatePresentation();
     updateControls();
     console.log(
-      "CodeView LiveKit voice, video and screen sharing initialized."
+      "CodeView LiveKit meeting controller initialized."
     );
   });
 })();

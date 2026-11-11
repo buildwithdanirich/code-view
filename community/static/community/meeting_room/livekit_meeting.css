@@ -1,146 +1,508 @@
-/* CodeView LiveKit meeting panel.
-   Scoped styles avoid changing GitHub explorer and group chat. */
+/*
+ * CodeView — Full-Screen LiveKit Meeting
+ *
+ * Normal meeting: responsive camera grid.
+ * Screen sharing: large presentation with participant sidebar.
+ * Mobile: shared screen above horizontally scrolling cameras.
+ *
+ * Scoped to #livekit-meeting-panel to protect the rest of CodeView.
+ */
 
-.cv-livekit-panel {
-    box-sizing: border-box;
-    margin: 0 0 1.5rem;
-    padding: 1.25rem;
-    border: 1px solid #334155;
-    border-radius: 14px;
-    background: #0f172a;
+
+/* ==========================================================
+   1. FULL-SCREEN MEETING OVERLAY
+   ========================================================== */
+
+#livekit-meeting-panel {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+
+    display: flex;
+    flex-direction: column;
+
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    max-width: none;
+    max-height: none;
+
+    margin: 0;
+    padding: 18px 24px;
+
+    overflow: hidden;
+
+    border: none;
+    border-radius: 0;
+    background: #101114;
     color: #f8fafc;
+
+    box-sizing: border-box;
 }
 
-/* The HTML hidden attribute must always take precedence. */
-.cv-livekit-panel[hidden],
-.cv-livekit-panel [hidden] {
+/* The meeting must disappear when JavaScript hides it. */
+#livekit-meeting-panel[hidden],
+#livekit-meeting-panel [hidden] {
     display: none !important;
 }
 
-.cv-livekit-panel *,
-.cv-livekit-panel *::before,
-.cv-livekit-panel *::after {
+#livekit-meeting-panel *,
+#livekit-meeting-panel *::before,
+#livekit-meeting-panel *::after {
     box-sizing: border-box;
 }
 
-.cv-livekit-panel-header {
+
+/* ==========================================================
+   2. MEETING HEADER
+   ========================================================== */
+
+#livekit-meeting-panel .livekit-meeting-header,
+#livekit-meeting-panel .cv-livekit-panel-header {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
-    gap: 1rem;
-    margin-bottom: 1rem;
+    flex: 0 0 auto;
+
+    gap: 16px;
+    min-height: 58px;
+    margin-bottom: 14px;
 }
 
-.cv-livekit-panel-header h2 {
-    margin: 0 0 0.35rem;
+#livekit-meeting-panel #livekit-meeting-title {
+    margin: 0 0 5px;
     color: #f8fafc;
-    font-size: 1.25rem;
+    font-size: 20px;
+    font-weight: 700;
 }
 
-#livekit-meeting-status {
+#livekit-meeting-panel #livekit-meeting-status {
     margin: 0;
-    color: #cbd5e1;
-    font-size: 0.9rem;
+    color: #94a3b8;
+    font-size: 13px;
     overflow-wrap: anywhere;
 }
 
-.cv-livekit-participants {
+
+/* ==========================================================
+   3. MEETING CONTENT LAYOUT
+   ========================================================== */
+
+#livekit-meeting-panel .livekit-meeting-layout {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
-    gap: 0.85rem;
-    min-height: 150px;
-    margin-bottom: 1rem;
+    grid-template-columns: minmax(0, 1fr);
+
+    flex: 1 1 auto;
+
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+
+    gap: 14px;
+    margin: 0;
+    padding: 0;
+
+    overflow: hidden;
 }
 
-/* JavaScript can add a participant tile with this class. */
-.cv-livekit-participant {
-    position: relative;
+/*
+ * Screen-sharing layout:
+ *
+ * ┌────────────────────────────────────┬──────────────┐
+ * │                                    │ Participant  │
+ * │                                    ├──────────────┤
+ * │           SHARED SCREEN            │ Participant  │
+ * │                                    ├──────────────┤
+ * │                                    │ Participant  │
+ * └────────────────────────────────────┴──────────────┘
+ */
+
+#livekit-meeting-panel .livekit-meeting-layout.livekit-is-presenting {
+    grid-template-columns: minmax(0, 4fr) minmax(180px, 1fr);
+    align-items: stretch;
+}
+
+
+/* ==========================================================
+   4. MAIN SCREEN PRESENTATION
+   ========================================================== */
+
+#livekit-meeting-panel .livekit-presentation {
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    min-height: 180px;
+
+    min-width: 0;
+    min-height: 0;
+
     overflow: hidden;
-    border: 1px solid #475569;
-    border-radius: 12px;
-    background: #1e293b;
+
+    border: 1px solid #30343b;
+    border-radius: 14px;
+    background: #050608;
 }
 
-.cv-livekit-participant video {
-    display: block;
+#livekit-meeting-panel .livekit-presentation-header {
+    display: flex;
+    align-items: center;
+
+    flex: 0 0 auto;
+
+    min-height: 40px;
+    padding: 10px 14px;
+
+    background: #1c1f26;
+    color: #e2e8f0;
+
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#livekit-meeting-panel .livekit-presentation-media {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    flex: 1 1 auto;
+
     width: 100%;
-    max-height: 320px;
-    min-height: 180px;
-    aspect-ratio: 16 / 9;
-    object-fit: cover;
-    background: #020617;
+    min-width: 0;
+    min-height: 0;
+
+    overflow: hidden;
+    background: #050608;
 }
 
-.cv-livekit-participant audio {
+/*
+ * Important for code sharing:
+ *
+ * object-fit: contain displays the entire screen.
+ * It does not crop the edges of VS Code or terminal windows.
+ */
+
+#livekit-meeting-panel .livekit-screen-share-video {
+    display: block;
+
+    width: 100%;
+    height: 100%;
+
+    max-width: 100%;
+    max-height: 100%;
+
+    object-fit: contain;
+    background: #050608;
+}
+
+
+/* ==========================================================
+   5. NORMAL PARTICIPANT GRID
+   ========================================================== */
+
+#livekit-meeting-panel #livekit-participants {
+    display: grid;
+
+    grid-template-columns: repeat(
+        auto-fit,
+        minmax(min(100%, 300px), 1fr)
+    );
+
+    grid-auto-rows: minmax(0, 1fr);
+
+    gap: 14px;
+
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+
+    align-content: stretch;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+
+/* ==========================================================
+   6. PARTICIPANT CAMERA TILES
+   ========================================================== */
+
+#livekit-meeting-panel .livekit-participant,
+#livekit-meeting-panel .cv-livekit-participant {
+    position: relative;
+
+    display: flex;
+    flex-direction: column;
+
+    min-width: 0;
+    min-height: 0;
+
+    overflow: hidden;
+
+    border: 1px solid #30343b;
+    border-radius: 14px;
+    background: #202124;
+}
+
+#livekit-meeting-panel .livekit-participant-name,
+#livekit-meeting-panel .cv-livekit-participant-name {
+    display: block;
+    flex: 0 0 auto;
+
+    padding: 10px 14px;
+
+    color: #f8fafc;
+    font-size: 13px;
+    font-weight: 600;
+
+    overflow-wrap: anywhere;
+}
+
+#livekit-meeting-panel .livekit-participant-media {
+    position: relative;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    flex: 1 1 auto;
+
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+
+    overflow: hidden;
+    background: #151619;
+}
+
+#livekit-meeting-panel .livekit-camera-video {
+    display: block;
+
+    width: 100%;
+    height: 100%;
+
+    min-width: 0;
+    min-height: 0;
+
+    object-fit: cover;
+    background: #151619;
+}
+
+/* Audio should play without occupying visible space. */
+#livekit-meeting-panel .livekit-participant audio {
     display: none;
 }
 
-.cv-livekit-participant-name {
-    padding: 0.6rem 0.8rem;
-    color: #f8fafc;
-    font-size: 0.9rem;
-    font-weight: 600;
-    overflow-wrap: anywhere;
-}
 
-.cv-livekit-controls {
+/* ==========================================================
+   7. CAMERA-OFF PLACEHOLDER
+   ========================================================== */
+
+#livekit-meeting-panel .livekit-camera-placeholder {
     display: flex;
+    align-items: center;
+    justify-content: center;
+
+    flex: 1 1 auto;
+
+    width: 100%;
+    min-height: 100px;
+
+    margin: 0;
+    padding: 16px;
+
+    color: #a1a1aa;
+    font-size: 14px;
+    text-align: center;
+}
+
+
+/* ==========================================================
+   8. PARTICIPANT SIDEBAR DURING SCREEN SHARING
+   ========================================================== */
+
+#livekit-meeting-panel .livekit-participants-sidebar {
+    display: flex !important;
+    flex-direction: column;
+
+    gap: 12px;
+
+    min-width: 0;
+    min-height: 0;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    padding-right: 4px;
+}
+
+#livekit-meeting-panel .livekit-participants-sidebar .livekit-participant {
+    flex: 0 0 auto;
+
+    width: 100%;
+    min-height: 150px;
+
+    aspect-ratio: 16 / 10;
+}
+
+#livekit-meeting-panel .livekit-participants-sidebar .livekit-participant-media {
+    min-height: 90px;
+}
+
+#livekit-meeting-panel .livekit-participants-sidebar .livekit-camera-video {
+    min-height: 90px;
+}
+
+
+/* ==========================================================
+   9. BOTTOM MEETING CONTROLS
+   ========================================================== */
+
+#livekit-meeting-panel .livekit-meeting-controls,
+#livekit-meeting-panel .cv-livekit-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     flex-wrap: wrap;
-    gap: 0.65rem;
+
+    flex: 0 0 auto;
+
+    gap: 10px;
+
+    width: 100%;
+    min-height: 70px;
+
+    margin-top: 14px;
+    padding: 10px 12px;
+
+    background: #1c1f26;
+    border: 1px solid #30343b;
+    border-radius: 14px;
 }
 
-.cv-livekit-panel button {
-    padding: 0.65rem 0.9rem;
-    border: 1px solid #64748b;
-    border-radius: 8px;
-    background: #334155;
-    color: #fff;
+#livekit-meeting-panel button {
+    padding: 11px 16px;
+
+    border: 1px solid #454950;
+    border-radius: 10px;
+
+    background: #30343b;
+    color: #ffffff;
+
     font: inherit;
+    font-size: 13px;
     font-weight: 600;
+
     cursor: pointer;
+    transition: background 0.15s ease;
 }
 
-.cv-livekit-panel button:hover:not(:disabled) {
-    background: #475569;
+#livekit-meeting-panel button:hover:not(:disabled) {
+    background: #454950;
 }
 
-.cv-livekit-panel button:focus-visible {
+#livekit-meeting-panel button:focus-visible {
     outline: 3px solid #38bdf8;
     outline-offset: 3px;
 }
 
-.cv-livekit-panel button:disabled {
-    opacity: 0.55;
+#livekit-meeting-panel button:disabled {
+    opacity: 0.45;
     cursor: not-allowed;
 }
 
-#livekit-leave-meeting {
+#livekit-meeting-panel #livekit-toggle-screen-share[aria-pressed="true"] {
+    background: #075985;
+    border-color: #38bdf8;
+}
+
+#livekit-meeting-panel #livekit-leave-meeting {
+    background: #78350f;
     border-color: #f59e0b;
 }
 
-#livekit-end-meeting {
-    border-color: #ef4444;
+#livekit-meeting-panel #livekit-end-meeting {
     background: #991b1b;
+    border-color: #ef4444;
 }
 
-#livekit-end-meeting:hover:not(:disabled) {
+#livekit-meeting-panel #livekit-end-meeting:hover:not(:disabled) {
     background: #b91c1c;
 }
 
+
+/* ==========================================================
+   10. TABLET RESPONSIVENESS
+   ========================================================== */
+
+@media (max-width: 900px) {
+
+    #livekit-meeting-panel {
+        padding: 12px;
+    }
+
+    #livekit-meeting-panel .livekit-meeting-layout.livekit-is-presenting {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr) auto;
+    }
+
+    #livekit-meeting-panel .livekit-participants-sidebar {
+        flex-direction: row;
+        max-height: 180px;
+
+        overflow-x: auto;
+        overflow-y: hidden;
+
+        padding: 0 0 6px;
+    }
+
+    #livekit-meeting-panel .livekit-participants-sidebar .livekit-participant {
+        flex: 0 0 190px;
+        width: 190px;
+        min-height: 0;
+    }
+
+}
+
+
+/* ==========================================================
+   11. MOBILE RESPONSIVENESS
+   ========================================================== */
+
 @media (max-width: 600px) {
-    .cv-livekit-panel {
-        padding: 0.9rem;
+
+    #livekit-meeting-panel {
+        padding: 10px;
     }
 
-    .cv-livekit-panel-header {
-        flex-direction: column;
+    #livekit-meeting-panel .livekit-meeting-header,
+    #livekit-meeting-panel .cv-livekit-panel-header {
+        gap: 10px;
+        margin-bottom: 10px;
     }
 
-    .cv-livekit-controls button {
-        flex: 1 1 100%;
+    #livekit-meeting-panel #livekit-meeting-title {
+        font-size: 16px;
     }
+
+    #livekit-meeting-panel #livekit-participants {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    #livekit-meeting-panel .livekit-participants-sidebar .livekit-participant {
+        flex: 0 0 150px;
+        width: 150px;
+    }
+
+    #livekit-meeting-panel .livekit-meeting-controls,
+    #livekit-meeting-panel .cv-livekit-controls {
+        justify-content: center;
+        gap: 7px;
+
+        max-height: 160px;
+        overflow-y: auto;
+    }
+
+    #livekit-meeting-panel button {
+        padding: 9px 11px;
+        font-size: 12px;
+    }
+
 }
