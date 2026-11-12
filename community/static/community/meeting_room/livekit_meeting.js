@@ -293,10 +293,19 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function resetMeetingPermissions() {
+        // Remove permissions from the previous connection.
         canEndMeeting = false;
         canShareScreen = false;
         isMeetingCreator = false;
+
+        // Clear the previous meeting identity.
+        currentMeetingId = null;
+
+        // Reset the meeting mode.
         meetingMode = null;
+
+        // Allow future screen-sharing release operations.
+        screenShareReleaseInProgress = false;
     }
 
     function setBusy(value) {
@@ -334,11 +343,16 @@ document.addEventListener("DOMContentLoaded", () => {
         microphoneButton.disabled = !connected || busy;
         cameraButton.disabled = !connected || busy;
 
-        // Only the creator can share their screen.
+              // Allow a developer to stop sharing even if
+        // their screen-sharing permission has changed.
+        //
+        // A developer cannot START sharing without approval.
+        // However, someone already sharing can always STOP.
+
         screenShareButton.disabled = (
             !connected ||
             busy ||
-            !canShareScreen
+            (!canShareScreen && !screenSharing)
         );
 
         // The creator must end the meeting instead of leaving.
