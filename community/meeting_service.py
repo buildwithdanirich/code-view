@@ -16,7 +16,9 @@ from django.urls import reverse
 from django.utils import timezone
 from livekit import api
 
-from .models import GroupMeeting, GroupMember, ProjectGroup
+from .models import (
+    GroupMeeting, GroupMember, ProjectGroup, MeetingScreenShareRequest,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -223,13 +225,22 @@ def _mark_ended(meeting_id):
 
         if meeting.status == "active":
 
+            # Close outstanding requests before the meeting becomes historical.
+            MeetingScreenShareRequest.objects.filter(
+                meeting=meeting, status="pending",
+            ).update(status="cancelled")
+
             meeting.status = "ended"
             meeting.ended_at = timezone.now()
+            meeting.active_screen_sharer = None
+            meeting.screen_share_state = "idle"
 
             meeting.save(
                 update_fields=[
                     "status",
                     "ended_at",
+                    "active_screen_sharer",
+                    "screen_share_state",
                 ]
             )
 
@@ -390,8 +401,16 @@ async def join_group_meeting(group_id, user):
     # Screen-sharing permission
     # --------------------------------------------------------
 
-    # Only the person who started this meeting can share.
-    can_share_screen = is_meeting_creator
+    # Fail closed during any permission transition. A joining creator
+    # must not receive a fresh screen-sharing grant while another
+    # participant is being granted or already holds the slot.
+    # NOTE: Existing LiveKit tokens and active participant permissions
+    # must also be revoked by the approval service before approval.
+    can_share_screen = (
+        is_meeting_creator
+        and meeting.screen_share_state == "idle"
+        and meeting.active_screen_sharer_id is None
+    )
 
     if can_share_screen:
 
@@ -473,6 +492,8 @@ async def join_group_meeting(group_id, user):
         "is_meeting_creator": is_meeting_creator,
         # NEW: Used by the frontend to control screen sharing.
         "can_share_screen": can_share_screen,
+        "screen_share_state": meeting.screen_share_state,
+        "active_screen_sharer_id": meeting.active_screen_sharer_id,
     }
 
 
@@ -531,3 +552,185 @@ def get_active_group_meeting(group_id, user):
         group_id,
         user.pk,
     )
+
+# ============================================================
+# 13. SCREEN-SHARING REQUESTS (SAFE FIRST PHASE)
+# ============================================================
+# These operations record and review requests. They deliberately do not
+# grant LiveKit screen publication rights. That requires coordinated
+# creator revocation, participant updates, and recovery logic first.
+
+def _request_screen_share(group_id, user_id):
+    """Create one pending request for a current meeting member."""
+    with transaction.atomic():
+        meeting = _active_meeting_for_member(group_id, user_id)
+        meeting = GroupMeeting.objects.select_for_update().get(pk=meeting.pk)
+        if meeting.status != "active":
+            raise ValidationError("This meeting has ended.")
+        if meeting.started_by_id == user_id:
+            raise ValidationError("The meeting creator does not need to request access.")
+        if meeting.active_screen_sharer_id == user_id:
+            raise ValidationError("You already have the screen-sharing slot.")
+        existing = MeetingScreenShareRequest.objects.filter(
+            meeting=meeting, requested_by_id=user_id, status="pending",
+        ).first()
+        if existing is not None:
+            return existing, False
+        request = MeetingScreenShareRequest.objects.create(
+            meeting=meeting, requested_by_id=user_id, status="pending",
+        )
+        return request, True
+
+
+async def request_screen_share(group_id, user):
+    """Record a member request; no LiveKit permission is granted yet."""
+    request, created = await sync_to_async(
+        _request_screen_share, thread_sensitive=True,
+    )(group_id, user.pk)
+    if created:
+        await _broadcast_screen_request_event(request, "screen_share_requested")
+    return request
+
+
+def _review_screen_share_request(group_id, user_id, request_id, approve=False):
+    """Reject a request, or fail closed until secure approval is installed."""
+    with transaction.atomic():
+        meeting = _active_meeting_for_member(group_id, user_id)
+        meeting = GroupMeeting.objects.select_for_update().get(pk=meeting.pk)
+        if meeting.started_by_id != user_id:
+            raise PermissionDenied("Only the meeting creator can review requests.")
+        if meeting.status != "active":
+            raise ValidationError("This meeting has ended.")
+        request = MeetingScreenShareRequest.objects.select_for_update().get(
+            pk=request_id, meeting=meeting,
+        )
+        if request.status != "pending":
+            raise ValidationError("This request is no longer pending.")
+        if approve:
+            raise ValidationError(
+                "Approval is not enabled until LiveKit permission coordination "
+                "and recovery are installed."
+            )
+        request.status = "rejected"
+        request.reviewed_by_id = user_id
+        request.reviewed_at = timezone.now()
+        request.save(update_fields=["status", "reviewed_by", "reviewed_at"])
+        return request
+
+
+async def reject_screen_share_request(group_id, user, request_id):
+    """Reject a request and notify meeting clients."""
+    request = await sync_to_async(
+        _review_screen_share_request, thread_sensitive=True,
+    )(group_id, user.pk, request_id)
+    await _broadcast_screen_request_event(request, "screen_share_rejected")
+    return request
+
+
+def _cancel_screen_share_request(group_id, user_id, request_id):
+    """Let the requester withdraw a pending request."""
+    with transaction.atomic():
+        meeting = _active_meeting_for_member(group_id, user_id)
+        meeting = GroupMeeting.objects.select_for_update().get(pk=meeting.pk)
+        request = MeetingScreenShareRequest.objects.select_for_update().get(
+            pk=request_id, meeting=meeting, requested_by_id=user_id,
+        )
+        if request.status != "pending":
+            raise ValidationError("Only pending requests can be cancelled.")
+        request.status = "cancelled"
+        request.save(update_fields=["status"])
+        return request
+
+
+async def cancel_screen_share_request(group_id, user, request_id):
+    """Cancel a pending request and notify meeting clients."""
+    request = await sync_to_async(
+        _cancel_screen_share_request, thread_sensitive=True,
+    )(group_id, user.pk, request_id)
+    await _broadcast_screen_request_event(request, "screen_share_cancelled")
+    return request
+
+
+async def _broadcast_screen_request_event(request, event_type):
+    """Best-effort group notification without credentials or tokens."""
+    layer = get_channel_layer()
+    if layer is None:
+        logger.warning("No channel layer for screen-sharing notifications")
+        return
+    try:
+        await layer.group_send(
+            f"group_meeting_notifications_{request.meeting.group_id}",
+            {
+                "type": "meeting.notification",
+                "data": {
+                    "type": event_type,
+                    "group_id": request.meeting.group_id,
+                    "meeting_id": request.meeting_id,
+                    "request_id": request.pk,
+                    "requested_by": request.requested_by_id,
+                    "status": request.status,
+                },
+            },
+        )
+    except Exception:
+        logger.exception("Could not broadcast screen-sharing request %s", request.pk)
+
+
+# ============================================================
+# 14. SCREEN-SHARING PERMISSION SNAPSHOT
+# ============================================================
+
+def get_screen_share_permission_state(group_id, user):
+    """Read current screen-sharing state for an authenticated group member.
+
+    The frontend may poll this to recover from missed notifications.
+    This function does NOT grant LiveKit publishing permission.
+    """
+    meeting = _active_meeting_for_member(group_id, user.pk)
+    is_creator = meeting.started_by_id == user.pk
+    is_approved_presenter = (
+        meeting.screen_share_state == "ready"
+        and meeting.active_screen_sharer_id == user.pk
+    )
+    creator_can_share = (
+        is_creator
+        and meeting.screen_share_state == "idle"
+        and meeting.active_screen_sharer_id is None
+    )
+
+    pending_requests = []
+    if is_creator:
+        pending_requests = list(
+            MeetingScreenShareRequest.objects.filter(
+                meeting=meeting,
+                status="pending",
+            )
+            .select_related("requested_by")
+            .order_by("requested_at", "pk")
+            .values(
+                "id",
+                "requested_by_id",
+                "requested_by__username",
+                "requested_at",
+            )
+        )
+
+    my_pending_request_id = (
+        MeetingScreenShareRequest.objects.filter(
+            meeting=meeting,
+            requested_by_id=user.pk,
+            status="pending",
+        )
+        .values_list("pk", flat=True)
+        .first()
+    )
+
+    return {
+        "meeting_id": meeting.pk,
+        "is_meeting_creator": is_creator,
+        "screen_share_state": meeting.screen_share_state,
+        "active_screen_sharer_id": meeting.active_screen_sharer_id,
+        "can_share_screen": creator_can_share or is_approved_presenter,
+        "my_pending_request_id": my_pending_request_id,
+        "pending_requests": pending_requests,
+    }

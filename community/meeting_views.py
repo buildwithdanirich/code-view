@@ -38,7 +38,11 @@ from .meeting_service import (
     start_group_meeting,
     join_group_meeting,
     end_group_meeting,
+    request_screen_share,
+    reject_screen_share_request,
+    cancel_screen_share_request,
 )
+
 
 from .models import (
     GroupMeeting,
@@ -315,3 +319,109 @@ def meeting_status_view(request, group_id):
     response["Cache-Control"] = "no-store"
 
     return response
+
+# ============================================================
+# 6. REQUEST SCREEN-SHARING PERMISSION
+# ============================================================
+
+@login_required
+@require_POST
+def request_screen_share_view(request, group_id):
+    """
+    Allow a private group member to request screen sharing.
+
+    The meeting creator receives a notification.
+    This does not grant LiveKit publishing permission.
+    """
+
+    try:
+        screen_request = async_to_sync(request_screen_share)(
+            group_id,
+            request.user,
+        )
+
+    except Exception as error:
+        return _meeting_error_response(error)
+
+    return JsonResponse(
+        {
+            "success": True,
+            "message": "Screen-sharing request submitted.",
+            "request": {
+                "id": screen_request.pk,
+                "status": screen_request.status,
+                "requested_by": screen_request.requested_by_id,
+            },
+        },
+        status=200,
+    )
+
+# ============================================================
+# 7. REJECT SCREEN-SHARING REQUEST
+# ============================================================
+
+@login_required
+@require_POST
+def reject_screen_share_view(request, group_id, request_id):
+    """
+    Only the meeting creator can reject a pending request.
+    """
+
+    try:
+        screen_request = async_to_sync(
+            reject_screen_share_request
+        )(
+            group_id,
+            request.user,
+            request_id,
+        )
+
+    except Exception as error:
+        return _meeting_error_response(error)
+
+    return JsonResponse(
+        {
+            "success": True,
+            "message": "Screen-sharing request rejected.",
+            "request": {
+                "id": screen_request.pk,
+                "status": screen_request.status,
+            },
+        },
+        status=200,
+    )
+
+# ============================================================
+# 8. CANCEL SCREEN-SHARING REQUEST
+# ============================================================
+
+@login_required
+@require_POST
+def cancel_screen_share_view(request, group_id, request_id):
+    """
+    Allow a developer to cancel their own pending request.
+    """
+
+    try:
+        screen_request = async_to_sync(
+            cancel_screen_share_request
+        )(
+            group_id,
+            request.user,
+            request_id,
+        )
+
+    except Exception as error:
+        return _meeting_error_response(error)
+
+    return JsonResponse(
+        {
+            "success": True,
+            "message": "Screen-sharing request cancelled.",
+            "request": {
+                "id": screen_request.pk,
+                "status": screen_request.status,
+            },
+        },
+        status=200,
+    )

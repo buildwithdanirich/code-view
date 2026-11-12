@@ -1212,6 +1212,34 @@ class GroupMeeting(models.Model):
         related_name="started_group_meetings",
     )
 
+        # ========================================================
+    # SCREEN-SHARING PERMISSION
+    # ========================================================
+
+    # The developer currently assigned the screen-sharing slot.
+    # Only one developer can occupy this field at a time.
+    active_screen_sharer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="active_screen_sharing_meetings",
+    )
+
+    # Tracks the process of granting or removing LiveKit access.
+    SCREEN_SHARE_STATE_CHOICES = [
+        ("idle", "Idle"),
+        ("granting", "Granting Permission"),
+        ("ready", "Ready to Share"),
+        ("revoking", "Revoking Permission"),
+    ]
+
+    screen_share_state = models.CharField(
+        max_length=10,
+        choices=SCREEN_SHARE_STATE_CHOICES,
+        default="idle",
+    )
+
     status = models.CharField(
         max_length=10,
         choices=STATUS_CHOICES,
@@ -1278,3 +1306,97 @@ class GroupMeeting(models.Model):
 
     def __str__(self):
         return f"{self.group.name} meeting ({self.status})"
+
+
+# ============================================================
+#  SCREEN-SHARING REQUESTS
+# ============================================================
+
+class MeetingScreenShareRequest(models.Model):
+    """
+    Store requests from developers who want to share
+    their screens during a private group meeting.
+    """
+
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("approved", "Approved"),
+        ("rejected", "Rejected"),
+        ("cancelled", "Cancelled"),
+    ]
+
+    meeting = models.ForeignKey(
+        GroupMeeting,
+        on_delete=models.CASCADE,
+        related_name="screen_share_requests",
+    )
+
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="meeting_screen_share_requests",
+    )
+
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default="pending",
+    )
+
+    requested_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    reviewed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_screen_share_requests",
+    )
+
+    class Meta:
+        ordering = ["requested_at"]
+
+        constraints = [
+            # A developer cannot submit multiple pending
+            # requests for the same meeting.
+            models.UniqueConstraint(
+                fields=["meeting", "requested_by"],
+                condition=models.Q(status="pending"),
+                name="unique_pending_screen_share_request",
+            ),
+        ]
+
+    def clean(self):
+        """Validate screen-sharing request information."""
+        super().clean()
+
+        if not self.meeting_id or not self.requested_by_id:
+            return
+
+        if self.meeting.status != "active":
+            raise ValidationError(
+                "Screen-sharing requests require an active meeting."
+            )
+
+        if self.status == "pending" and self.reviewed_at is not None:
+            raise ValidationError(
+                "Pending requests cannot have a review time."
+            )
+
+    def save(self, *args, **kwargs):
+        """Validate requests before saving."""
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return (
+            f"Screen-sharing request by {self.requested_by_id} "
+            f"({self.status})"
+        )

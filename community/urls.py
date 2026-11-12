@@ -281,16 +281,41 @@ urlpatterns = [
         meeting_views.end_meeting_view,
         name="end_group_meeting",
     ),
-        # ========================================================
-    # CHECK ACTIVE MEETING STATUS
+       # ========================================================
+    # 12. CHECK ACTIVE MEETING STATUS
     # ========================================================
 
-    # Accepted private group members can check whether
-    # repository connection changes are currently locked.
+    # Check whether a meeting is active and repository
+    # modifications should remain locked.
     path(
         "<int:group_id>/meeting/status/",
         meeting_views.meeting_status_view,
         name="group_meeting_status",
+    ),
+
+    # ========================================================
+    # 13. SCREEN-SHARING PERMISSION REQUESTS
+    # ========================================================
+
+    # A group member requests permission to share their screen.
+    path(
+        "<int:group_id>/meeting/screen-share/request/",
+        meeting_views.request_screen_share_view,
+        name="request_group_screen_share",
+    ),
+
+    # Only the meeting creator can reject a pending request.
+    path(
+        "<int:group_id>/meeting/screen-share/<int:request_id>/reject/",
+        meeting_views.reject_screen_share_view,
+        name="reject_group_screen_share",
+    ),
+
+    # A developer cancels their own pending request.
+    path(
+        "<int:group_id>/meeting/screen-share/<int:request_id>/cancel/",
+        meeting_views.cancel_screen_share_view,
+        name="cancel_group_screen_share",
     ),
 
 ]
