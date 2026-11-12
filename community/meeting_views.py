@@ -13,6 +13,11 @@ Meeting status checks require:
 - An authenticated developer.
 - An HTTP GET request.
 - Accepted membership in the private group.
+
+Screen-sharing security:
+- Only the meeting creator can approve requests.
+- Only the approved presenter can release their slot.
+- LiveKit permissions are controlled by backend services.
 """
 
 import logging
@@ -44,6 +49,13 @@ from .meeting_service import (
     get_screen_share_permission_state,
 )
 
+from .screen_share_livekit import (
+    coordinate_screen_share_approval,
+)
+
+from .screen_share_release import (
+    coordinate_screen_share_release,
+)
 
 from .models import (
     GroupMeeting,
@@ -276,7 +288,10 @@ def meeting_status_view(request, group_id):
         return JsonResponse(
             {
                 "success": False,
-                "error": "Meeting status is only available for private groups.",
+                "error": (
+                    "Meeting status is only available "
+                    "for private groups."
+                ),
             },
             status=403,
         )
@@ -321,6 +336,7 @@ def meeting_status_view(request, group_id):
 
     return response
 
+
 # ============================================================
 # 6. REQUEST SCREEN-SHARING PERMISSION
 # ============================================================
@@ -357,6 +373,7 @@ def request_screen_share_view(request, group_id):
         status=200,
     )
 
+
 # ============================================================
 # 7. REJECT SCREEN-SHARING REQUEST
 # ============================================================
@@ -391,6 +408,7 @@ def reject_screen_share_view(request, group_id, request_id):
         },
         status=200,
     )
+
 
 # ============================================================
 # 8. CANCEL SCREEN-SHARING REQUEST
@@ -429,7 +447,114 @@ def cancel_screen_share_view(request, group_id, request_id):
 
 
 # ============================================================
-# 9. GET SCREEN-SHARING PERMISSION STATE
+# 9. APPROVE SCREEN-SHARING REQUEST
+# ============================================================
+
+@login_required
+@require_POST
+def approve_screen_share_view(request, group_id, request_id):
+    """
+    Allow the meeting creator to approve a pending request.
+
+    The approval coordinator is responsible for:
+    - Verifying creator authorization.
+    - Acquiring the screen-sharing operation lock.
+    - Reserving the screen-sharing slot.
+    - Updating LiveKit publishing permissions.
+    - Verifying the resulting permissions.
+    - Finalizing the database approval.
+
+    The view never grants LiveKit permission directly.
+    """
+
+    try:
+        screen_request = async_to_sync(
+            coordinate_screen_share_approval
+        )(
+            group_id,
+            request.user,
+            request_id,
+        )
+
+    except Exception as error:
+        return _meeting_error_response(error)
+
+    response = JsonResponse(
+        {
+            "success": True,
+            "message": "Screen-sharing request approved.",
+            "request": {
+                "id": screen_request.pk,
+                "status": screen_request.status,
+                "requested_by": screen_request.requested_by_id,
+            },
+        },
+        status=200,
+    )
+
+    response["Cache-Control"] = "no-store"
+
+    return response
+
+
+# ============================================================
+# 10. RELEASE SCREEN-SHARING PERMISSION
+# ============================================================
+
+@login_required
+@require_POST
+def release_screen_share_view(request, group_id):
+    """
+    Release an approved developer's screen-sharing slot.
+
+    Only the approved presenter can request this operation.
+
+    The release coordinator:
+    - Confirms that screen sharing has stopped.
+    - Revokes the presenter's LiveKit permission.
+    - Restores the creator's LiveKit permission.
+    - Verifies the resulting permissions.
+    - Clears the database reservation.
+
+    If verification fails, the slot remains reserved.
+    """
+
+    try:
+        result = async_to_sync(
+            coordinate_screen_share_release
+        )(
+            group_id,
+            request.user,
+        )
+
+    except Exception as error:
+        return _meeting_error_response(error)
+
+    response = JsonResponse(
+        {
+            "success": True,
+            "message": (
+                "Screen-sharing permission released successfully."
+            ),
+            "meeting": {
+                "id": result["meeting_id"],
+                "group_id": result["group_id"],
+                "screen_share_state": result["screen_share_state"],
+                "active_screen_sharer_id": (
+                    result["active_screen_sharer_id"]
+                ),
+            },
+        },
+        status=200,
+    )
+
+    response["Cache-Control"] = "no-store"
+
+    return response
+
+
+# ============================================================
+# 11. GET SCREEN-SHARING PERMISSION STATE
 # ============================================================
 
 @login_required
@@ -438,35 +563,34 @@ def screen_share_permission_state_view(request, group_id):
     """
     Return the current screen-sharing permission state.
 
-    Security:
-    - Only authenticated developers can access this endpoint.
-    - The service verifies accepted group membership.
-    - Only the meeting creator receives pending requests.
-    - This endpoint never grants LiveKit permissions.
+    The frontend polls this endpoint to detect:
+    - Pending requests.
+    - Approved presenters.
+    - Released permissions.
+    - Changes missed by WebSocket notifications.
+
+    This endpoint only reads database state.
+    It never grants LiveKit permissions.
     """
 
     try:
-        # Retrieve the permission state from the existing service.
-        state = get_screen_share_permission_state(
+        permission_state = get_screen_share_permission_state(
             group_id,
             request.user,
         )
 
     except Exception as error:
-        # Return a safe error without exposing internal details.
         return _meeting_error_response(error)
 
-    # Return the current permission state to JavaScript.
     response = JsonResponse(
         {
             "success": True,
-            **state,
+            **permission_state,
         },
         status=200,
     )
 
-    # Prevent caching of potentially outdated permissions.
+    # Avoid stale permission information in browser caches.
     response["Cache-Control"] = "no-store"
 
     return response
-    

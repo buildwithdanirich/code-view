@@ -12,6 +12,7 @@ Features:
 - Repository connection approval requests
 - Meeting rooms
 - LiveKit voice/video meeting actions
+- Screen-sharing permission requests and approvals
 """
 
 from django.urls import path
@@ -184,7 +185,7 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # GROUP CHAT MESSAGE REACTIONS
+    # 9. GROUP CHAT MESSAGE REACTIONS
     # ========================================================
 
     path(
@@ -194,7 +195,7 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # SECURE GROUP CHAT ATTACHMENT DOWNLOAD
+    # 10. SECURE GROUP CHAT ATTACHMENT DOWNLOAD
     # ========================================================
 
     path(
@@ -204,7 +205,7 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # 9. GITHUB REPOSITORY INTEGRATION
+    # 11. GITHUB REPOSITORY INTEGRATION
     # ========================================================
 
     path(
@@ -247,10 +248,9 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # 10. PRIVATE-GROUP MEETING ROOM
+    # 12. PRIVATE-GROUP MEETING ROOM
     # ========================================================
 
-    # Existing meeting page.
     path(
         "<int:group_id>/meeting/",
         views.meeting_room,
@@ -258,7 +258,7 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # 11. LIVEKIT MEETING ACTIONS
+    # 13. LIVEKIT MEETING ACTIONS
     # ========================================================
 
     # Any accepted member can start a meeting.
@@ -281,8 +281,9 @@ urlpatterns = [
         meeting_views.end_meeting_view,
         name="end_group_meeting",
     ),
-       # ========================================================
-    # 12. CHECK ACTIVE MEETING STATUS
+
+    # ========================================================
+    # 14. CHECK ACTIVE MEETING STATUS
     # ========================================================
 
     # Check whether a meeting is active and repository
@@ -294,7 +295,7 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # 13. SCREEN-SHARING PERMISSION REQUESTS
+    # 15. SCREEN-SHARING PERMISSION REQUESTS
     # ========================================================
 
     # A group member requests permission to share their screen.
@@ -302,6 +303,13 @@ urlpatterns = [
         "<int:group_id>/meeting/screen-share/request/",
         meeting_views.request_screen_share_view,
         name="request_group_screen_share",
+    ),
+
+    # Only the meeting creator can approve a pending request.
+    path(
+        "<int:group_id>/meeting/screen-share/<int:request_id>/approve/",
+        meeting_views.approve_screen_share_view,
+        name="approve_group_screen_share",
     ),
 
     # Only the meeting creator can reject a pending request.
@@ -317,15 +325,31 @@ urlpatterns = [
         meeting_views.cancel_screen_share_view,
         name="cancel_group_screen_share",
     ),
-        # ============================================================
-    # SCREEN-SHARING PERMISSION STATE
-    # ============================================================
+
+    # ========================================================
+    # 16. RELEASE SCREEN-SHARING PERMISSION
+    # ========================================================
+
+    # An approved presenter releases their screen-sharing slot.
+    #
+    # Django verifies ownership of the slot.
+    # LiveKit verifies that screen sharing has stopped.
+    # Permission returns to the meeting creator when safe.
+    path(
+        "<int:group_id>/meeting/screen-share/release/",
+        meeting_views.release_screen_share_view,
+        name="release_group_screen_share",
+    ),
+
+    # ========================================================
+    # 17. SCREEN-SHARING PERMISSION STATE
+    # ========================================================
+
     # Allow accepted group members to retrieve their current
     # screen-sharing permissions.
     #
     # Only the meeting creator receives pending requests.
     # This endpoint does not grant LiveKit permissions.
-
     path(
         "<int:group_id>/meeting/screen-share/state/",
         meeting_views.screen_share_permission_state_view,

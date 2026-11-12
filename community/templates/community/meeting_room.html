@@ -252,8 +252,10 @@
     data-end-url="{% url 'end_group_meeting' group.id %}"
     data-screen-share-request-url="{% url 'request_group_screen_share' group.id %}"
     data-screen-share-state-url="{% url 'group_screen_share_state' group.id %}"
+    data-screen-share-approve-url-template="{% url 'approve_group_screen_share' group.id 0 %}"
     data-screen-share-reject-url-template="{% url 'reject_group_screen_share' group.id 0 %}"
     data-screen-share-cancel-url-template="{% url 'cancel_group_screen_share' group.id 0 %}"
+    data-screen-share-release-url="{% url 'release_group_screen_share' group.id %}"
     hidden
 >
     <!-- Meeting heading -->

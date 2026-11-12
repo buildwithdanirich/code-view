@@ -1,31 +1,27 @@
 /**
- * CodeView — Screen-Sharing Request Controller
+ * CodeView screen-sharing request controller.
  *
- * Responsibilities:
- * 1. Show screen-sharing controls to connected meeting members.
- * 2. Retrieve permission state from Django.
- * 3. Submit and cancel screen-sharing requests.
- * 4. Display pending requests to the meeting creator.
- * 5. Allow the creator to reject requests.
- * 6. Hide controls when the LiveKit connection ends.
+ * Handles:
+ * - Requesting screen-sharing permission
+ * - Cancelling pending requests
+ * - Rejecting pending requests
+ * - Preparing the Approve action
+ * - Polling Django for permission changes
+ * - Notifying the LiveKit controller
  *
  * Security:
- * - Django validates membership and permissions.
- * - JavaScript never grants LiveKit publishing permissions.
- * - Screen-sharing approval remains disabled until secure
- *   LiveKit permission coordination is verified.
+ * Django and LiveKit enforce actual permissions.
+ * Approval stays disabled until lifecycle safeguards are complete.
  */
 
 document.addEventListener("DOMContentLoaded", () => {
     "use strict";
 
-    // =====================================================
+    // -----------------------------------------------------
     // 1. HTML ELEMENTS
-    // =====================================================
+    // -----------------------------------------------------
 
-    const panel = document.getElementById(
-        "livekit-meeting-panel"
-    );
+    const panel = document.getElementById("livekit-meeting-panel");
 
     const permissionSection = document.getElementById(
         "livekit-screen-share-permissions"
@@ -75,92 +71,97 @@ document.addEventListener("DOMContentLoaded", () => {
         !noRequests ||
         !requestTemplate
     ) {
-        console.error(
-            "CodeView: Screen-sharing request elements are missing."
-        );
-
+        console.error("CodeView: Missing screen-sharing elements.");
         return;
     }
 
-    // =====================================================
-    // 2. DJANGO ENDPOINTS
-    // =====================================================
+    // -----------------------------------------------------
+    // 2. DJANGO URLS
+    // -----------------------------------------------------
 
     const stateUrl = panel.dataset.screenShareStateUrl;
-
     const requestUrl = panel.dataset.screenShareRequestUrl;
 
-    const cancelUrlTemplate =
-        panel.dataset.screenShareCancelUrlTemplate;
+    const approveUrlTemplate =
+        panel.dataset.screenShareApproveUrlTemplate;
 
     const rejectUrlTemplate =
         panel.dataset.screenShareRejectUrlTemplate;
 
+    const cancelUrlTemplate =
+        panel.dataset.screenShareCancelUrlTemplate;
+
+    // Do not enable until reconnection and recovery are secure.
+    const APPROVAL_ENABLED = false;
+
     if (
         !stateUrl ||
         !requestUrl ||
-        !cancelUrlTemplate ||
-        !rejectUrlTemplate
+        !approveUrlTemplate ||
+        !rejectUrlTemplate ||
+        !cancelUrlTemplate
     ) {
-        console.error(
-            "CodeView: Screen-sharing endpoints are missing."
-        );
-
+        console.error("CodeView: Missing screen-sharing URLs.");
         return;
     }
 
-    // =====================================================
-    // 3. CONTROLLER STATE
-    // =====================================================
+    // -----------------------------------------------------
+    // 3. STATE
+    // -----------------------------------------------------
 
     let connected = false;
-
     let meetingId = null;
-
     let isMeetingCreator = false;
-
     let pendingRequestId = null;
-
-    let busy = false;
-
     let permissionState = null;
-
+    let busy = false;
     let pollingTimer = null;
-
     let connectionGeneration = 0;
 
     const POLLING_INTERVAL_MS = 3000;
 
-    // =====================================================
-    // 4. CSRF PROTECTION
-    // =====================================================
+    // -----------------------------------------------------
+    // 4. CSRF TOKEN
+    // -----------------------------------------------------
 
     function getCsrfToken() {
         const input = document.querySelector(
             'input[name="csrfmiddlewaretoken"]'
         );
 
-        if (input && input.value) {
+        if (input?.value) {
             return input.value;
         }
 
         const cookie = document.cookie
             .split(";")
-            .map((value) => value.trim())
-            .find((value) => value.startsWith("csrftoken="));
+            .map(value => value.trim())
+            .find(value => value.startsWith("csrftoken="));
 
-        if (!cookie) {
-            return "";
-        }
-
-        return decodeURIComponent(
-            cookie.substring("csrftoken=".length)
-        );
+        return cookie
+            ? decodeURIComponent(cookie.substring("csrftoken=".length))
+            : "";
     }
 
-    // =====================================================
+    // -----------------------------------------------------
     // 5. HTTP REQUESTS
-    // =====================================================
+    // -----------------------------------------------------
+
+    async function readResponse(response) {
+        let data;
+
+        try {
+            data = await response.json();
+        } catch {
+            throw new Error("The server returned an invalid response.");
+        }
+
+        if (!response.ok || data.success !== true) {
+            throw new Error(data.error || "The request failed.");
+        }
+
+        return data;
+    }
 
     async function getPermissionState() {
         const response = await fetch(stateUrl, {
@@ -172,23 +173,7 @@ document.addEventListener("DOMContentLoaded", () => {
             },
         });
 
-        let data;
-
-        try {
-            data = await response.json();
-        } catch {
-            throw new Error(
-                "The server returned an invalid response."
-            );
-        }
-
-        if (!response.ok || data.success !== true) {
-            throw new Error(
-                data.error || "Unable to retrieve permissions."
-            );
-        }
-
-        return data;
+        return readResponse(response);
     }
 
     async function postRequest(url) {
@@ -201,67 +186,43 @@ document.addEventListener("DOMContentLoaded", () => {
             },
         });
 
-        let data;
-
-        try {
-            data = await response.json();
-        } catch {
-            throw new Error(
-                "The server returned an invalid response."
-            );
-        }
-
-        if (!response.ok || data.success !== true) {
-            throw new Error(
-                data.error || "The request failed."
-            );
-        }
-
-        return data;
+        return readResponse(response);
     }
 
-    // =====================================================
-    // 6. DISPLAY STATUS
-    // =====================================================
+    // -----------------------------------------------------
+    // 6. HELPERS
+    // -----------------------------------------------------
 
     function setStatus(message) {
         requestStatus.textContent = message;
     }
 
-    // =====================================================
-    // 7. BUILD REQUEST URL
-    // =====================================================
-
-     function buildRequestUrl(template, requestId) {
-        // Convert the request ID into a number.
+    function buildRequestUrl(template, requestId) {
         const id = Number(requestId);
 
-        // Ensure the ID is a valid positive integer.
         if (!Number.isSafeInteger(id) || id <= 0) {
-            throw new Error(
-                "Invalid screen-sharing request ID."
-            );
+            throw new Error("Invalid screen-sharing request ID.");
         }
 
-        // Replace Django's placeholder with the actual request ID.
         const url = template.replace(
-            /\/0\/(?=reject\/|cancel\/)/,
+            /\/0\/(?=approve\/|reject\/|cancel\/)/,
             `/${encodeURIComponent(id)}/`
         );
 
-        // Ensure the URL was successfully updated.
         if (url === template) {
-            throw new Error(
-                "Invalid screen-sharing URL configuration."
-            );
+            throw new Error("Invalid screen-sharing URL configuration.");
         }
 
         return url;
     }
 
-    // =====================================================
-    // 8. UPDATE MEMBER CONTROLS
-    // =====================================================
+    function isCurrentConnection(generation) {
+        return connected && generation === connectionGeneration;
+    }
+
+    // -----------------------------------------------------
+    // 7. MEMBER CONTROLS
+    // -----------------------------------------------------
 
     function updateMemberControls() {
         const isMember = connected && !isMeetingCreator;
@@ -294,13 +255,12 @@ document.addEventListener("DOMContentLoaded", () => {
             !hasPendingRequest;
     }
 
-    // =====================================================
-    // 9. DISPLAY CREATOR REQUESTS
-    // =====================================================
+    // -----------------------------------------------------
+    // 8. CREATOR REQUESTS
+    // -----------------------------------------------------
 
     function clearCreatorRequests() {
         requestList.replaceChildren();
-
         noRequests.hidden = false;
     }
 
@@ -328,51 +288,48 @@ document.addEventListener("DOMContentLoaded", () => {
                 ".livekit-reject-screen-share"
             );
 
-            if (
-                !name ||
-                !approveButton ||
-                !rejectButton
-            ) {
+            if (!name || !approveButton || !rejectButton) {
                 continue;
             }
 
-            // textContent prevents HTML injection from usernames.
+            // Prevent HTML injection from usernames.
             name.textContent =
-                request.requested_by__username ||
-                "Group member";
+                request.requested_by__username || "Group member";
 
-            // Approval remains disabled until the secure
-            // LiveKit permission-granting flow is verified.
-            approveButton.disabled = true;
+            approveButton.disabled =
+                !APPROVAL_ENABLED ||
+                busy ||
+                permissionState?.screen_share_state !== "idle";
 
-            approveButton.title =
-                "Approval is not available yet.";
+            approveButton.title = APPROVAL_ENABLED
+                ? "Approve this screen-sharing request."
+                : "Approval is unavailable until security checks are complete.";
+
+            approveButton.addEventListener("click", () => {
+                approveScreenSharingRequest(request.id);
+            });
 
             rejectButton.disabled = busy;
 
-            rejectButton.addEventListener(
-                "click",
-                () => rejectScreenSharingRequest(request.id)
-            );
+            rejectButton.addEventListener("click", () => {
+                rejectScreenSharingRequest(request.id);
+            });
 
             requestList.appendChild(fragment);
         }
     }
 
-    // =====================================================
-    // 10. UPDATE THE PERMISSION INTERFACE
-    // =====================================================
+    // -----------------------------------------------------
+    // 9. UPDATE INTERFACE
+    // -----------------------------------------------------
 
     function updatePermissionInterface() {
         permissionSection.hidden = !connected;
 
         if (!connected) {
             memberActions.hidden = true;
-
             creatorRequests.hidden = true;
-
             clearCreatorRequests();
-
             return;
         }
 
@@ -389,9 +346,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // =====================================================
-    // 11. REFRESH PERMISSIONS FROM DJANGO
-    // =====================================================
+    // -----------------------------------------------------
+    // 10. REFRESH PERMISSIONS
+    // -----------------------------------------------------
 
     async function refreshPermissionState() {
         if (!connected) {
@@ -403,27 +360,21 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const data = await getPermissionState();
 
-            // Ignore responses from an earlier connection.
-            if (
-                !connected ||
-                generation !== connectionGeneration
-            ) {
+            if (!isCurrentConnection(generation)) {
                 return;
             }
 
-            // Never display permissions for another meeting.
             if (
                 meetingId !== null &&
                 String(data.meeting_id) !== String(meetingId)
             ) {
+                permissionState = null;
+
                 setStatus(
                     "Meeting permissions changed. Rejoin the meeting."
                 );
 
-                permissionState = null;
-
                 updatePermissionInterface();
-
                 return;
             }
 
@@ -437,11 +388,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
             updatePermissionInterface();
 
+            // Notify the LiveKit UI.
+            // This event does not grant publishing permission.
+            document.dispatchEvent(
+                new CustomEvent(
+                    "codeview:screen-share-permission-changed",
+                    {
+                        detail: {
+                            meetingId: data.meeting_id,
+                            canShareScreen:
+                                data.can_share_screen === true,
+                            isMeetingCreator:
+                                data.is_meeting_creator === true,
+                            screenShareState:
+                                data.screen_share_state,
+                        },
+                    }
+                )
+            );
+
         } catch (error) {
-            if (
-                !connected ||
-                generation !== connectionGeneration
-            ) {
+            if (!isCurrentConnection(generation)) {
                 return;
             }
 
@@ -456,9 +423,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // =====================================================
-    // 12. SUBMIT SCREEN-SHARING REQUEST
-    // =====================================================
+    // -----------------------------------------------------
+    // 11. REQUEST SCREEN SHARING
+    // -----------------------------------------------------
 
     async function requestScreenSharing() {
         if (
@@ -475,26 +442,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const generation = connectionGeneration;
 
-        updateMemberControls();
-
+        updatePermissionInterface();
         setStatus("Submitting screen-sharing request...");
 
         try {
             const data = await postRequest(requestUrl);
 
-            if (
-                !data.request ||
-                data.request.id == null
-            ) {
+            if (!data.request || data.request.id == null) {
                 throw new Error(
                     "The server did not return a request ID."
                 );
             }
 
-            if (
-                !connected ||
-                generation !== connectionGeneration
-            ) {
+            if (!isCurrentConnection(generation)) {
                 return;
             }
 
@@ -507,31 +467,26 @@ document.addEventListener("DOMContentLoaded", () => {
             await refreshPermissionState();
 
         } catch (error) {
-            if (
-                connected &&
-                generation === connectionGeneration
-            ) {
+            if (isCurrentConnection(generation)) {
                 console.error(
                     "CodeView screen-sharing request error:",
                     error
                 );
 
                 setStatus(
-                    error.message ||
-                    "Unable to request screen sharing."
+                    error.message || "Unable to request screen sharing."
                 );
             }
 
         } finally {
             busy = false;
-
-            updateMemberControls();
+            updatePermissionInterface();
         }
     }
 
-    // =====================================================
-    // 13. CANCEL SCREEN-SHARING REQUEST
-    // =====================================================
+    // -----------------------------------------------------
+    // 12. CANCEL REQUEST
+    // -----------------------------------------------------
 
     async function cancelScreenSharingRequest() {
         if (
@@ -546,8 +501,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const generation = connectionGeneration;
 
-        updateMemberControls();
-
+        updatePermissionInterface();
         setStatus("Cancelling request...");
 
         try {
@@ -558,10 +512,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             await postRequest(url);
 
-            if (
-                !connected ||
-                generation !== connectionGeneration
-            ) {
+            if (!isCurrentConnection(generation)) {
                 return;
             }
 
@@ -572,38 +523,26 @@ document.addEventListener("DOMContentLoaded", () => {
             await refreshPermissionState();
 
         } catch (error) {
-            if (
-                connected &&
-                generation === connectionGeneration
-            ) {
-                console.error(
-                    "CodeView cancellation error:",
-                    error
-                );
+            if (isCurrentConnection(generation)) {
+                console.error("CodeView cancellation error:", error);
 
                 setStatus(
-                    error.message ||
-                    "Unable to cancel request."
+                    error.message || "Unable to cancel request."
                 );
             }
 
         } finally {
             busy = false;
-
-            updateMemberControls();
+            updatePermissionInterface();
         }
     }
 
-    // =====================================================
-    // 14. REJECT SCREEN-SHARING REQUEST
-    // =====================================================
+    // -----------------------------------------------------
+    // 13. REJECT REQUEST
+    // -----------------------------------------------------
 
     async function rejectScreenSharingRequest(requestId) {
-        if (
-            !connected ||
-            !isMeetingCreator ||
-            busy
-        ) {
+        if (!connected || !isMeetingCreator || busy) {
             return;
         }
 
@@ -612,7 +551,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const generation = connectionGeneration;
 
         updatePermissionInterface();
-
         setStatus("Rejecting screen-sharing request...");
 
         try {
@@ -623,10 +561,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             await postRequest(url);
 
-            if (
-                !connected ||
-                generation !== connectionGeneration
-            ) {
+            if (!isCurrentConnection(generation)) {
                 return;
             }
 
@@ -635,36 +570,82 @@ document.addEventListener("DOMContentLoaded", () => {
             await refreshPermissionState();
 
         } catch (error) {
-            if (
-                connected &&
-                generation === connectionGeneration
-            ) {
-                console.error(
-                    "CodeView rejection error:",
-                    error
-                );
+            if (isCurrentConnection(generation)) {
+                console.error("CodeView rejection error:", error);
 
                 setStatus(
-                    error.message ||
-                    "Unable to reject request."
+                    error.message || "Unable to reject request."
                 );
             }
 
         } finally {
             busy = false;
-
             updatePermissionInterface();
         }
     }
 
-    // =====================================================
+    // -----------------------------------------------------
+    // 14. APPROVE REQUEST
+    // -----------------------------------------------------
+
+    async function approveScreenSharingRequest(requestId) {
+        // Approval remains disabled until the backend
+        // reconnection and recovery safeguards are complete.
+        if (
+            !APPROVAL_ENABLED ||
+            !connected ||
+            !isMeetingCreator ||
+            busy ||
+            permissionState?.screen_share_state !== "idle"
+        ) {
+            return;
+        }
+
+        busy = true;
+
+        const generation = connectionGeneration;
+
+        updatePermissionInterface();
+        setStatus("Approving screen-sharing request...");
+
+        try {
+            const url = buildRequestUrl(
+                approveUrlTemplate,
+                requestId
+            );
+
+            await postRequest(url);
+
+            if (!isCurrentConnection(generation)) {
+                return;
+            }
+
+            setStatus("Screen-sharing request approved.");
+
+            await refreshPermissionState();
+
+        } catch (error) {
+            if (isCurrentConnection(generation)) {
+                console.error("CodeView approval error:", error);
+
+                setStatus(
+                    error.message || "Unable to approve request."
+                );
+            }
+
+        } finally {
+            busy = false;
+            updatePermissionInterface();
+        }
+    }
+
+    // -----------------------------------------------------
     // 15. POLLING
-    // =====================================================
+    // -----------------------------------------------------
 
     function stopPolling() {
         if (pollingTimer !== null) {
             clearInterval(pollingTimer);
-
             pollingTimer = null;
         }
     }
@@ -678,9 +659,9 @@ document.addEventListener("DOMContentLoaded", () => {
         );
     }
 
-    // =====================================================
+    // -----------------------------------------------------
     // 16. LIVEKIT CONNECTION EVENTS
-    // =====================================================
+    // -----------------------------------------------------
 
     document.addEventListener(
         "codeview:meeting-connected",
@@ -695,9 +676,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 event.detail?.isMeetingCreator === true;
 
             pendingRequestId = null;
-
             permissionState = null;
-
             busy = false;
 
             setStatus("Loading screen-sharing permissions...");
@@ -718,28 +697,22 @@ document.addEventListener("DOMContentLoaded", () => {
             connectionGeneration += 1;
 
             connected = false;
-
             meetingId = null;
-
             isMeetingCreator = false;
-
             pendingRequestId = null;
-
             permissionState = null;
-
             busy = false;
 
             stopPolling();
 
             setStatus("");
-
             updatePermissionInterface();
         }
     );
 
-    // =====================================================
+    // -----------------------------------------------------
     // 17. BUTTON EVENTS
-    // =====================================================
+    // -----------------------------------------------------
 
     requestButton.addEventListener(
         "click",
@@ -751,9 +724,9 @@ document.addEventListener("DOMContentLoaded", () => {
         cancelScreenSharingRequest
     );
 
-    // =====================================================
+    // -----------------------------------------------------
     // 18. INITIALIZE
-    // =====================================================
+    // -----------------------------------------------------
 
     updatePermissionInterface();
 
