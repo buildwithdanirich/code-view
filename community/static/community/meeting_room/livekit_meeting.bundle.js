@@ -32899,6 +32899,9 @@
       setStatus("Disconnected from meeting.");
       hideMeetingPanel();
       updateControls();
+      document.dispatchEvent(
+        new CustomEvent("codeview:meeting-disconnected")
+      );
     }
     function registerRoomEvents(activeRoom) {
       const refresh = (participant) => {
@@ -33063,6 +33066,14 @@
           deviceError ? "Connected. Some devices are unavailable." : "Connected to meeting."
         );
         updateControls();
+        document.dispatchEvent(
+          new CustomEvent("codeview:meeting-connected", {
+            detail: {
+              meetingId: credentials.meeting_id,
+              isMeetingCreator
+            }
+          })
+        );
       } catch (error) {
         try {
           await newRoom.disconnect();

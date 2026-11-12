@@ -41,6 +41,7 @@ from .meeting_service import (
     request_screen_share,
     reject_screen_share_request,
     cancel_screen_share_request,
+    get_screen_share_permission_state,
 )
 
 
@@ -425,3 +426,47 @@ def cancel_screen_share_view(request, group_id, request_id):
         },
         status=200,
     )
+
+
+# ============================================================
+# 9. GET SCREEN-SHARING PERMISSION STATE
+# ============================================================
+
+@login_required
+@require_GET
+def screen_share_permission_state_view(request, group_id):
+    """
+    Return the current screen-sharing permission state.
+
+    Security:
+    - Only authenticated developers can access this endpoint.
+    - The service verifies accepted group membership.
+    - Only the meeting creator receives pending requests.
+    - This endpoint never grants LiveKit permissions.
+    """
+
+    try:
+        # Retrieve the permission state from the existing service.
+        state = get_screen_share_permission_state(
+            group_id,
+            request.user,
+        )
+
+    except Exception as error:
+        # Return a safe error without exposing internal details.
+        return _meeting_error_response(error)
+
+    # Return the current permission state to JavaScript.
+    response = JsonResponse(
+        {
+            "success": True,
+            **state,
+        },
+        status=200,
+    )
+
+    # Prevent caching of potentially outdated permissions.
+    response["Cache-Control"] = "no-store"
+
+    return response
+    

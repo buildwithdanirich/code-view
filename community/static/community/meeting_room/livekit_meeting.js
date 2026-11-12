@@ -743,11 +743,16 @@ document.addEventListener("DOMContentLoaded", () => {
         resetMeetingPermissions();
 
         setStatus("Disconnected from meeting.");
-
         // Return to the normal CodeView workspace.
         hideMeetingPanel();
 
         updateControls();
+
+        // Notify other controllers that this meeting connection ended.
+        // They must hide controls and stop polling permissions.
+        document.dispatchEvent(
+            new CustomEvent("codeview:meeting-disconnected")
+        );
     }
 
     // =====================================================
@@ -991,7 +996,18 @@ document.addEventListener("DOMContentLoaded", () => {
                     : "Connected to meeting."
             );
 
-            updateControls();
+             updateControls();
+
+            // Notify other controllers that the meeting is connected.
+            // No LiveKit credentials or tokens are exposed.
+            document.dispatchEvent(
+                new CustomEvent("codeview:meeting-connected", {
+                    detail: {
+                        meetingId: credentials.meeting_id,
+                        isMeetingCreator: isMeetingCreator,
+                    },
+                })
+            );
 
         } catch (error) {
             try {

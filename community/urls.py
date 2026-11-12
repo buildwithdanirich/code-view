@@ -317,5 +317,19 @@ urlpatterns = [
         meeting_views.cancel_screen_share_view,
         name="cancel_group_screen_share",
     ),
+        # ============================================================
+    # SCREEN-SHARING PERMISSION STATE
+    # ============================================================
+    # Allow accepted group members to retrieve their current
+    # screen-sharing permissions.
+    #
+    # Only the meeting creator receives pending requests.
+    # This endpoint does not grant LiveKit permissions.
+
+    path(
+        "<int:group_id>/meeting/screen-share/state/",
+        meeting_views.screen_share_permission_state_view,
+        name="group_screen_share_state",
+    ),
 
 ]

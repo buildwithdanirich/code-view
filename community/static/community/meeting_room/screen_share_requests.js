@@ -2,15 +2,18 @@
  * CodeView — Screen-Sharing Request Controller
  *
  * Responsibilities:
- * 1. Submit screen-sharing requests.
- * 2. Cancel pending requests.
- * 3. Display request status.
- * 4. Prepare creator approval/rejection controls.
+ * 1. Show screen-sharing controls to connected meeting members.
+ * 2. Retrieve permission state from Django.
+ * 3. Submit and cancel screen-sharing requests.
+ * 4. Display pending requests to the meeting creator.
+ * 5. Allow the creator to reject requests.
+ * 6. Hide controls when the LiveKit connection ends.
  *
  * Security:
- * - Django validates group membership and permissions.
- * - This file never grants LiveKit publishing permissions.
- * - Approval remains disabled until the secure backend is ready.
+ * - Django validates membership and permissions.
+ * - JavaScript never grants LiveKit publishing permissions.
+ * - Screen-sharing approval remains disabled until secure
+ *   LiveKit permission coordination is verified.
  */
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -83,8 +86,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // 2. DJANGO ENDPOINTS
     // =====================================================
 
-    const requestUrl =
-        panel.dataset.screenShareRequestUrl;
+    const stateUrl = panel.dataset.screenShareStateUrl;
+
+    const requestUrl = panel.dataset.screenShareRequestUrl;
 
     const cancelUrlTemplate =
         panel.dataset.screenShareCancelUrlTemplate;
@@ -93,6 +97,7 @@ document.addEventListener("DOMContentLoaded", () => {
         panel.dataset.screenShareRejectUrlTemplate;
 
     if (
+        !stateUrl ||
         !requestUrl ||
         !cancelUrlTemplate ||
         !rejectUrlTemplate
@@ -105,15 +110,26 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // =====================================================
-    // 3. REQUEST STATE
+    // 3. CONTROLLER STATE
     // =====================================================
+
+    let connected = false;
+
+    let meetingId = null;
+
+    let isMeetingCreator = false;
 
     let pendingRequestId = null;
 
     let busy = false;
 
-    // The existing meeting controller manages LiveKit.
-    // This controller only manages Django requests.
+    let permissionState = null;
+
+    let pollingTimer = null;
+
+    let connectionGeneration = 0;
+
+    const POLLING_INTERVAL_MS = 3000;
 
     // =====================================================
     // 4. CSRF PROTECTION
@@ -131,9 +147,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const cookie = document.cookie
             .split(";")
             .map((value) => value.trim())
-            .find((value) =>
-                value.startsWith("csrftoken=")
-            );
+            .find((value) => value.startsWith("csrftoken="));
 
         if (!cookie) {
             return "";
@@ -145,20 +159,46 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // =====================================================
-    // 5. SEND DJANGO REQUEST
+    // 5. HTTP REQUESTS
     // =====================================================
+
+    async function getPermissionState() {
+        const response = await fetch(stateUrl, {
+            method: "GET",
+            credentials: "same-origin",
+            cache: "no-store",
+            headers: {
+                "X-Requested-With": "XMLHttpRequest",
+            },
+        });
+
+        let data;
+
+        try {
+            data = await response.json();
+        } catch {
+            throw new Error(
+                "The server returned an invalid response."
+            );
+        }
+
+        if (!response.ok || data.success !== true) {
+            throw new Error(
+                data.error || "Unable to retrieve permissions."
+            );
+        }
+
+        return data;
+    }
 
     async function postRequest(url) {
         const response = await fetch(url, {
             method: "POST",
-
             credentials: "same-origin",
-
             headers: {
                 "X-CSRFToken": getCsrfToken(),
-
-                "X-Requested-With": "XMLHttpRequest"
-            }
+                "X-Requested-With": "XMLHttpRequest",
+            },
         });
 
         let data;
@@ -181,7 +221,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // =====================================================
-    // 6. STATUS MESSAGE
+    // 6. DISPLAY STATUS
     // =====================================================
 
     function setStatus(message) {
@@ -189,45 +229,258 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // =====================================================
-    // 7. UPDATE MEMBER BUTTONS
+    // 7. BUILD REQUEST URL
+    // =====================================================
+
+     function buildRequestUrl(template, requestId) {
+        // Convert the request ID into a number.
+        const id = Number(requestId);
+
+        // Ensure the ID is a valid positive integer.
+        if (!Number.isSafeInteger(id) || id <= 0) {
+            throw new Error(
+                "Invalid screen-sharing request ID."
+            );
+        }
+
+        // Replace Django's placeholder with the actual request ID.
+        const url = template.replace(
+            /\/0\/(?=reject\/|cancel\/)/,
+            `/${encodeURIComponent(id)}/`
+        );
+
+        // Ensure the URL was successfully updated.
+        if (url === template) {
+            throw new Error(
+                "Invalid screen-sharing URL configuration."
+            );
+        }
+
+        return url;
+    }
+
+    // =====================================================
+    // 8. UPDATE MEMBER CONTROLS
     // =====================================================
 
     function updateMemberControls() {
-        const hasPendingRequest =
-            pendingRequestId !== null;
+        const isMember = connected && !isMeetingCreator;
 
-        requestButton.hidden = hasPendingRequest;
+        const hasPendingRequest = pendingRequestId !== null;
+
+        const sharingAvailable =
+            permissionState?.screen_share_state === "idle";
+
+        const approvedToShare =
+            permissionState?.can_share_screen === true;
+
+        memberActions.hidden = !isMember;
+
+        requestButton.hidden =
+            hasPendingRequest || approvedToShare;
 
         cancelButton.hidden = !hasPendingRequest;
 
         requestButton.disabled =
-            busy || hasPendingRequest;
+            !isMember ||
+            busy ||
+            hasPendingRequest ||
+            !sharingAvailable ||
+            approvedToShare;
 
         cancelButton.disabled =
-            busy || !hasPendingRequest;
+            !isMember ||
+            busy ||
+            !hasPendingRequest;
     }
 
     // =====================================================
-    // 8. REQUEST SCREEN SHARING
+    // 9. DISPLAY CREATOR REQUESTS
+    // =====================================================
+
+    function clearCreatorRequests() {
+        requestList.replaceChildren();
+
+        noRequests.hidden = false;
+    }
+
+    function renderCreatorRequests(requests) {
+        clearCreatorRequests();
+
+        if (!Array.isArray(requests) || requests.length === 0) {
+            return;
+        }
+
+        noRequests.hidden = true;
+
+        for (const request of requests) {
+            const fragment = requestTemplate.content.cloneNode(true);
+
+            const name = fragment.querySelector(
+                ".livekit-screen-share-request-name"
+            );
+
+            const approveButton = fragment.querySelector(
+                ".livekit-approve-screen-share"
+            );
+
+            const rejectButton = fragment.querySelector(
+                ".livekit-reject-screen-share"
+            );
+
+            if (
+                !name ||
+                !approveButton ||
+                !rejectButton
+            ) {
+                continue;
+            }
+
+            // textContent prevents HTML injection from usernames.
+            name.textContent =
+                request.requested_by__username ||
+                "Group member";
+
+            // Approval remains disabled until the secure
+            // LiveKit permission-granting flow is verified.
+            approveButton.disabled = true;
+
+            approveButton.title =
+                "Approval is not available yet.";
+
+            rejectButton.disabled = busy;
+
+            rejectButton.addEventListener(
+                "click",
+                () => rejectScreenSharingRequest(request.id)
+            );
+
+            requestList.appendChild(fragment);
+        }
+    }
+
+    // =====================================================
+    // 10. UPDATE THE PERMISSION INTERFACE
+    // =====================================================
+
+    function updatePermissionInterface() {
+        permissionSection.hidden = !connected;
+
+        if (!connected) {
+            memberActions.hidden = true;
+
+            creatorRequests.hidden = true;
+
+            clearCreatorRequests();
+
+            return;
+        }
+
+        creatorRequests.hidden = !isMeetingCreator;
+
+        updateMemberControls();
+
+        if (isMeetingCreator) {
+            renderCreatorRequests(
+                permissionState?.pending_requests || []
+            );
+        } else {
+            clearCreatorRequests();
+        }
+    }
+
+    // =====================================================
+    // 11. REFRESH PERMISSIONS FROM DJANGO
+    // =====================================================
+
+    async function refreshPermissionState() {
+        if (!connected) {
+            return;
+        }
+
+        const generation = connectionGeneration;
+
+        try {
+            const data = await getPermissionState();
+
+            // Ignore responses from an earlier connection.
+            if (
+                !connected ||
+                generation !== connectionGeneration
+            ) {
+                return;
+            }
+
+            // Never display permissions for another meeting.
+            if (
+                meetingId !== null &&
+                String(data.meeting_id) !== String(meetingId)
+            ) {
+                setStatus(
+                    "Meeting permissions changed. Rejoin the meeting."
+                );
+
+                permissionState = null;
+
+                updatePermissionInterface();
+
+                return;
+            }
+
+            permissionState = data;
+
+            isMeetingCreator =
+                data.is_meeting_creator === true;
+
+            pendingRequestId =
+                data.my_pending_request_id ?? null;
+
+            updatePermissionInterface();
+
+        } catch (error) {
+            if (
+                !connected ||
+                generation !== connectionGeneration
+            ) {
+                return;
+            }
+
+            console.error(
+                "CodeView permission refresh error:",
+                error
+            );
+
+            setStatus(
+                error.message || "Unable to refresh permissions."
+            );
+        }
+    }
+
+    // =====================================================
+    // 12. SUBMIT SCREEN-SHARING REQUEST
     // =====================================================
 
     async function requestScreenSharing() {
-        if (busy || pendingRequestId !== null) {
+        if (
+            !connected ||
+            isMeetingCreator ||
+            busy ||
+            pendingRequestId !== null ||
+            permissionState?.screen_share_state !== "idle"
+        ) {
             return;
         }
 
         busy = true;
 
+        const generation = connectionGeneration;
+
         updateMemberControls();
 
-        setStatus(
-            "Submitting screen-sharing request..."
-        );
+        setStatus("Submitting screen-sharing request...");
 
         try {
-            const data = await postRequest(
-                requestUrl
-            );
+            const data = await postRequest(requestUrl);
 
             if (
                 !data.request ||
@@ -238,22 +491,36 @@ document.addEventListener("DOMContentLoaded", () => {
                 );
             }
 
+            if (
+                !connected ||
+                generation !== connectionGeneration
+            ) {
+                return;
+            }
+
             pendingRequestId = data.request.id;
 
             setStatus(
                 "Request submitted. Waiting for the meeting creator."
             );
 
-        } catch (error) {
-            console.error(
-                "CodeView screen-sharing request error:",
-                error
-            );
+            await refreshPermissionState();
 
-            setStatus(
-                error.message ||
-                "Unable to request screen sharing."
-            );
+        } catch (error) {
+            if (
+                connected &&
+                generation === connectionGeneration
+            ) {
+                console.error(
+                    "CodeView screen-sharing request error:",
+                    error
+                );
+
+                setStatus(
+                    error.message ||
+                    "Unable to request screen sharing."
+                );
+            }
 
         } finally {
             busy = false;
@@ -263,50 +530,62 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // =====================================================
-    // 9. CANCEL SCREEN-SHARING REQUEST
+    // 13. CANCEL SCREEN-SHARING REQUEST
     // =====================================================
 
     async function cancelScreenSharingRequest() {
-        if (busy || pendingRequestId === null) {
+        if (
+            !connected ||
+            busy ||
+            pendingRequestId === null
+        ) {
             return;
         }
 
         busy = true;
+
+        const generation = connectionGeneration;
 
         updateMemberControls();
 
         setStatus("Cancelling request...");
 
         try {
-            const url = cancelUrlTemplate.replace(
-                /\/0\/(?=$|[?#])/,
-                `/${encodeURIComponent(pendingRequestId)}/`
+            const url = buildRequestUrl(
+                cancelUrlTemplate,
+                pendingRequestId
             );
-
-            if (url === cancelUrlTemplate) {
-                throw new Error(
-                    "Invalid cancellation URL configuration."
-                );
-            }
 
             await postRequest(url);
 
+            if (
+                !connected ||
+                generation !== connectionGeneration
+            ) {
+                return;
+            }
+
             pendingRequestId = null;
 
-            setStatus(
-                "Screen-sharing request cancelled."
-            );
+            setStatus("Screen-sharing request cancelled.");
+
+            await refreshPermissionState();
 
         } catch (error) {
-            console.error(
-                "CodeView cancellation error:",
-                error
-            );
+            if (
+                connected &&
+                generation === connectionGeneration
+            ) {
+                console.error(
+                    "CodeView cancellation error:",
+                    error
+                );
 
-            setStatus(
-                error.message ||
-                "Unable to cancel request."
-            );
+                setStatus(
+                    error.message ||
+                    "Unable to cancel request."
+                );
+            }
 
         } finally {
             busy = false;
@@ -316,27 +595,150 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // =====================================================
-    // 10. CREATOR REQUEST DISPLAY
+    // 14. REJECT SCREEN-SHARING REQUEST
     // =====================================================
 
-    function clearCreatorRequests() {
-        requestList.replaceChildren();
+    async function rejectScreenSharingRequest(requestId) {
+        if (
+            !connected ||
+            !isMeetingCreator ||
+            busy
+        ) {
+            return;
+        }
 
-        noRequests.hidden = false;
+        busy = true;
+
+        const generation = connectionGeneration;
+
+        updatePermissionInterface();
+
+        setStatus("Rejecting screen-sharing request...");
+
+        try {
+            const url = buildRequestUrl(
+                rejectUrlTemplate,
+                requestId
+            );
+
+            await postRequest(url);
+
+            if (
+                !connected ||
+                generation !== connectionGeneration
+            ) {
+                return;
+            }
+
+            setStatus("Screen-sharing request rejected.");
+
+            await refreshPermissionState();
+
+        } catch (error) {
+            if (
+                connected &&
+                generation === connectionGeneration
+            ) {
+                console.error(
+                    "CodeView rejection error:",
+                    error
+                );
+
+                setStatus(
+                    error.message ||
+                    "Unable to reject request."
+                );
+            }
+
+        } finally {
+            busy = false;
+
+            updatePermissionInterface();
+        }
     }
 
-    /*
-     * The creator's request list will be populated
-     * after Django exposes the permission-status endpoint.
-     *
-     * Do not fabricate requests in the browser.
-     *
-     * Approval remains disabled until the LiveKit
-     * permission transition is secure.
-     */
+    // =====================================================
+    // 15. POLLING
+    // =====================================================
+
+    function stopPolling() {
+        if (pollingTimer !== null) {
+            clearInterval(pollingTimer);
+
+            pollingTimer = null;
+        }
+    }
+
+    function startPolling() {
+        stopPolling();
+
+        pollingTimer = setInterval(
+            refreshPermissionState,
+            POLLING_INTERVAL_MS
+        );
+    }
 
     // =====================================================
-    // 11. BUTTON EVENTS
+    // 16. LIVEKIT CONNECTION EVENTS
+    // =====================================================
+
+    document.addEventListener(
+        "codeview:meeting-connected",
+        async (event) => {
+            connectionGeneration += 1;
+
+            connected = true;
+
+            meetingId = event.detail?.meetingId ?? null;
+
+            isMeetingCreator =
+                event.detail?.isMeetingCreator === true;
+
+            pendingRequestId = null;
+
+            permissionState = null;
+
+            busy = false;
+
+            setStatus("Loading screen-sharing permissions...");
+
+            updatePermissionInterface();
+
+            await refreshPermissionState();
+
+            if (connected) {
+                startPolling();
+            }
+        }
+    );
+
+    document.addEventListener(
+        "codeview:meeting-disconnected",
+        () => {
+            connectionGeneration += 1;
+
+            connected = false;
+
+            meetingId = null;
+
+            isMeetingCreator = false;
+
+            pendingRequestId = null;
+
+            permissionState = null;
+
+            busy = false;
+
+            stopPolling();
+
+            setStatus("");
+
+            updatePermissionInterface();
+        }
+    );
+
+    // =====================================================
+    // 17. BUTTON EVENTS
     // =====================================================
 
     requestButton.addEventListener(
@@ -350,12 +752,10 @@ document.addEventListener("DOMContentLoaded", () => {
     );
 
     // =====================================================
-    // 12. INITIALIZE
+    // 18. INITIALIZE
     // =====================================================
 
-    updateMemberControls();
-
-    clearCreatorRequests();
+    updatePermissionInterface();
 
     console.log(
         "CodeView screen-sharing request controller initialized."
