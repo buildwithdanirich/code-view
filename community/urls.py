@@ -17,6 +17,8 @@ Features:
 
 from django.urls import path
 
+from .livekit_webhooks import livekit_webhook_view
+
 # Existing group functionality.
 from . import views
 
@@ -354,6 +356,13 @@ urlpatterns = [
         "<int:group_id>/meeting/screen-share/state/",
         meeting_views.screen_share_permission_state_view,
         name="group_screen_share_state",
+    ),
+
+     # LiveKit webhook endpoint.
+    path(
+        "webhooks/livekit/",
+        livekit_webhook_view,
+        name="livekit_webhook",
     ),
 
 ]

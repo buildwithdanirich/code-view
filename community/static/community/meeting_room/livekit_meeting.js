@@ -122,6 +122,12 @@ document.addEventListener("DOMContentLoaded", () => {
     let canShareScreen = false;
     let isMeetingCreator = false;
 
+        // Remember the current meeting ID.
+    let currentMeetingId = null;
+
+    // Prevent multiple screen-sharing release requests.
+    let screenShareReleaseInProgress = false;
+
     // Remember the original page scrolling behavior.
     let previousBodyOverflow = null;
 
@@ -876,22 +882,49 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         );
 
+        // Detect when a local track stops publishing.
+        // This includes the browser's Stop Sharing button.
         activeRoom.on(
             RoomEvent.LocalTrackUnpublished,
             (publication) => {
+                // Ignore events from an old meeting connection.
                 if (room !== activeRoom) {
                     return;
                 }
 
+                // Remove the unpublished track from the layout.
                 if (publication.track) {
                     detachTrack(publication.track);
                 }
 
+                // Update the participant's media.
                 refresh(activeRoom.localParticipant);
 
-                // Restore the camera grid if the browser
-                // stopped publishing the shared screen.
+                // Only screen-sharing tracks trigger release.
+                // Camera and microphone changes must not.
+                const wasScreenSharing = (
+                    publication.source === Track.Source.ScreenShare
+                );
+
+                if (!wasScreenSharing) {
+                    return;
+                }
+
+                // Restore the normal camera layout.
                 removeStoppedLocalScreenShare();
+
+                // Update the screen-sharing button.
+                updateControls();
+
+                // The creator does not release approved
+                // participant permissions.
+                if (isMeetingCreator) {
+                    return;
+                }
+
+                // Return the approved participant's
+                // screen-sharing permission to Django.
+                void releaseScreenSharingPermission();
             }
         );
 
@@ -907,7 +940,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // =====================================================
     // 19. CONNECT TO LIVEKIT
     // =====================================================
-
     async function connectToLiveKit(credentials, mode) {
         if (!credentials.url || !credentials.token) {
             throw new Error(
@@ -932,6 +964,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 credentials.url,
                 credentials.token
             );
+
+            // Store the meeting ID for permission verification.
+            currentMeetingId = credentials.meeting_id;
 
             // Django supplies these permissions.
             canEndMeeting = (
@@ -996,7 +1031,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     : "Connected to meeting."
             );
 
-             updateControls();
+            updateControls();
 
             // Notify other controllers that the meeting is connected.
             // No LiveKit credentials or tokens are exposed.
@@ -1193,45 +1228,147 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // =====================================================
-    // 23. CREATOR-ONLY SCREEN SHARING
+    // RELEASE APPROVED SCREEN-SHARING PERMISSION
+    // =====================================================
+
+    async function releaseScreenSharingPermission() {
+        // The meeting creator does not need to release
+        // an approved participant's permission.
+        if (isMeetingCreator) {
+            return;
+        }
+
+        // Prevent duplicate release requests.
+        if (screenShareReleaseInProgress) {
+            return;
+        }
+
+        // Django endpoint configured in meeting_room.html.
+        const releaseUrl = panel.dataset.screenShareReleaseUrl;
+
+        if (!releaseUrl || !currentMeetingId) {
+            console.warn(
+                "CodeView: Screen-sharing release URL or meeting ID is missing."
+            );
+
+            return;
+        }
+
+        // Only release after the local screen track has stopped.
+        if (
+            isConnected() &&
+            room.localParticipant.isScreenShareEnabled
+        ) {
+            return;
+        }
+
+        screenShareReleaseInProgress = true;
+
+        try {
+            // Reuse the existing Django POST helper.
+            await postMeetingRequest(releaseUrl);
+
+            // Django has successfully released the reservation.
+            canShareScreen = false;
+
+            updateControls();
+
+            setStatus(
+                "Screen-sharing permission returned to the meeting creator."
+            );
+
+            // Ask the request controller to refresh permissions.
+            document.dispatchEvent(
+                new CustomEvent(
+                    "codeview:screen-share-release-completed",
+                    {
+                        detail: {
+                            meetingId: currentMeetingId,
+                        },
+                    }
+                )
+            );
+
+        } catch (error) {
+            console.error(
+                "CodeView: Unable to release screen-sharing permission.",
+                error
+            );
+
+            setStatus(
+                "Screen sharing stopped, but permission release could not be confirmed."
+            );
+
+        } finally {
+            screenShareReleaseInProgress = false;
+        }
+    }
+    // =====================================================
+    // 23. SCREEN SHARING
     // =====================================================
 
     async function toggleScreenSharing() {
         if (
             !isConnected() ||
-            busy ||
+            busy
+        ) {
+            return;
+        }
+
+        const local = room.localParticipant;
+
+        const currentlySharing = (
+            local.isScreenShareEnabled
+        );
+
+        // A developer must have permission to START sharing.
+        // However, someone already sharing must always
+        // be allowed to STOP sharing.
+        if (
+            !currentlySharing &&
             !canShareScreen
         ) {
+            setStatus(
+                "You do not have permission to share your screen."
+            );
+
             return;
         }
 
         setBusy(true);
 
         try {
-            const local = room.localParticipant;
-
-            const currentlySharing = (
-                local.isScreenShareEnabled
-            );
-
+            // Enable or disable the local screen-sharing track.
             await local.setScreenShareEnabled(
                 !currentlySharing
             );
 
-            // Do not disconnect or close the meeting.
-            // Only remove the stopped presentation track.
+            // If screen sharing has stopped, remove
+            // the presentation from the meeting layout.
             if (!local.isScreenShareEnabled) {
                 removeStoppedLocalScreenShare();
             }
 
+            // Update participant tiles and presentation.
             syncParticipant(local);
             updatePresentation();
 
-            setStatus(
-                local.isScreenShareEnabled
-                    ? "You are sharing your screen."
-                    : "Screen sharing stopped."
-            );
+            if (local.isScreenShareEnabled) {
+                setStatus(
+                    "You are sharing your screen."
+                );
+
+            } else {
+                setStatus(
+                    "Screen sharing stopped."
+                );
+
+                // Approved participants must return
+                // their screen-sharing permission to Django.
+                if (!isMeetingCreator) {
+                    await releaseScreenSharingPermission();
+                }
+            }
 
         } catch (error) {
             console.error(
@@ -1243,6 +1380,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 setStatus(
                     "Screen sharing was cancelled or denied."
                 );
+
             } else {
                 setStatus(
                     error.message || "Unable to share screen."
@@ -1439,5 +1577,40 @@ document.addEventListener("DOMContentLoaded", () => {
 
     console.log(
         "CodeView LiveKit meeting controller initialized."
+    );
+
+        // =====================================================
+    // SCREEN-SHARING PERMISSION UPDATES
+    // =====================================================
+
+    document.addEventListener(
+        "codeview:screen-share-permission-changed",
+        (event) => {
+
+            // Ignore permission updates when disconnected.
+            if (!isConnected()) {
+                return;
+            }
+
+            const details = event.detail;
+
+            if (!details) {
+                return;
+            }
+
+            // Ignore updates belonging to another meeting.
+            if (
+                currentMeetingId === null ||
+                String(details.meetingId) !== String(currentMeetingId)
+            ) {
+                return;
+            }
+
+            // Update the permission received from Django.
+            canShareScreen = details.canShareScreen === true;
+
+            // Refresh the Share Screen button.
+            updateControls();
+        }
     );
 });

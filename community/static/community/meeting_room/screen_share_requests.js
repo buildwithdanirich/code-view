@@ -91,8 +91,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const cancelUrlTemplate =
         panel.dataset.screenShareCancelUrlTemplate;
 
-    // Do not enable until reconnection and recovery are secure.
-    const APPROVAL_ENABLED = false;
+    // Enable the meeting creator's Approve button.
+    // Django remains responsible for authorization.
+    const APPROVAL_ENABLED = true;
 
     if (
         !stateUrl ||

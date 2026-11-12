@@ -4,6 +4,9 @@ This service must be called from authenticated Django views. It does not
 replace authentication, CSRF protection, webhooks, or recovery workers.
 """
 
+
+from .screen_share_lock import screen_share_operation_lock
+
 import logging
 from datetime import timedelta
 
@@ -373,14 +376,38 @@ async def start_group_meeting(group_id, user):
 # ============================================================
 # 10. JOIN GROUP MEETING
 # ============================================================
-
 async def join_group_meeting(group_id, user):
-    """Authorize a member and issue a permission-restricted token."""
+    """
+    Authorize a developer and issue a LiveKit meeting token.
 
-    # Verify LiveKit configuration.
+    Screen-sharing rules:
+
+    1. IDLE:
+       Only the meeting creator may share.
+
+    2. GRANTING:
+       Nobody receives new screen-sharing permission.
+
+    3. READY:
+       Only the approved presenter may share.
+
+    Security:
+    - Verify group membership before issuing a token.
+    - Coordinate token issuance with screen-sharing operations.
+    - Use short-lived LiveKit tokens.
+    - Never trust the browser to decide publishing permissions.
+    """
+
+    # --------------------------------------------------------
+    # STEP 1: VERIFY LIVEKIT CONFIGURATION
+    # --------------------------------------------------------
+
     url, key, secret = _credentials()
 
-    # Verify membership and locate the active meeting.
+    # --------------------------------------------------------
+    # STEP 2: VERIFY GROUP MEMBERSHIP
+    # --------------------------------------------------------
+
     meeting = await sync_to_async(
         _active_meeting_for_member,
         thread_sensitive=True,
@@ -390,112 +417,208 @@ async def join_group_meeting(group_id, user):
     )
 
     # --------------------------------------------------------
-    # Identify meeting creator
+    # STEP 3: ACQUIRE SCREEN-SHARING OPERATION LOCK
     # --------------------------------------------------------
 
-    is_meeting_creator = (
-        user.pk == meeting.started_by_id
-    )
+    # Approval, release, and recovery operations use
+    # this same lock.
+    #
+    # This prevents a new token from being generated
+    # halfway through a coordinated permission change.
+    #
+    # The lock does not revoke previously issued tokens.
 
-    # --------------------------------------------------------
-    # Screen-sharing permission
-    # --------------------------------------------------------
+    async with screen_share_operation_lock(meeting.pk):
 
-    # Fail closed during any permission transition. A joining creator
-    # must not receive a fresh screen-sharing grant while another
-    # participant is being granted or already holds the slot.
-    # NOTE: Existing LiveKit tokens and active participant permissions
-    # must also be revoked by the approval service before approval.
-    can_share_screen = (
-        is_meeting_creator
-        and meeting.screen_share_state == "idle"
-        and meeting.active_screen_sharer_id is None
-    )
+        # ----------------------------------------------------
+        # STEP 4: RECHECK CURRENT MEETING STATE
+        # ----------------------------------------------------
 
-    if can_share_screen:
+        # Read the meeting again after acquiring the lock.
+        #
+        # The state may have changed while this request
+        # was waiting for another operation to finish.
 
-        publish_sources = CREATOR_PUBLISH_SOURCES.copy()
-
-    else:
-
-        publish_sources = MEMBER_PUBLISH_SOURCES.copy()
-
-    # --------------------------------------------------------
-    # Generate LiveKit token
-    # --------------------------------------------------------
-
-    token = (
-        api.AccessToken(
-            key,
-            secret,
+        meeting = await sync_to_async(
+            _active_meeting_for_member,
+            thread_sensitive=True,
+        )(
+            group_id,
+            user.pk,
         )
-        .with_identity(
-            str(user.pk)
+
+        # ----------------------------------------------------
+        # STEP 5: IDENTIFY THE MEETING CREATOR
+        # ----------------------------------------------------
+
+        is_meeting_creator = (
+            user.pk == meeting.started_by_id
         )
-        .with_name(
-            user.get_username()
-        )
-        .with_ttl(
-            timedelta(seconds=600)
-        )
-        .with_grants(
-            api.VideoGrants(
-                room_join=True,
 
-                room=str(
-                    meeting.room_name
-                ),
+        # ----------------------------------------------------
+        # STEP 6: DETERMINE SCREEN-SHARING PERMISSION
+        # ----------------------------------------------------
 
-                # Allow camera and microphone publication.
-                can_publish=True,
+        can_share_screen = False
 
-                # Restrict the sources participants can publish.
-                #
-                # The meeting creator can publish screen tracks.
-                # Other members cannot.
-                can_publish_sources=publish_sources,
+        if meeting.screen_share_state == "idle":
 
-                # Everyone can watch and listen to others.
-                can_subscribe=True,
+            # The creator owns the screen-sharing slot
+            # when nobody else has been approved.
+
+            can_share_screen = (
+                is_meeting_creator
+                and meeting.active_screen_sharer_id is None
             )
+
+        elif meeting.screen_share_state == "ready":
+
+            # An approved developer owns the slot.
+            #
+            # The creator must not receive screen-sharing
+            # permission while this approval is active.
+
+            can_share_screen = (
+                not is_meeting_creator
+                and meeting.active_screen_sharer_id == user.pk
+            )
+
+        elif meeting.screen_share_state == "granting":
+
+            # Permission transfer is in progress.
+            #
+            # Do not issue new screen-sharing grants
+            # until the transfer has completed.
+
+            can_share_screen = False
+
+        else:
+
+            # Unknown states must fail closed.
+
+            logger.warning(
+                "Unknown screen-sharing state: "
+                "meeting=%s state=%s",
+                meeting.pk,
+                meeting.screen_share_state,
+            )
+
+            can_share_screen = False
+
+        # ----------------------------------------------------
+        # STEP 7: CONFIGURE LIVEKIT PUBLISHING SOURCES
+        # ----------------------------------------------------
+
+        if can_share_screen:
+
+            # Allow microphone, camera, screen video,
+            # and screen audio.
+
+            publish_sources = (
+                CREATOR_PUBLISH_SOURCES.copy()
+            )
+
+        else:
+
+            # Allow only microphone and camera.
+
+            publish_sources = (
+                MEMBER_PUBLISH_SOURCES.copy()
+            )
+
+        # ----------------------------------------------------
+        # STEP 8: GENERATE SHORT-LIVED LIVEKIT TOKEN
+        # ----------------------------------------------------
+
+        # A short token lifetime reduces the window
+        # during which a previously issued token can
+        # be used to establish a new connection.
+        #
+        # IMPORTANT:
+        # Token expiration does not terminate an
+        # already-established LiveKit connection.
+        #
+        # It also does not immediately revoke a
+        # previously issued token.
+
+        token = (
+            api.AccessToken(
+                key,
+                secret,
+            )
+            .with_identity(
+                str(user.pk)
+            )
+            .with_name(
+                user.get_username()
+            )
+            .with_ttl(
+                timedelta(seconds=60)
+            )
+            .with_grants(
+                api.VideoGrants(
+                    room_join=True,
+
+                    room=str(
+                        meeting.room_name
+                    ),
+
+                    # Allow publication of approved sources.
+                    can_publish=True,
+
+                    # LiveKit enforces these track restrictions.
+                    can_publish_sources=publish_sources,
+
+                    # Allow watching and listening.
+                    can_subscribe=True,
+                )
+            )
+            .to_jwt()
         )
-        .to_jwt()
-    )
 
-    # --------------------------------------------------------
-    # Meeting termination permission
-    # --------------------------------------------------------
+        # ----------------------------------------------------
+        # STEP 9: DETERMINE MEETING END PERMISSION
+        # ----------------------------------------------------
 
-    # Both the group owner and the meeting creator
-    # can end the meeting for everyone.
-    can_end_meeting = (
-        is_meeting_creator
-        or user.pk == meeting.group.owner_id
-    )
+        # The meeting creator and group owner
+        # can end the meeting for everyone.
 
-    # --------------------------------------------------------
-    # Return meeting information
-    # --------------------------------------------------------
+        can_end_meeting = (
+            is_meeting_creator
+            or user.pk == meeting.group.owner_id
+        )
 
-    return {
-        "url": url,
-        "token": token,
-        "room_name": str(meeting.room_name),
-        "meeting_id": meeting.pk,
+        # ----------------------------------------------------
+        # STEP 10: RETURN MEETING CREDENTIALS
+        # ----------------------------------------------------
 
-        # Meeting creator's database ID.
-        "started_by": meeting.started_by_id,
+        return {
+            "url": url,
 
-        # Used by the frontend to display meeting controls.
-        "can_end_meeting": can_end_meeting,
+            "token": token,
 
-        "is_meeting_creator": is_meeting_creator,
-        # NEW: Used by the frontend to control screen sharing.
-        "can_share_screen": can_share_screen,
-        "screen_share_state": meeting.screen_share_state,
-        "active_screen_sharer_id": meeting.active_screen_sharer_id,
-    }
+            "room_name": str(
+                meeting.room_name
+            ),
 
+            "meeting_id": meeting.pk,
+
+            "started_by": meeting.started_by_id,
+
+            "can_end_meeting": can_end_meeting,
+
+            "is_meeting_creator": is_meeting_creator,
+
+            "can_share_screen": can_share_screen,
+
+            "screen_share_state": (
+                meeting.screen_share_state
+            ),
+
+            "active_screen_sharer_id": (
+                meeting.active_screen_sharer_id
+            ),
+        }
 
 # ============================================================
 # 11. END GROUP MEETING
