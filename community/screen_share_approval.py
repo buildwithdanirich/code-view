@@ -7,6 +7,7 @@ Important:
 - Reserving a slot does not grant LiveKit permission.
 - LiveKit permissions must be updated before approval is finalized.
 - A failed or interrupted transition must not silently free the slot.
+- Only the meeting creator can approve screen-sharing requests.
 """
 
 from django.core.exceptions import (
@@ -15,7 +16,6 @@ from django.core.exceptions import (
 )
 
 from django.db import transaction
-
 from django.utils import timezone
 
 from .models import (
@@ -40,38 +40,50 @@ def reserve_screen_share_approval(
 
     Only the meeting creator can approve requests.
 
-    PostgreSQL row locking prevents two concurrent approvals
+    PostgreSQL row locking prevents concurrent approvals
     from reserving the same meeting simultaneously.
     """
 
     with transaction.atomic():
 
-        # Verify that the developer belongs to the group.
+        # ----------------------------------------------------
+        # Step 1: Verify the creator belongs to an active
+        # meeting in the requested group.
+        # ----------------------------------------------------
+
         meeting = _active_meeting_for_member(
             group_id,
             creator_id,
         )
 
-        # Lock the meeting row until the transaction commits.
+        # ----------------------------------------------------
+        # Step 2: Lock the meeting row.
+        # ----------------------------------------------------
+
         meeting = (
             GroupMeeting.objects
             .select_for_update()
             .get(pk=meeting.pk)
         )
 
-        # Only the meeting creator can approve requests.
+        # ----------------------------------------------------
+        # Step 3: Verify meeting ownership.
+        # ----------------------------------------------------
+
         if meeting.started_by_id != creator_id:
             raise PermissionDenied(
                 "Only the meeting creator can approve requests."
             )
 
-        # An ended meeting cannot approve screen sharing.
         if meeting.status != "active":
             raise ValidationError(
                 "This meeting has ended."
             )
 
-        # The screen-sharing slot must be completely free.
+        # ----------------------------------------------------
+        # Step 4: Verify the screen-sharing slot is free.
+        # ----------------------------------------------------
+
         if (
             meeting.screen_share_state != "idle"
             or meeting.active_screen_sharer_id is not None
@@ -80,7 +92,10 @@ def reserve_screen_share_approval(
                 "Screen-sharing permission is currently occupied."
             )
 
-        # Find and lock the requested approval.
+        # ----------------------------------------------------
+        # Step 5: Lock the selected screen-sharing request.
+        # ----------------------------------------------------
+
         screen_request = (
             MeetingScreenShareRequest.objects
             .select_for_update()
@@ -90,25 +105,34 @@ def reserve_screen_share_approval(
             )
         )
 
-        # Only pending requests can be approved.
+        # ----------------------------------------------------
+        # Step 6: Validate request status.
+        # ----------------------------------------------------
+
         if screen_request.status != "pending":
             raise ValidationError(
                 "This request is no longer pending."
             )
 
-        # The creator cannot approve their own request.
+        # ----------------------------------------------------
+        # Step 7: Prevent creator self-approval.
+        # ----------------------------------------------------
+
         if screen_request.requested_by_id == creator_id:
             raise ValidationError(
                 "The meeting creator does not need approval."
             )
 
-        # Reserve the slot for the selected developer.
+        # ----------------------------------------------------
+        # Step 8: Reserve the screen-sharing slot.
+        # ----------------------------------------------------
+
         meeting.active_screen_sharer_id = (
             screen_request.requested_by_id
         )
 
-        # Granting means the LiveKit operation is not complete.
-        # The frontend must NOT enable screen sharing yet.
+        # The LiveKit operation has not completed yet.
+        # The frontend must not enable screen sharing.
         meeting.screen_share_state = "granting"
 
         meeting.save(
@@ -139,15 +163,21 @@ def finalize_screen_share_approval(
     presenter_id,
 ):
     """
-    Finalize an approval after LiveKit confirms permissions.
+    Finalize approval after LiveKit confirms permissions.
 
     The calling service must first:
+
     1. Confirm the creator is not actively sharing.
     2. Revoke the creator's screen publication permission.
     3. Grant screen publication permission to the presenter.
+    4. Verify no other participant can share.
     """
 
     with transaction.atomic():
+
+        # ----------------------------------------------------
+        # Step 1: Lock the meeting.
+        # ----------------------------------------------------
 
         meeting = (
             GroupMeeting.objects
@@ -155,16 +185,50 @@ def finalize_screen_share_approval(
             .get(pk=meeting_id)
         )
 
-        # Reject stale or conflicting operations.
-        if (
-            meeting.status != "active"
-            or meeting.screen_share_state != "granting"
-            or meeting.active_screen_sharer_id != presenter_id
-            or meeting.started_by_id != creator_id
-        ):
+        # ----------------------------------------------------
+        # Step 2: Verify the meeting remains active.
+        # ----------------------------------------------------
+
+        if meeting.status != "active":
+            raise ValidationError(
+                "The meeting ended during approval."
+            )
+
+        # ----------------------------------------------------
+        # Step 3: Verify the reserved state.
+        # ----------------------------------------------------
+
+        if meeting.screen_share_state != "granting":
             raise ValidationError(
                 "Screen-sharing approval state has changed."
             )
+
+        if meeting.active_screen_sharer_id != presenter_id:
+            raise ValidationError(
+                "The reserved presenter has changed."
+            )
+
+        # ----------------------------------------------------
+        # Step 4: Verify creator identity.
+        # ----------------------------------------------------
+
+        if meeting.started_by_id != creator_id:
+            raise PermissionDenied(
+                "Only the meeting creator can approve requests."
+            )
+
+        # ----------------------------------------------------
+        # Step 5: Prevent creator self-approval.
+        # ----------------------------------------------------
+
+        if creator_id == presenter_id:
+            raise ValidationError(
+                "The meeting creator cannot approve themselves."
+            )
+
+        # ----------------------------------------------------
+        # Step 6: Lock the original request.
+        # ----------------------------------------------------
 
         screen_request = (
             MeetingScreenShareRequest.objects
@@ -176,12 +240,19 @@ def finalize_screen_share_approval(
             )
         )
 
+        # ----------------------------------------------------
+        # Step 7: Reject stale or duplicate approvals.
+        # ----------------------------------------------------
+
         if screen_request.status != "pending":
             raise ValidationError(
                 "This request is no longer pending."
             )
 
-        # Record the approved request.
+        # ----------------------------------------------------
+        # Step 8: Record the approved request.
+        # ----------------------------------------------------
+
         screen_request.status = "approved"
         screen_request.reviewed_by_id = creator_id
         screen_request.reviewed_at = timezone.now()
@@ -194,7 +265,10 @@ def finalize_screen_share_approval(
             ]
         )
 
-        # The selected developer now owns the permission slot.
+        # ----------------------------------------------------
+        # Step 9: Mark the screen-sharing slot ready.
+        # ----------------------------------------------------
+
         meeting.screen_share_state = "ready"
 
         meeting.save(

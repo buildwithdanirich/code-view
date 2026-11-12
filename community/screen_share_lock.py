@@ -1,50 +1,75 @@
 """
-PostgreSQL advisory locking for CodeView screen-sharing operations.
+PostgreSQL advisory locks for CodeView screen sharing.
 
 Purpose:
-- Prevent concurrent approval and recovery operations.
+- Prevent simultaneous screen-sharing permission operations.
 - Coordinate multiple Django workers.
-- Avoid holding a database transaction open during LiveKit calls.
+- Keep a PostgreSQL lock active during LiveKit operations.
+- Release locks when operations finish or fail.
 
-Important:
-Every screen-sharing permission-changing operation must use
-this lock for the protection to work.
+Uses psycopg 3 asynchronous connections.
 """
 
-from contextlib import contextmanager
+import logging
+
+from contextlib import asynccontextmanager
+
+import psycopg
 
 from django.core.exceptions import ValidationError
 from django.db import connections
 
 
-# A dedicated namespace for CodeView screen-sharing locks.
-# The meeting ID is used as the second advisory-lock key.
+logger = logging.getLogger(__name__)
+
+
+# PostgreSQL advisory-lock namespace.
 LOCK_NAMESPACE = 726431
 
+# PostgreSQL advisory-lock keys use signed 32-bit integers.
+MAX_MEETING_ID = 2147483647
 
-@contextmanager
-def screen_share_operation_lock(meeting_id):
+
+# ============================================================
+# 1. VALIDATE MEETING ID
+# ============================================================
+
+def _validate_meeting_id(meeting_id):
     """
-    Acquire a PostgreSQL session-level advisory lock.
-
-    The lock is held until the context manager exits.
-
-    Example:
-
-        with screen_share_operation_lock(meeting_id):
-            # Perform one screen-sharing operation.
-            pass
-
-    This function is synchronous. Do not call it directly
-    from an asynchronous Django view.
+    Validate the meeting ID before acquiring its lock.
     """
 
-    meeting_id = int(meeting_id)
+    if isinstance(meeting_id, bool):
+        raise ValidationError("Invalid meeting ID.")
 
-    if meeting_id <= 0 or meeting_id > 2147483647:
+    try:
+        meeting_id = int(meeting_id)
+
+    except (TypeError, ValueError, OverflowError):
+        raise ValidationError("Invalid meeting ID.")
+
+    if not 0 < meeting_id <= MAX_MEETING_ID:
         raise ValidationError(
-            "Invalid meeting ID for screen-sharing lock."
+            "Meeting ID is outside the supported lock range."
         )
+
+    return meeting_id
+
+
+# ============================================================
+# 2. GET POSTGRESQL CONNECTION PARAMETERS
+# ============================================================
+
+def _postgres_connection_params():
+    """
+    Read PostgreSQL connection settings from Django.
+
+    Django may configure a synchronous cursor factory.
+
+    Since this module creates an independent asynchronous
+    connection, that synchronous cursor factory must not
+    be passed to psycopg.AsyncConnection.
+    """
 
     connection = connections["default"]
 
@@ -53,38 +78,120 @@ def screen_share_operation_lock(meeting_id):
             "Screen-sharing locks require PostgreSQL."
         )
 
-    # Open the database connection before acquiring the lock.
-    connection.ensure_connection()
+    # Copy the parameters to avoid modifying Django's settings.
+    params = connection.get_connection_params().copy()
 
-    # Acquire the lock without waiting.
-    with connection.cursor() as cursor:
-        cursor.execute(
-            "SELECT pg_try_advisory_lock(%s, %s)",
-            [LOCK_NAMESPACE, meeting_id],
-        )
+    # Remove Django's synchronous cursor factory.
+    #
+    # Otherwise, AsyncConnection.cursor() may return
+    # django.db.backends.postgresql.base.Cursor instead
+    # of psycopg.AsyncCursor.
+    params.pop("cursor_factory", None)
 
-        acquired = cursor.fetchone()[0]
+    return params
 
-    if not acquired:
-        raise ValidationError(
-            "Another screen-sharing operation is in progress."
-        )
+
+# ============================================================
+# 3. ACQUIRE ASYNCHRONOUS POSTGRESQL LOCK
+# ============================================================
+
+@asynccontextmanager
+async def screen_share_operation_lock(meeting_id):
+    """
+    Acquire a PostgreSQL advisory lock for one meeting.
+
+    Example:
+
+        async with screen_share_operation_lock(meeting_id):
+            await update_livekit_permissions()
+
+    The lock remains active throughout the protected
+    asynchronous operation.
+
+    If another connection owns the same lock, the new
+    operation is rejected immediately.
+    """
+
+    # Step 1: Validate the meeting ID.
+    meeting_id = _validate_meeting_id(meeting_id)
+
+    # Step 2: Get the PostgreSQL connection parameters.
+    params = _postgres_connection_params()
+
+    # Step 3: Open a dedicated asynchronous connection.
+    connection = await psycopg.AsyncConnection.connect(
+        **params,
+        autocommit=True,
+    )
+
+    acquired = False
 
     try:
+
+        # Step 4: Acquire the advisory lock.
+        async with connection.cursor() as cursor:
+
+            await cursor.execute(
+                "SELECT pg_try_advisory_lock(%s, %s)",
+                (LOCK_NAMESPACE, meeting_id),
+            )
+
+            result = await cursor.fetchone()
+
+            acquired = bool(result and result[0])
+
+        if not acquired:
+            raise ValidationError(
+                "Another screen-sharing operation is in progress."
+            )
+
+        logger.info(
+            "Screen-sharing lock acquired: meeting=%s",
+            meeting_id,
+        )
+
+        # Step 5: Run the protected operation.
         yield
 
     finally:
-        # Release the advisory lock using the same
-        # PostgreSQL database connection.
-        with connection.cursor() as cursor:
-            cursor.execute(
-                "SELECT pg_advisory_unlock(%s, %s)",
-                [LOCK_NAMESPACE, meeting_id],
-            )
 
-            released = cursor.fetchone()[0]
+        # Step 6: Release the lock.
+        if acquired:
 
-        if not released:
-            raise RuntimeError(
-                "Screen-sharing advisory lock was not released."
-            )
+            try:
+
+                async with connection.cursor() as cursor:
+
+                    await cursor.execute(
+                        "SELECT pg_advisory_unlock(%s, %s)",
+                        (LOCK_NAMESPACE, meeting_id),
+                    )
+
+                    result = await cursor.fetchone()
+
+                    if not result or not result[0]:
+                        logger.error(
+                            "Advisory lock release was not confirmed: "
+                            "meeting=%s",
+                            meeting_id,
+                        )
+
+            except Exception:
+
+                logger.exception(
+                    "Failed to explicitly release advisory lock: "
+                    "meeting=%s",
+                    meeting_id,
+                )
+
+        # Step 7: Close the dedicated connection.
+        #
+        # PostgreSQL automatically releases any remaining
+        # session-level advisory locks when this connection
+        # closes.
+        await connection.close()
+
+        logger.info(
+            "Screen-sharing lock connection closed: meeting=%s",
+            meeting_id,
+        )

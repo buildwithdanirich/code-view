@@ -1,59 +1,64 @@
 """
-Recovery for interrupted CodeView screen-sharing approvals.
+Screen-sharing permission recovery for CodeView.
 
-Purpose:
-- Inspect incomplete screen-sharing approvals.
-- Revoke temporary LiveKit screen-sharing permissions.
-- Restore the meeting creator's permission when safe.
-- Release the database slot only after verification.
+Responsibilities:
+- Recover interrupted screen-sharing approvals.
+- Prevent recovery and approval from running simultaneously.
+- Inspect current LiveKit participants and permissions.
+- Revoke the presenter's screen-sharing permission.
+- Restore the creator's permission when safe.
+- Release the database reservation after verification.
 
 Security:
-- Recovery fails closed.
-- Uncertain operations remain blocked.
-- This module does not automatically run recovery.
-- Reconnection protection must be completed separately.
+- Uses a PostgreSQL advisory lock.
+- Fails closed when LiveKit state cannot be verified.
+- Never releases the database slot after an uncertain failure.
+- Does not automatically run recovery.
+- Reconnection protection must be implemented separately.
 """
 
 import logging
 
 from asgiref.sync import sync_to_async
-
 from django.core.exceptions import ValidationError
 from django.db import transaction
-
 from livekit import api
 
 from .meeting_service import _credentials
-
 from .models import GroupMeeting
+from .screen_share_lock import screen_share_operation_lock
 
 
 logger = logging.getLogger(__name__)
 
 
 # ============================================================
-# 1. LIVEKIT PUBLISHING PERMISSIONS
+# 1. LIVEKIT PERMISSION CONFIGURATION
 # ============================================================
 
+# Normal meeting participants can use their microphone
+# and camera, but cannot publish screen-sharing tracks.
 NORMAL_SOURCES = [
-    "microphone",
-    "camera",
+    api.TrackSource.MICROPHONE,
+    api.TrackSource.CAMERA,
 ]
 
+# The meeting creator can publish microphone, camera,
+# screen video, and screen audio when permission is restored.
 SCREEN_SOURCES = [
-    "microphone",
-    "camera",
-    "screen_share",
-    "screen_share_audio",
+    api.TrackSource.MICROPHONE,
+    api.TrackSource.CAMERA,
+    api.TrackSource.SCREEN_SHARE,
+    api.TrackSource.SCREEN_SHARE_AUDIO,
 ]
 
 
 def _permission(sources):
     """
-    Build LiveKit participant permissions.
+    Build LiveKit publishing permissions.
 
-    A participant can continue using their microphone
-    and camera even when screen sharing is disabled.
+    Developers retain microphone and camera access
+    when screen sharing is disabled.
     """
 
     return api.ParticipantPermission(
@@ -65,20 +70,19 @@ def _permission(sources):
 
 
 # ============================================================
-# 2. READ THE INCOMPLETE APPROVAL
+# 2. READ RECOVERY STATE
 # ============================================================
 
 def _get_recovery_snapshot(meeting_id):
     """
-    Read the current meeting state.
+    Read an interrupted approval from PostgreSQL.
 
-    Only interrupted approvals in the 'granting'
-    state are handled by this recovery operation.
+    Only active meetings in the 'granting' state
+    are eligible for this recovery operation.
     """
 
-    meeting = (
-        GroupMeeting.objects
-        .get(pk=meeting_id)
+    meeting = GroupMeeting.objects.get(
+        pk=meeting_id,
     )
 
     if meeting.status != "active":
@@ -110,9 +114,9 @@ def _get_recovery_snapshot(meeting_id):
 
 async def _list_participants(room_client, room_name):
     """
-    Get the current participants from LiveKit.
+    Retrieve connected LiveKit participants.
 
-    Returns participants indexed by their identity.
+    Return a dictionary indexed by participant identity.
     """
 
     response = await room_client.list_participants(
@@ -130,7 +134,7 @@ async def _list_participants(room_client, room_name):
 def _has_screen_track(participant):
     """
     Check whether a participant is publishing
-    a screen-sharing track.
+    a screen-sharing video or audio track.
     """
 
     screen_sources = {
@@ -146,38 +150,53 @@ def _has_screen_track(participant):
 
 def _can_publish_screen(participant):
     """
-    Check whether LiveKit reports screen-publishing
-    permission for a participant.
+    Check whether LiveKit permits screen sharing.
 
-    An unrestricted publishing permission also
-    counts as screen-sharing permission.
+    An empty source restriction means unrestricted
+    publishing when can_publish=True.
     """
 
     permission = participant.permission
 
+    # Fail closed when permission information is missing.
     if permission is None:
         return True
 
     if not permission.can_publish:
         return False
 
-    sources = set(permission.can_publish_sources)
+    sources = set(
+        permission.can_publish_sources
+    )
 
-    # An empty source restriction means publishing
-    # is not restricted to specific track sources.
     if not sources:
         return True
 
+    screen_sources = {
+        api.TrackSource.SCREEN_SHARE,
+        api.TrackSource.SCREEN_SHARE_AUDIO,
+    }
+
     return bool(
-        {
-            api.TrackSource.SCREEN_SHARE,
-            api.TrackSource.SCREEN_SHARE_AUDIO,
-        }.intersection(sources)
+        screen_sources.intersection(sources)
+    )
+
+
+def _verify_no_screen_tracks(participants):
+    """
+    Ensure nobody is currently publishing a screen track.
+
+    Recovery must stop if screen sharing is active.
+    """
+
+    return not any(
+        _has_screen_track(participant)
+        for participant in participants.values()
     )
 
 
 # ============================================================
-# 4. UPDATE PARTICIPANT PERMISSIONS
+# 4. UPDATE LIVEKIT PERMISSIONS
 # ============================================================
 
 async def _update_permission(
@@ -187,9 +206,9 @@ async def _update_permission(
     sources,
 ):
     """
-    Update an existing LiveKit participant.
+    Update a connected participant's publishing permissions.
 
-    This does not disconnect the participant.
+    The participant remains connected to the meeting.
     """
 
     await room_client.update_participant(
@@ -202,15 +221,18 @@ async def _update_permission(
 
 
 # ============================================================
-# 5. RELEASE THE DATABASE RESERVATION
+# 5. RELEASE RECOVERED DATABASE SLOT
 # ============================================================
 
 def _release_recovered_slot(snapshot):
     """
-    Release the reserved slot after LiveKit verification.
+    Release the screen-sharing reservation.
 
-    Lock the meeting row to avoid overwriting another
-    database transition.
+    PostgreSQL row locking prevents another database
+    transaction from modifying the meeting simultaneously.
+
+    The caller must already have completed LiveKit
+    permission verification.
     """
 
     with transaction.atomic():
@@ -218,7 +240,9 @@ def _release_recovered_slot(snapshot):
         meeting = (
             GroupMeeting.objects
             .select_for_update()
-            .get(pk=snapshot["meeting_id"])
+            .get(
+                pk=snapshot["meeting_id"],
+            )
         )
 
         if meeting.status != "active":
@@ -239,7 +263,20 @@ def _release_recovered_slot(snapshot):
                 "The reserved presenter changed during recovery."
             )
 
+        if meeting.started_by_id != snapshot["creator_id"]:
+            raise ValidationError(
+                "The meeting creator changed during recovery."
+            )
+
+        if str(meeting.room_name) != snapshot["room_name"]:
+            raise ValidationError(
+                "The meeting room changed during recovery."
+            )
+
+        # Clear the reserved presenter.
         meeting.active_screen_sharer = None
+
+        # Allow future screen-sharing requests.
         meeting.screen_share_state = "idle"
 
         meeting.save(
@@ -258,219 +295,270 @@ def _release_recovered_slot(snapshot):
 
 async def recover_screen_share_approval(meeting_id):
     """
-    Attempt to recover an interrupted approval.
+    Recover an interrupted screen-sharing approval.
 
-    Recovery order:
+    Workflow:
 
-    1. Read the database reservation.
-    2. Inspect LiveKit participants.
-    3. Revoke the presenter's screen permission.
-    4. Verify the presenter no longer has permission.
-    5. Restore the creator's screen permission.
-    6. Verify the resulting LiveKit state.
-    7. Release the PostgreSQL reservation.
+    1. Acquire PostgreSQL advisory lock.
+    2. Read the database recovery state.
+    3. Inspect LiveKit participants.
+    4. Verify nobody is sharing.
+    5. Revoke the presenter's screen permission.
+    6. Verify revocation.
+    7. Restore the creator's screen permission.
+    8. Verify all connected participant permissions.
+    9. Release the database reservation.
+    10. Release the advisory lock.
 
-    This operation intentionally requires both participants
-    to remain connected.
+    This is not yet a complete production recovery system.
 
-    If either participant is missing or any operation fails,
-    the database reservation remains blocked.
-
-    IMPORTANT:
-    This is a recovery building block, not a complete
-    production recovery system. It must not be invoked
-    concurrently with approval or another recovery attempt.
+    Stale LiveKit tokens and unexpected participant
+    reconnections require additional protection.
     """
 
-    snapshot = await sync_to_async(
-        _get_recovery_snapshot,
-        thread_sensitive=True,
-    )(meeting_id)
+    # --------------------------------------------------------
+    # STEP 1: ACQUIRE MEETING OPERATION LOCK
+    # --------------------------------------------------------
 
-    url, key, secret = _credentials()
+    async with screen_share_operation_lock(meeting_id):
 
-    room_name = snapshot["room_name"]
+        # ----------------------------------------------------
+        # STEP 2: READ DATABASE STATE
+        # ----------------------------------------------------
 
-    creator_identity = str(snapshot["creator_id"])
-    presenter_identity = str(snapshot["presenter_id"])
+        snapshot = await sync_to_async(
+            _get_recovery_snapshot,
+            thread_sensitive=True,
+        )(meeting_id)
 
-    try:
+        url, key, secret = _credentials()
 
-        async with api.LiveKitAPI(
-            url,
-            key,
-            secret,
-        ) as client:
+        room_name = snapshot["room_name"]
 
-            room_client = client.room
+        creator_identity = str(
+            snapshot["creator_id"]
+        )
 
-            # --------------------------------------------
-            # Step 1: Inspect current participants.
-            # --------------------------------------------
+        presenter_identity = str(
+            snapshot["presenter_id"]
+        )
 
-            participants = await _list_participants(
-                room_client,
-                room_name,
-            )
+        try:
 
-            creator = participants.get(
-                creator_identity
-            )
+            # ------------------------------------------------
+            # STEP 3: CONNECT TO LIVEKIT
+            # ------------------------------------------------
 
-            presenter = participants.get(
-                presenter_identity
-            )
+            async with api.LiveKitAPI(
+                url,
+                key,
+                secret,
+            ) as client:
 
-            if creator is None or presenter is None:
-                raise ValidationError(
-                    "Both participants must be connected for this recovery operation."
+                room_client = client.room
+
+                participants = await _list_participants(
+                    room_client,
+                    room_name,
                 )
 
-            # --------------------------------------------
-            # Step 2: Check existing screen tracks.
-            # --------------------------------------------
-
-            if any(
-                _has_screen_track(participant)
-                for participant in participants.values()
-            ):
-                raise ValidationError(
-                    "Screen sharing must stop before recovery."
+                creator = participants.get(
+                    creator_identity
                 )
 
-            # --------------------------------------------
-            # Step 3: Revoke presenter permission.
-            # --------------------------------------------
-
-            await _update_permission(
-                room_client,
-                room_name,
-                presenter_identity,
-                NORMAL_SOURCES,
-            )
-
-            # --------------------------------------------
-            # Step 4: Verify presenter revocation.
-            # --------------------------------------------
-
-            participants = await _list_participants(
-                room_client,
-                room_name,
-            )
-
-            presenter = participants.get(
-                presenter_identity
-            )
-
-            if presenter is None:
-                raise ValidationError(
-                    "Presenter disconnected during recovery."
+                presenter = participants.get(
+                    presenter_identity
                 )
 
-            if _can_publish_screen(presenter):
-                raise ValidationError(
-                    "Presenter screen permission was not revoked."
-                )
+                # --------------------------------------------
+                # STEP 4: VERIFY BOTH PARTICIPANTS
+                # --------------------------------------------
 
-            # --------------------------------------------
-            # Step 5: Restore creator permission.
-            # --------------------------------------------
-
-            creator = participants.get(
-                creator_identity
-            )
-
-            if creator is None:
-                raise ValidationError(
-                    "Creator disconnected during recovery."
-                )
-
-            await _update_permission(
-                room_client,
-                room_name,
-                creator_identity,
-                SCREEN_SOURCES,
-            )
-
-            # --------------------------------------------
-            # Step 6: Verify final LiveKit permissions.
-            # --------------------------------------------
-
-            participants = await _list_participants(
-                room_client,
-                room_name,
-            )
-
-            creator = participants.get(
-                creator_identity
-            )
-
-            presenter = participants.get(
-                presenter_identity
-            )
-
-            if creator is None or presenter is None:
-                raise ValidationError(
-                    "A participant disconnected during verification."
-                )
-
-            if not _can_publish_screen(creator):
-                raise ValidationError(
-                    "Creator permission was not restored."
-                )
-
-            if _can_publish_screen(presenter):
-                raise ValidationError(
-                    "Presenter still has screen-sharing permission."
-                )
-
-            # Other connected participants must not have
-            # screen-sharing permission either.
-            for identity, participant in participants.items():
-
-                if identity == creator_identity:
-                    continue
-
-                if _can_publish_screen(participant):
+                if creator is None:
                     raise ValidationError(
-                        "Another participant has screen-sharing permission."
+                        "The meeting creator must be connected "
+                        "before recovery can continue."
                     )
 
-            if any(
-                _has_screen_track(participant)
-                for participant in participants.values()
-            ):
-                raise ValidationError(
-                    "A screen track appeared during recovery."
+                if presenter is None:
+                    raise ValidationError(
+                        "The reserved presenter must be connected "
+                        "before recovery can continue."
+                    )
+
+                if creator_identity == presenter_identity:
+                    raise ValidationError(
+                        "The creator and presenter cannot "
+                        "be the same participant."
+                    )
+
+                # --------------------------------------------
+                # STEP 5: CHECK ACTIVE SCREEN TRACKS
+                # --------------------------------------------
+
+                if not _verify_no_screen_tracks(participants):
+                    raise ValidationError(
+                        "Screen sharing must stop before recovery."
+                    )
+
+                # --------------------------------------------
+                # STEP 6: REVOKE PRESENTER PERMISSION
+                # --------------------------------------------
+
+                await _update_permission(
+                    room_client,
+                    room_name,
+                    presenter_identity,
+                    NORMAL_SOURCES,
                 )
 
-        # --------------------------------------------
-        # Step 7: Release the database reservation.
-        # --------------------------------------------
+                # --------------------------------------------
+                # STEP 7: VERIFY PRESENTER REVOCATION
+                # --------------------------------------------
 
-        meeting = await sync_to_async(
-            _release_recovered_slot,
-            thread_sensitive=True,
-        )(snapshot)
+                participants = await _list_participants(
+                    room_client,
+                    room_name,
+                )
 
-        logger.info(
-            "Screen-sharing recovery completed: meeting=%s",
-            meeting_id,
-        )
+                presenter = participants.get(
+                    presenter_identity
+                )
 
-        return {
-            "success": True,
-            "meeting_id": meeting.pk,
-            "screen_share_state": meeting.screen_share_state,
-        }
+                if presenter is None:
+                    raise ValidationError(
+                        "The presenter disconnected during recovery."
+                    )
 
-    except Exception:
+                if _can_publish_screen(presenter):
+                    raise ValidationError(
+                        "Presenter screen-sharing permission "
+                        "was not revoked."
+                    )
 
-        # Never clear the reservation when recovery
-        # cannot verify a safe LiveKit state.
-        logger.exception(
-            "Screen-sharing recovery failed: meeting=%s",
-            meeting_id,
-        )
+                creator = participants.get(
+                    creator_identity
+                )
 
-        raise
+                if creator is None:
+                    raise ValidationError(
+                        "The creator disconnected during recovery."
+                    )
+
+                # Security: no participant should be
+                # actively sharing during recovery.
+                if not _verify_no_screen_tracks(participants):
+                    raise ValidationError(
+                        "A screen-sharing track appeared "
+                        "during presenter revocation."
+                    )
+
+                # --------------------------------------------
+                # STEP 8: RESTORE CREATOR PERMISSION
+                # --------------------------------------------
+
+                await _update_permission(
+                    room_client,
+                    room_name,
+                    creator_identity,
+                    SCREEN_SOURCES,
+                )
+
+                # --------------------------------------------
+                # STEP 9: VERIFY FINAL LIVEKIT STATE
+                # --------------------------------------------
+
+                participants = await _list_participants(
+                    room_client,
+                    room_name,
+                )
+
+                creator = participants.get(
+                    creator_identity
+                )
+
+                presenter = participants.get(
+                    presenter_identity
+                )
+
+                if creator is None:
+                    raise ValidationError(
+                        "Creator disconnected during verification."
+                    )
+
+                if presenter is None:
+                    raise ValidationError(
+                        "Presenter disconnected during verification."
+                    )
+
+                if not _can_publish_screen(creator):
+                    raise ValidationError(
+                        "Creator screen-sharing permission "
+                        "was not restored."
+                    )
+
+                if _can_publish_screen(presenter):
+                    raise ValidationError(
+                        "Presenter still has screen-sharing permission."
+                    )
+
+                # Every other connected participant must
+                # remain restricted to camera and microphone.
+                for identity, participant in participants.items():
+
+                    if identity == creator_identity:
+                        continue
+
+                    if _can_publish_screen(participant):
+                        raise ValidationError(
+                            "Another participant has "
+                            "screen-sharing permission."
+                        )
+
+                # No screen track may be active while
+                # the recovery operation completes.
+                if not _verify_no_screen_tracks(participants):
+                    raise ValidationError(
+                        "A screen-sharing track appeared "
+                        "during recovery."
+                    )
+
+            # ------------------------------------------------
+            # STEP 10: RELEASE DATABASE RESERVATION
+            # ------------------------------------------------
+
+            # The advisory lock is still held here.
+            meeting = await sync_to_async(
+                _release_recovered_slot,
+                thread_sensitive=True,
+            )(snapshot)
+
+            logger.info(
+                "Screen-sharing recovery completed: meeting=%s",
+                meeting_id,
+            )
+
+            return {
+                "success": True,
+                "meeting_id": meeting.pk,
+                "screen_share_state": meeting.screen_share_state,
+            }
+
+        except Exception:
+
+            # Keep the database reservation blocked.
+            #
+            # A LiveKit permission update may have succeeded
+            # even if the network request failed.
+            #
+            # Recovery can be retried after inspecting
+            # the actual LiveKit permissions.
+
+            logger.exception(
+                "Screen-sharing recovery failed: meeting=%s",
+                meeting_id,
+            )
+
+            raise
+
+    # Exiting the async context releases the advisory lock.

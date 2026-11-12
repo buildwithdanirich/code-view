@@ -250,6 +250,9 @@
     data-start-url="{% url 'start_group_meeting' group.id %}"
     data-join-url="{% url 'join_group_meeting' group.id %}"
     data-end-url="{% url 'end_group_meeting' group.id %}"
+    data-screen-share-request-url="{% url 'request_group_screen_share' group.id %}"
+    data-screen-share-reject-url-template="{% url 'reject_group_screen_share' group.id 0 %}"
+    data-screen-share-cancel-url-template="{% url 'cancel_group_screen_share' group.id 0 %}"
     hidden
 >
     <!-- Meeting heading -->
@@ -332,6 +335,85 @@
         </button>
 
     </div>
+
+    <!-- Screen-sharing permissions: displayed by the LiveKit controller. -->
+    <section
+        id="livekit-screen-share-permissions"
+        class="livekit-screen-share-permissions"
+        aria-label="Screen-sharing permissions"
+        hidden
+    >
+        <h3>Screen-sharing permission</h3>
+
+        <p
+            id="livekit-screen-share-request-status"
+            role="status"
+            aria-live="polite"
+        ></p>
+
+        <!-- Only non-creator members can request or cancel permission. -->
+        <div id="livekit-screen-share-member-actions" hidden>
+            <button
+                type="button"
+                id="livekit-request-screen-share"
+                disabled
+            >
+                Request Screen Share
+            </button>
+
+            <button
+                type="button"
+                id="livekit-cancel-screen-share-request"
+                hidden
+                disabled
+            >
+                Cancel Request
+            </button>
+        </div>
+
+        <!-- Only the meeting creator can review pending requests. -->
+        <section
+            id="livekit-screen-share-creator-requests"
+            aria-label="Pending screen-sharing requests"
+            hidden
+        >
+            <h4>Pending screen-sharing requests</h4>
+
+            <p id="livekit-screen-share-no-requests">
+                No pending requests.
+            </p>
+
+            <div
+                id="livekit-screen-share-request-list"
+                aria-live="polite"
+            ></div>
+
+            <!-- JavaScript renders a request row with its username,
+                 request ID, and the following action controls. -->
+            <template id="livekit-screen-share-request-template">
+                <article class="livekit-screen-share-request">
+                    <span class="livekit-screen-share-request-name"></span>
+
+                    <button
+                        type="button"
+                        class="livekit-approve-screen-share"
+                        disabled
+                        title="Approval is unavailable until secure LiveKit permission handling is connected."
+                    >
+                        Approve
+                    </button>
+
+                    <button
+                        type="button"
+                        class="livekit-reject-screen-share"
+                        disabled
+                    >
+                        Reject
+                    </button>
+                </article>
+            </template>
+        </section>
+    </section>
 
 </section>
 
@@ -1175,6 +1257,12 @@
 <!-- LiveKit video and voice meeting functionality -->
 <script
     src="{% static 'community/meeting_room/livekit_meeting.bundle.js' %}"
+    defer
+></script>
+
+<!-- Screen-sharing permission requests -->
+<script
+    src="{% static 'community/meeting_room/screen_share_requests.js' %}"
     defer
 ></script>
 
