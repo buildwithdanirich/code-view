@@ -32573,6 +32573,8 @@
     let canEndMeeting = false;
     let canShareScreen = false;
     let isMeetingCreator = false;
+    let currentMeetingId = null;
+    let screenShareReleaseInProgress = false;
     let previousBodyOverflow = null;
     const attachedMedia = /* @__PURE__ */ new Map();
     const participantTiles = /* @__PURE__ */ new Map();
@@ -32666,7 +32668,9 @@
       canEndMeeting = false;
       canShareScreen = false;
       isMeetingCreator = false;
+      currentMeetingId = null;
       meetingMode = null;
+      screenShareReleaseInProgress = false;
     }
     function setBusy(value) {
       busy = value;
@@ -32688,7 +32692,7 @@
       voiceButton.disabled = busy || connected;
       microphoneButton.disabled = !connected || busy;
       cameraButton.disabled = !connected || busy;
-      screenShareButton.disabled = !connected || busy || !canShareScreen;
+      screenShareButton.disabled = !connected || busy || !canShareScreen && !screenSharing;
       leaveButton.hidden = isMeetingCreator;
       leaveButton.disabled = !connected || busy || isMeetingCreator;
       endButton.disabled = !connected || busy || !canEndMeeting;
@@ -33007,7 +33011,16 @@
             detachTrack2(publication.track);
           }
           refresh(activeRoom.localParticipant);
+          const wasScreenSharing = publication.source === Track.Source.ScreenShare;
+          if (!wasScreenSharing) {
+            return;
+          }
           removeStoppedLocalScreenShare();
+          updateControls();
+          if (isMeetingCreator) {
+            return;
+          }
+          void releaseScreenSharingPermission();
         }
       );
       activeRoom.on(
@@ -33036,6 +33049,7 @@
           credentials.url,
           credentials.token
         );
+        currentMeetingId = credentials.meeting_id;
         canEndMeeting = credentials.can_end_meeting === true;
         canShareScreen = credentials.can_share_screen === true;
         isMeetingCreator = typeof credentials.is_meeting_creator === "boolean" ? credentials.is_meeting_creator : canShareScreen;
@@ -33193,14 +33207,67 @@
         setBusy(false);
       }
     }
+    async function releaseScreenSharingPermission() {
+      if (isMeetingCreator) {
+        return;
+      }
+      if (screenShareReleaseInProgress) {
+        return;
+      }
+      const releaseUrl = panel.dataset.screenShareReleaseUrl;
+      if (!releaseUrl || !currentMeetingId) {
+        console.warn(
+          "CodeView: Screen-sharing release URL or meeting ID is missing."
+        );
+        return;
+      }
+      if (isConnected() && room.localParticipant.isScreenShareEnabled) {
+        return;
+      }
+      screenShareReleaseInProgress = true;
+      try {
+        await postMeetingRequest(releaseUrl);
+        canShareScreen = false;
+        updateControls();
+        setStatus(
+          "Screen-sharing permission returned to the meeting creator."
+        );
+        document.dispatchEvent(
+          new CustomEvent(
+            "codeview:screen-share-release-completed",
+            {
+              detail: {
+                meetingId: currentMeetingId
+              }
+            }
+          )
+        );
+      } catch (error) {
+        console.error(
+          "CodeView: Unable to release screen-sharing permission.",
+          error
+        );
+        setStatus(
+          "Screen sharing stopped, but permission release could not be confirmed."
+        );
+      } finally {
+        screenShareReleaseInProgress = false;
+      }
+    }
     async function toggleScreenSharing() {
-      if (!isConnected() || busy || !canShareScreen) {
+      if (!isConnected() || busy) {
+        return;
+      }
+      const local = room.localParticipant;
+      const currentlySharing = local.isScreenShareEnabled;
+      if (!currentlySharing && !canShareScreen) {
+        setStatus(
+          "You do not have permission to share your screen."
+        );
         return;
       }
       setBusy(true);
       try {
-        const local = room.localParticipant;
-        const currentlySharing = local.isScreenShareEnabled;
         await local.setScreenShareEnabled(
           !currentlySharing
         );
@@ -33209,9 +33276,18 @@
         }
         syncParticipant(local);
         updatePresentation();
-        setStatus(
-          local.isScreenShareEnabled ? "You are sharing your screen." : "Screen sharing stopped."
-        );
+        if (local.isScreenShareEnabled) {
+          setStatus(
+            "You are sharing your screen."
+          );
+        } else {
+          setStatus(
+            "Screen sharing stopped."
+          );
+          if (!isMeetingCreator) {
+            await releaseScreenSharingPermission();
+          }
+        }
       } catch (error) {
         console.error(
           "CodeView screen sharing error:",
@@ -33345,6 +33421,23 @@
     updateControls();
     console.log(
       "CodeView LiveKit meeting controller initialized."
+    );
+    document.addEventListener(
+      "codeview:screen-share-permission-changed",
+      (event) => {
+        if (!isConnected()) {
+          return;
+        }
+        const details = event.detail;
+        if (!details) {
+          return;
+        }
+        if (currentMeetingId === null || String(details.meetingId) !== String(currentMeetingId)) {
+          return;
+        }
+        canShareScreen = details.canShareScreen === true;
+        updateControls();
+      }
     );
   });
 })();
