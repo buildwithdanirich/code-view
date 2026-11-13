@@ -198,6 +198,87 @@ document.addEventListener("DOMContentLoaded", () => {
         requestStatus.textContent = message;
     }
 
+    
+    // Keep the permission message synchronized with Django.
+    function updatePermissionStatus() {
+
+        // Do not update while disconnected or processing.
+        if (!connected || busy || !permissionState) {
+            return;
+        }
+
+        const state = permissionState.screen_share_state;
+
+        const approved =
+            permissionState.can_share_screen === true;
+
+        const waiting = pendingRequestId !== null;
+
+        // Show the creator's permission status.
+        if (isMeetingCreator) {
+
+            const count = Array.isArray(permissionState.pending_requests)
+                ? permissionState.pending_requests.length
+                : 0;
+
+            if (state !== "idle") {
+
+                setStatus(
+                    "Screen-sharing permission is currently assigned."
+                );
+
+            } else if (count > 0) {
+
+                setStatus(
+                    `${count} screen-sharing request${count === 1 ? "" : "s"} waiting for approval.`
+                );
+
+            } else {
+
+                setStatus(
+                    "No pending screen-sharing requests."
+                );
+            }
+
+            return;
+        }
+
+        // Developer B has received approval.
+        if (approved) {
+
+            setStatus(
+                "Permission approved. You can share your screen."
+            );
+
+            return;
+        }
+
+        // Developer B is waiting for approval.
+        if (waiting) {
+
+            setStatus(
+                "Request submitted. Waiting for the meeting creator."
+            );
+
+            return;
+        }
+
+        // Another developer currently has permission.
+        if (state !== "idle") {
+
+            setStatus(
+                "Screen sharing is currently unavailable."
+            );
+
+            return;
+        }
+
+        // Nobody is sharing, and Developer B can request.
+        setStatus(
+            "You can request permission to share your screen."
+        );
+    }
+
     function buildRequestUrl(template, requestId) {
         const id = Number(requestId);
 
@@ -389,6 +470,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
             updatePermissionInterface();
 
+            updatePermissionStatus();
+
             // Notify the LiveKit UI.
             // This event does not grant publishing permission.
             document.dispatchEvent(
@@ -481,7 +564,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
         } finally {
             busy = false;
+
             updatePermissionInterface();
+
+            updatePermissionStatus();
         }
     }
 
@@ -535,6 +621,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } finally {
             busy = false;
             updatePermissionInterface();
+            updatePermissionStatus();    
         }
     }
 
@@ -582,6 +669,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } finally {
             busy = false;
             updatePermissionInterface();
+            updatePermissionStatus();
         }
     }
 
@@ -637,6 +725,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } finally {
             busy = false;
             updatePermissionInterface();
+            updatePermissionStatus();
         }
     }
 
