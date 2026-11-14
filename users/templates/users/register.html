@@ -5,36 +5,42 @@
 
 {% block content %}
 
-<div class="section-label">JOIN CODEVIEW</div>
+<!-- COLABVERSE REGISTRATION HEADER -->
+<div class="section-label">JOIN COLABVERSE</div>
 
 <h2>Create your account</h2>
 
 <p class="subtitle">
-  A space to connect with developers like you.
+  Join a community where developers connect,
+  share knowledge, and collaborate.
 </p>
 
+<!-- FORM VALIDATION ERRORS -->
 {% if form.non_field_errors %}
   <div class="alert alert-error" role="alert">
     {{ form.non_field_errors }}
   </div>
 {% endif %}
 
-<!-- NORMAL CODEVIEW REGISTRATION -->
+<!-- COLABVERSE EMAIL REGISTRATION -->
 <form method="post" class="auth-form" novalidate>
   {% csrf_token %}
 
+  <!-- Username -->
   <div class="field">
     <label for="id_username">Username</label>
     {{ form.username }}
     {{ form.username.errors }}
   </div>
 
+  <!-- Email address -->
   <div class="field">
     <label for="id_email">Email address</label>
     {{ form.email }}
     {{ form.email.errors }}
   </div>
 
+  <!-- Password -->
   <div class="field">
     <label for="id_password1">Password</label>
 
@@ -55,6 +61,7 @@
     {{ form.password1.errors }}
   </div>
 
+  <!-- Confirm password -->
   <div class="field">
     <label for="id_password2">Confirm password</label>
 
@@ -75,15 +82,18 @@
     {{ form.password2.errors }}
   </div>
 
+  <!-- Password guidance -->
   <p class="hint">
     Use a strong, unique password.
     You'll verify your email before signing in.
   </p>
 
+  <!-- Create account button -->
   <button class="primary-button" type="submit">
     Create account
     <span aria-hidden="true">→</span>
   </button>
+
 </form>
 
 <!-- GOOGLE REGISTRATION -->
@@ -110,6 +120,7 @@
 
 </div>
 
+<!-- LOGIN LINK -->
 <p class="switch">
   Already have an account?
   <a href="{% url 'login' %}">Sign in</a>

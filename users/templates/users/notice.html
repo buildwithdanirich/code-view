@@ -1,5 +1,27 @@
 {% extends 'users/base_auth.html' %}
+
 {% block title %}Account notice{% endblock %}
+
 {% block content %}
-<div class="section-label">CODEVIEW ACCOUNT</div><h2>{{ heading }}</h2><p class="subtitle notice-text">{{ detail }}</p><a class="primary-button button-link" href="{% url 'login' %}">Back to sign in →</a>
+
+<!-- COLABVERSE ACCOUNT NOTICE -->
+<div class="section-label">COLABVERSE ACCOUNT</div>
+
+<!-- Dynamic notice heading -->
+<h2>{{ heading }}</h2>
+
+<!-- Dynamic notice message -->
+<p class="subtitle notice-text">
+  {{ detail }}
+</p>
+
+<!-- Return to login -->
+<a
+  class="primary-button button-link"
+  href="{% url 'login' %}"
+>
+  Back to sign in
+  <span aria-hidden="true">→</span>
+</a>
+
 {% endblock %}

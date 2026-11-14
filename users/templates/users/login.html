@@ -5,24 +5,27 @@
 
 {% block content %}
 
+<!-- COLABVERSE LOGIN HEADER -->
 <div class="section-label">WELCOME BACK</div>
 
-<h2>Sign in to CodeView</h2>
+<h2>Sign in to ColabVerse</h2>
 
 <p class="subtitle">
-  Your community is waiting for you.
+  Your developer community is waiting for you.
 </p>
 
+<!-- FORM VALIDATION ERRORS -->
 {% if form.non_field_errors %}
   <div class="alert alert-error" role="alert">
     {{ form.non_field_errors }}
   </div>
 {% endif %}
 
-<!-- NORMAL CODEVIEW LOGIN -->
+<!-- COLABVERSE LOGIN FORM -->
 <form method="post" class="auth-form" novalidate>
   {% csrf_token %}
 
+  <!-- Preserve the destination after successful login -->
   <input type="hidden" name="next" value="{{ next }}">
 
   <!-- Username or email -->
@@ -67,7 +70,7 @@
     <span>Remember me</span>
   </label>
 
-  <!-- Normal login button -->
+  <!-- Login button -->
   <button class="primary-button" type="submit">
     Sign in
     <span aria-hidden="true">→</span>
@@ -102,7 +105,7 @@
 
 <!-- Registration link -->
 <p class="switch">
-  New to CodeView?
+  New to ColabVerse?
   <a href="{% url 'register' %}">
     Create an account
   </a>
