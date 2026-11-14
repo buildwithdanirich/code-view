@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     "home",
     "users",
     "community",
+    "questions",
 
     # Django Allauth
     "allauth",

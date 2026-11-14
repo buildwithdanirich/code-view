@@ -57,6 +57,7 @@ urlpatterns = [
         name="github_oauth_callback",
     ),
     path("accounts/", include("allauth.urls")),
+    path("questions/", include("questions.urls")),
 
 ]
 

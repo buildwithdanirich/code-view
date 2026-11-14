@@ -1,0 +1,19 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Questions{% endblock %} · ColabVerse</title>
+  <link rel="stylesheet" href="{% static 'questions/css/questions.css' %}">
+  <script defer src="{% static 'questions/js/questions.js' %}"></script>
+</head>
+<body>
+<header class="site-header"><a class="wordmark" href="{% url 'questions:list' %}">Colab<span>Verse</span> <small>Q&amp;A</small></a><nav><a href="{% url 'questions:list' %}">Questions</a><a href="{% url 'questions:create' %}">Ask question</a>{% if user.is_authenticated %}<span class="username">{{ user.username }}</span>{% else %}<a href="{% url 'login' %}">Sign in</a>{% endif %}</nav></header>
+<main class="container">
+{% if messages %}<div class="messages" role="status">{% for message in messages %}<p class="notice">{{ message }}</p>{% endfor %}</div>{% endif %}
+{% block content %}{% endblock %}
+</main>
+<footer>ColabVerse · Connect, Learn, Collaborate</footer>
+</body>
+</html>

@@ -1,0 +1,3 @@
+{% extends 'questions/base.html' %}
+{% block title %}{{ heading }}{% endblock %}
+{% block content %}<a class="back" href="{% url 'questions:list' %}">← Questions</a><div class="card form-card"><p class="eyebrow">COLABVERSE Q&amp;A</p><h1>{{ heading }}</h1><p>Describe your problem clearly. Include what you tried and any relevant code.</p><form method="post" class="editor">{% csrf_token %}{{ form.as_p }}<button class="button" type="submit">Save →</button></form></div>{% endblock %}
