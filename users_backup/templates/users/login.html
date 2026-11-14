@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | CodeView</title>
+</head>
+<body>
+
+    <h1>Welcome Back to CodeView</h1>
+   <p>Log in to create or join a project group.</p>
+    <!-- Display an error if login fails. -->
+    {% if error %}
+        <p style="color: red;">{{ error }}</p>
+    {% endif %}
+
+    <!-- Send login details to Django. -->
+    <form method="POST">
+        {% csrf_token %}
+
+        <label for="username">Username</label>
+        <input
+            type="text"
+            id="username"
+            name="username"
+            value="{{ request.POST.username }}"
+            required
+        >
+
+        <br><br>
+
+        <label for="password">Password</label>
+        <input
+            type="password"
+            id="password"
+            name="password"
+            required
+        >
+
+        <br><br>
+
+        <button type="submit">Login</button>
+    </form>
+
+    <p>
+        Don't have an account?
+        <a href="{% url 'register' %}">Sign Up</a>
+    </p>
+
+</body>
+</html>

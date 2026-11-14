@@ -1,12 +1,12 @@
+"""Preserve existing URL names for CodeView's other apps."""
 from django.urls import path
-from .views import register, user_login, user_logout
+from . import views
 
 urlpatterns = [
-    # New users create an account.
-    path("register/", register, name="register"),
-
-    # Existing users log in.
-    path("login/", user_login, name="login"),
-
-    path("logout/", user_logout, name="logout"),
+    path("register/", views.register, name="register"),
+    path("login/", views.user_login, name="login"),
+    path("logout/", views.user_logout, name="logout"),
+    path("verify-email/<str:uidb64>/<str:token>/", views.verify_email, name="verify_email"),
+    path("forgot-password/", views.forgot_password, name="forgot_password"),
+    path("reset-password/<str:uidb64>/<str:token>/", views.password_reset_confirm, name="password_reset_confirm"),
 ]

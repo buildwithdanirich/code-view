@@ -1,0 +1,34 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0a0b16">
+  <title>{% block title %}CodeView{% endblock %} · CodeView</title>
+  <link rel="stylesheet" href="{% static 'users/css/auth.css' %}">
+  <script defer src="{% static 'users/js/auth.js' %}"></script>
+</head>
+<body>
+<main class="layout">
+  <section class="brand-panel" aria-label="About CodeView">
+    <a class="logo" href="{% url 'home' %}"><span class="logo-mark">◈</span> CodeView</a>
+    <div class="brand-content">
+      <span class="eyebrow">YOUR DEVELOPER COMMUNITY</span>
+      <h1>Connect.<br><span>Collaborate.</span><br>Build.</h1>
+      <p>Find your people, share ideas, join meaningful conversations, and create together.</p>
+      <div class="chips"><span>◉ Communities</span><span>✧ Whiteboards</span><span>◌ Live meetings</span></div>
+    </div>
+    <div class="brand-foot">A better place for developers to connect.</div>
+  </section>
+  <section class="form-panel">
+    <div class="form-wrap">
+      <div class="mobile-logo"><a class="logo" href="{% url 'home' %}"><span class="logo-mark">◈</span> CodeView</a></div>
+      {% if messages %}<div class="messages" role="status">{% for message in messages %}<p class="alert alert-success">{{ message }}</p>{% endfor %}</div>{% endif %}
+      {% block content %}{% endblock %}
+    </div>
+    <footer class="form-footer">© CodeView · Connect and collaborate</footer>
+  </section>
+</main>
+</body>
+</html>

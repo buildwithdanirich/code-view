@@ -1,27 +1,48 @@
+"""Validated signup, login, and password-reset forms for CodeView."""
 from django import forms
-from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+from django.contrib.auth.forms import UserCreationForm, SetPasswordForm
+from django.core.exceptions import ValidationError
+
+User = get_user_model()
 
 
 class RegisterForm(UserCreationForm):
-    # Require users to provide an email address.
-    email = forms.EmailField(required=True)
+    email = forms.EmailField(max_length=254, widget=forms.EmailInput(attrs={"autocomplete": "email", "placeholder": "you@example.com"}))
 
     class Meta:
-        # Use Django's built-in User model.
         model = User
+        fields = ("username", "email", "password1", "password2")
+        widgets = {"username": forms.TextInput(attrs={"autocomplete": "username", "placeholder": "Choose a username"})}
 
-        # Fields required for registration.
-        fields = ["username", "email", "password1", "password2"]
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["password1"].widget.attrs.update({"autocomplete": "new-password", "placeholder": "Create a password"})
+        self.fields["password2"].widget.attrs.update({"autocomplete": "new-password", "placeholder": "Confirm your password"})
 
     def clean_email(self):
-        # Remove spaces and convert email to lowercase.
         email = self.cleaned_data["email"].strip().lower()
-
-        # Reject an email that already belongs to another user.
         if User.objects.filter(email__iexact=email).exists():
-            raise forms.ValidationError(
-                "This email is already registered. Please log in."
-            )
-
+            raise ValidationError("This email address is already registered.")
         return email
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.email = self.cleaned_data["email"]
+        if commit:
+            user.save()
+        return user
+
+
+class LoginForm(forms.Form):
+    identifier = forms.CharField(max_length=254, widget=forms.TextInput(attrs={"autocomplete": "username", "placeholder": "Username or email"}))
+    password = forms.CharField(widget=forms.PasswordInput(attrs={"autocomplete": "current-password", "placeholder": "Your password"}))
+    remember_me = forms.BooleanField(required=False)
+
+
+class RequestResetForm(forms.Form):
+    email = forms.EmailField(widget=forms.EmailInput(attrs={"autocomplete": "email", "placeholder": "you@example.com"}))
+
+
+class CodeViewSetPasswordForm(SetPasswordForm):
+    pass
