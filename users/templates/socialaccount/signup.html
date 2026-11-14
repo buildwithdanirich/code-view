@@ -4,6 +4,7 @@
 
 {% block content %}
 
+<!-- COLABVERSE GOOGLE REGISTRATION HEADER -->
 <div class="section-label">
   GOOGLE REGISTRATION
 </div>
@@ -11,17 +12,18 @@
 <h2>Complete your signup</h2>
 
 <p class="subtitle">
-  Your Google account is verified.
-  Choose a unique username to join CodeView.
+  Continue setting up your ColabVerse account.
+  Choose a unique username to join our developer community.
 </p>
 
+<!-- GOOGLE SIGNUP VALIDATION ERRORS -->
 {% if form.non_field_errors %}
   <div class="alert alert-error" role="alert">
     {{ form.non_field_errors }}
   </div>
 {% endif %}
 
-<!-- GOOGLE ACCOUNT REGISTRATION -->
+<!-- COLABVERSE GOOGLE ACCOUNT REGISTRATION -->
 <form
   method="post"
   action="{% url 'socialaccount_signup' %}"
@@ -42,26 +44,28 @@
     </div>
   {% endif %}
 
-  <!-- CodeView username -->
+  <!-- ColabVerse username -->
   <div class="field">
     <label for="{{ form.username.id_for_label }}">
-      Choose your CodeView username
+      Choose your ColabVerse username
     </label>
 
     {{ form.username }}
     {{ form.username.errors }}
   </div>
 
-  <!-- Preserve any additional fields required by allauth -->
+  <!-- Preserve additional fields required by Django Allauth -->
   {% for hidden in form.hidden_fields %}
     {{ hidden }}
   {% endfor %}
 
+  <!-- Username guidance -->
   <p class="hint">
-    Your username will identify you across CodeView.
+    Your username will identify you across ColabVerse.
     Choose something unique and easy to remember.
   </p>
 
+  <!-- Complete Google registration -->
   <button class="primary-button" type="submit">
     Create my account
     <span aria-hidden="true">→</span>
@@ -69,6 +73,7 @@
 
 </form>
 
+<!-- Alternative registration -->
 <p class="switch">
   Want to register with email instead?
   <a href="{% url 'register' %}">
