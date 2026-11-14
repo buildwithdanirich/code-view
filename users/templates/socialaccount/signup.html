@@ -1,0 +1,79 @@
+{% extends 'users/base_auth.html' %}
+
+{% block title %}Complete Google signup{% endblock %}
+
+{% block content %}
+
+<div class="section-label">
+  GOOGLE REGISTRATION
+</div>
+
+<h2>Complete your signup</h2>
+
+<p class="subtitle">
+  Your Google account is verified.
+  Choose a unique username to join CodeView.
+</p>
+
+{% if form.non_field_errors %}
+  <div class="alert alert-error" role="alert">
+    {{ form.non_field_errors }}
+  </div>
+{% endif %}
+
+<!-- GOOGLE ACCOUNT REGISTRATION -->
+<form
+  method="post"
+  action="{% url 'socialaccount_signup' %}"
+  class="auth-form"
+  novalidate
+>
+  {% csrf_token %}
+
+  <!-- Google email address -->
+  {% if form.email %}
+    <div class="field">
+      <label for="{{ form.email.id_for_label }}">
+        Google email address
+      </label>
+
+      {{ form.email }}
+      {{ form.email.errors }}
+    </div>
+  {% endif %}
+
+  <!-- CodeView username -->
+  <div class="field">
+    <label for="{{ form.username.id_for_label }}">
+      Choose your CodeView username
+    </label>
+
+    {{ form.username }}
+    {{ form.username.errors }}
+  </div>
+
+  <!-- Preserve any additional fields required by allauth -->
+  {% for hidden in form.hidden_fields %}
+    {{ hidden }}
+  {% endfor %}
+
+  <p class="hint">
+    Your username will identify you across CodeView.
+    Choose something unique and easy to remember.
+  </p>
+
+  <button class="primary-button" type="submit">
+    Create my account
+    <span aria-hidden="true">→</span>
+  </button>
+
+</form>
+
+<p class="switch">
+  Want to register with email instead?
+  <a href="{% url 'register' %}">
+    Back to registration
+  </a>
+</p>
+
+{% endblock %}

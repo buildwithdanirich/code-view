@@ -1,18 +1,118 @@
 {% extends 'users/base_auth.html' %}
+{% load socialaccount %}
+
 {% block title %}Create account{% endblock %}
+
 {% block content %}
+
 <div class="section-label">JOIN CODEVIEW</div>
+
 <h2>Create your account</h2>
-<p class="subtitle">A space to connect with developers like you.</p>
-{% if form.non_field_errors %}<div class="alert alert-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+
+<p class="subtitle">
+  A space to connect with developers like you.
+</p>
+
+{% if form.non_field_errors %}
+  <div class="alert alert-error" role="alert">
+    {{ form.non_field_errors }}
+  </div>
+{% endif %}
+
+<!-- NORMAL CODEVIEW REGISTRATION -->
 <form method="post" class="auth-form" novalidate>
   {% csrf_token %}
-  <div class="field"><label for="id_username">Username</label>{{ form.username }}{{ form.username.errors }}</div>
-  <div class="field"><label for="id_email">Email address</label>{{ form.email }}{{ form.email.errors }}</div>
-  <div class="field"><label for="id_password1">Password</label><div class="password-wrap">{{ form.password1 }}<button class="toggle-password" type="button" data-target="id_password1" aria-label="Show password" aria-pressed="false">Show</button></div>{{ form.password1.errors }}</div>
-  <div class="field"><label for="id_password2">Confirm password</label><div class="password-wrap">{{ form.password2 }}<button class="toggle-password" type="button" data-target="id_password2" aria-label="Show password" aria-pressed="false">Show</button></div>{{ form.password2.errors }}</div>
-  <p class="hint">Use a strong, unique password. You'll verify your email before signing in.</p>
-  <button class="primary-button" type="submit">Create account <span aria-hidden="true">→</span></button>
+
+  <div class="field">
+    <label for="id_username">Username</label>
+    {{ form.username }}
+    {{ form.username.errors }}
+  </div>
+
+  <div class="field">
+    <label for="id_email">Email address</label>
+    {{ form.email }}
+    {{ form.email.errors }}
+  </div>
+
+  <div class="field">
+    <label for="id_password1">Password</label>
+
+    <div class="password-wrap">
+      {{ form.password1 }}
+
+      <button
+        class="toggle-password"
+        type="button"
+        data-target="id_password1"
+        aria-label="Show password"
+        aria-pressed="false"
+      >
+        Show
+      </button>
+    </div>
+
+    {{ form.password1.errors }}
+  </div>
+
+  <div class="field">
+    <label for="id_password2">Confirm password</label>
+
+    <div class="password-wrap">
+      {{ form.password2 }}
+
+      <button
+        class="toggle-password"
+        type="button"
+        data-target="id_password2"
+        aria-label="Show password"
+        aria-pressed="false"
+      >
+        Show
+      </button>
+    </div>
+
+    {{ form.password2.errors }}
+  </div>
+
+  <p class="hint">
+    Use a strong, unique password.
+    You'll verify your email before signing in.
+  </p>
+
+  <button class="primary-button" type="submit">
+    Create account
+    <span aria-hidden="true">→</span>
+  </button>
 </form>
-<p class="switch">Already have an account? <a href="{% url 'login' %}">Sign in</a></p>
+
+<!-- GOOGLE REGISTRATION -->
+<div class="social-auth">
+
+  <p class="social-divider">
+    <span>OR</span>
+  </p>
+
+  <form
+    method="post"
+    action="{% provider_login_url 'google' %}"
+    class="auth-form"
+  >
+    {% csrf_token %}
+
+    <button
+      type="submit"
+      class="google-button"
+    >
+      Continue with Google
+    </button>
+  </form>
+
+</div>
+
+<p class="switch">
+  Already have an account?
+  <a href="{% url 'login' %}">Sign in</a>
+</p>
+
 {% endblock %}

@@ -46,3 +46,31 @@ class RequestResetForm(forms.Form):
 
 class CodeViewSetPasswordForm(SetPasswordForm):
     pass
+
+
+# ============================================================
+# GOOGLE SIGNUP FORM
+# ============================================================
+
+from allauth.socialaccount.forms import SignupForm
+
+
+class CodeViewGoogleSignupForm(SignupForm):
+    """
+    Require a unique CodeView username during Google signup.
+    """
+
+    def clean_username(self):
+        """
+        Check that the selected username is available.
+        """
+
+        username = self.cleaned_data["username"].strip()
+
+        # Prevent usernames that differ only by capitalization.
+        if User.objects.filter(username__iexact=username).exists():
+            raise ValidationError(
+                "This username is already taken. Choose another."
+            )
+
+        return username

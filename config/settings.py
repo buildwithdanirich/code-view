@@ -47,52 +47,141 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 
 # Application definition
-
-# Applications installed in CodeView.
 INSTALLED_APPS = [
+    # Daphne ASGI server
+    "daphne",
 
-    # Daphne runs Django's ASGI application.
-    # ASGI allows Django to handle WebSocket connections.
-    'daphne',
+    # Django applications
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "django.contrib.sites",
 
-    # Django built-in applications.
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
+    # CodeView applications
+    "home",
+    "users",
+    "community",
 
-    # CodeView applications.
-    'home',
-    'users',
-    'community',
-
+    # Django Allauth
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
 ]
-
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+
+    # Required by django-allauth.
+    "allauth.account.middleware.AccountMiddleware",
+
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+
+# ============================================================
+# CODEVIEW AUTHENTICATION BACKENDS
+# ============================================================
+
+AUTHENTICATION_BACKENDS = [
+
+    # Preserve Django's existing username/password login.
+    "django.contrib.auth.backends.ModelBackend",
+
+    # Enable Google OAuth authentication.
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
+
+# ============================================================
+# GOOGLE AUTHENTICATION CONFIGURATION
+# ============================================================
+
+# Default Django site identifier.
+SITE_ID = 1
+
+
+# Send developers to Groups after successful login.
+LOGIN_REDIRECT_URL = "groups"
+
+
+# ============================================================
+# GOOGLE OAUTH CONFIGURATION
+# ============================================================
+
+SOCIALACCOUNT_PROVIDERS = {
+    "google": {
+
+        # Google credentials stored securely in .env.
+        "APP": {
+            "client_id": os.environ.get(
+                "CODEVIEW_GOOGLE_CLIENT_ID", ""
+            ),
+            "secret": os.environ.get(
+                "CODEVIEW_GOOGLE_CLIENT_SECRET", ""
+            ),
+            "key": "",
+        },
+
+        # Information CodeView requests from Google.
+        "SCOPE": [
+            "profile",
+            "email",
+        ],
+
+        # We only need Google authentication.
+        "AUTH_PARAMS": {
+            "access_type": "online",
+        },
+    },
+}
+
+# Use CodeView's custom Google authentication rules.
+SOCIALACCOUNT_ADAPTER = "users.adapters.CodeViewSocialAccountAdapter"
+
+# Use CodeView's custom Google signup form.
+SOCIALACCOUNT_FORMS = {
+    "signup": "users.forms.CodeViewGoogleSignupForm",
+}
+
+# Do not automatically connect Google accounts to existing
+# CodeView accounts based only on matching email addresses.
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = False
+
+
+# Require explicit confirmation before starting Google login.
+SOCIALACCOUNT_LOGIN_ON_GET = False
+
 ROOT_URLCONF = 'config.urls'
+# ============================================================
+# CODEVIEW TEMPLATE CONFIGURATION
+# ============================================================
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+
+        # Search CodeView's custom templates before
+        # templates provided by installed packages.
+        "DIRS": [
+            BASE_DIR / "users" / "templates",
+        ],
+
+        # Continue searching templates inside Django apps.
+        "APP_DIRS": True,
+
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
             ],
         },
     },
@@ -167,13 +256,97 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+# ============================================================
+# CODEVIEW EMAIL CONFIGURATION
+# ============================================================
+#
+# CodeView uses email for:
+# 1. Account verification.
+# 2. Password recovery.
+# 3. Account notifications.
+#
+# All sensitive credentials are stored in .env.
+# ============================================================
 
-# Email
-# https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
+
+# Select the email backend.
+# SMTP sends real emails.
+# Console prints emails in the terminal.
+
+CODEVIEW_EMAIL_BACKEND = os.environ.get(
+    "CODEVIEW_EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend",
+)
+
+
+# Sender name and email address.
+CODEVIEW_EMAIL_FROM = os.environ.get(
+    "CODEVIEW_EMAIL_FROM",
+    "CodeView <no-reply@localhost>",
+)
+
+
+# ============================================================
+# DJANGO 6.1 MAILERS CONFIGURATION
+# ============================================================
 
 MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
+    "default": {
+        "BACKEND": CODEVIEW_EMAIL_BACKEND,
+
+        "OPTIONS": (
+            {
+                # Gmail SMTP server.
+                "host": os.environ.get(
+                    "CODEVIEW_EMAIL_HOST",
+                    "smtp.gmail.com",
+                ),
+
+                # Gmail SMTP port.
+                "port": int(
+                    os.environ.get(
+                        "CODEVIEW_EMAIL_PORT",
+                        "587",
+                    )
+                ),
+
+                # Gmail address.
+                "username": os.environ.get(
+                    "CODEVIEW_EMAIL_USER",
+                    "",
+                ),
+
+                # Google App Password.
+                "password": os.environ.get(
+                    "CODEVIEW_EMAIL_PASSWORD",
+                    "",
+                ),
+
+                # Enable TLS encryption.
+                "use_tls": (
+                    os.environ.get(
+                        "CODEVIEW_EMAIL_USE_TLS",
+                        "True",
+                    ).lower() == "true"
+                ),
+
+                # SSL is disabled when using STARTTLS.
+                "use_ssl": (
+                    os.environ.get(
+                        "CODEVIEW_EMAIL_USE_SSL",
+                        "False",
+                    ).lower() == "true"
+                ),
+
+                # Connection timeout.
+                "timeout": 15,
+            }
+
+            if CODEVIEW_EMAIL_BACKEND
+            == "django.core.mail.backends.smtp.EmailBackend"
+
+            else {}
+        ),
     },
 }
 # Where users go after logging in.

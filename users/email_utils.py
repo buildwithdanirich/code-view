@@ -1,27 +1,35 @@
-"""Email transport configured through environment variables; no secrets in code."""
+"""Email utilities for CodeView account verification."""
+
 import os
-from django.conf import settings
+
 from django.core.mail import EmailMessage, get_connection
-from django.core.exceptions import ImproperlyConfigured
 
 
 def send_account_email(subject, body, recipient):
-    backend = os.environ.get("CODEVIEW_EMAIL_BACKEND", "")
-    if not backend:
-        if not settings.DEBUG:
-            raise ImproperlyConfigured("Configure CODEVIEW_EMAIL_BACKEND for production email.")
-        backend = "django.core.mail.backends.console.EmailBackend"
-    options = {"backend": backend}
-    if backend == "django.core.mail.backends.smtp.EmailBackend":
-        options.update({
-            "host": os.environ.get("CODEVIEW_EMAIL_HOST", ""),
-            "port": int(os.environ.get("CODEVIEW_EMAIL_PORT", "587")),
-            "username": os.environ.get("CODEVIEW_EMAIL_USER", ""),
-            "password": os.environ.get("CODEVIEW_EMAIL_PASSWORD", ""),
-            "use_tls": os.environ.get("CODEVIEW_EMAIL_USE_TLS", "true").lower() == "true",
-            "use_ssl": os.environ.get("CODEVIEW_EMAIL_USE_SSL", "false").lower() == "true",
-            "timeout": 15,
-        })
-    connection = get_connection(**options)
-    sender = os.environ.get("CODEVIEW_EMAIL_FROM", "CodeView <no-reply@localhost>")
-    EmailMessage(subject, body, sender, [recipient], connection=connection).send(fail_silently=False)
+    """
+    Send verification and password-reset emails.
+
+    Django 6.1 uses the MAILERS configuration in settings.py.
+    """
+
+    # Get the default email connection from Django settings.
+    # Do not pass a backend name or alias here.
+    connection = get_connection()
+
+    # Get the sender address from the environment.
+    sender = os.environ.get(
+        "CODEVIEW_EMAIL_FROM",
+        "CodeView <no-reply@localhost>",
+    )
+
+    # Create the email.
+    email = EmailMessage(
+        subject=subject,
+        body=body,
+        from_email=sender,
+        to=[recipient],
+        connection=connection,
+    )
+
+    # Send the email and report any delivery errors.
+    return email.send(fail_silently=False)
