@@ -1,12 +1,12 @@
 """
-CodeView — WebSocket Consumers.
+ColabVerse — WebSocket Consumers.
 
 Handles:
 1. Real-time group chat.
-2. Real-time group discussions.
-3. Owner-only repository connection notifications.
-4. Member-only repository decision notifications.
-5. Group-wide repository update notifications.
+2. Owner-only repository connection notifications.
+3. Member-only repository decision notifications.
+4. Group-wide repository update notifications.
+5. Private group meeting notifications.
 """
 
 # Run asynchronous background tasks.
@@ -18,7 +18,7 @@ from channels.generic.websocket import AsyncJsonWebsocketConsumer
 # Run synchronous Django database operations safely.
 from channels.db import database_sync_to_async
 
-# CodeView group models.
+# ColabVerse group models.
 from .models import ProjectGroup, GroupMember
 
 
@@ -161,102 +161,7 @@ class GroupChatConsumer(MembershipRevocationMixin, AsyncJsonWebsocketConsumer):
 
 
 # ============================================================
-# 2. GROUP DISCUSSION CONSUMER
-# ============================================================
-
-class GroupDiscussionConsumer(MembershipRevocationMixin, AsyncJsonWebsocketConsumer):
-    """Send real-time discussion updates to authorized group members."""
-
-    async def connect(self):
-        """Connect only developers with current group access."""
-        self.user = self.scope["user"]
-        self.group_id = self.scope["url_route"]["kwargs"]["group_id"]
-        self.room_group_name = f"group_discussions_{self.group_id}"
-        self.joined_group = False
-
-        if not self.user.is_authenticated:
-            await self.close(code=4401)
-            return
-
-        self.access_identity = await self.get_access_identity()
-        if self.access_identity is None:
-            await self.close(code=4403)
-            return
-
-        await self.channel_layer.group_add(
-            self.room_group_name,
-            self.channel_name,
-        )
-        self.joined_group = True
-
-        await self.subscribe_to_revocations()
-
-        # Recheck after subscribing to avoid a membership race.
-        if not await self.has_current_access():
-            await self.channel_layer.group_discard(
-                self.room_group_name,
-                self.channel_name,
-            )
-            self.joined_group = False
-            await self.unsubscribe_from_revocations()
-            await self.close(code=4403)
-            return
-
-        await self.accept()
-
-    async def disconnect(self, close_code):
-        await self.unsubscribe_from_revocations()
-        """Unsubscribe a connection that joined the broadcast group."""
-        if getattr(self, "joined_group", False):
-            await self.channel_layer.group_discard(
-                self.room_group_name,
-                self.channel_name,
-            )
-            self.joined_group = False
-
-    async def discussion_like(self, event):
-        """Deliver likes only while the original access is valid."""
-        if not await self.has_current_access():
-            await self.close(code=4403)
-            return
-        await self.send_json(event["data"])
-
-    async def discussion_comment(self, event):
-        """Deliver comments only while the original access is valid."""
-        if not await self.has_current_access():
-            await self.close(code=4403)
-            return
-        await self.send_json(event["data"])
-
-    @database_sync_to_async
-    def get_access_identity(self):
-        """Get the current owner/member generation for this group."""
-        group = ProjectGroup.objects.filter(id=self.group_id).first()
-        if group is None:
-            return None
-
-        if group.owner_id == self.user.pk:
-            return ("owner", group.owner_membership_generation)
-
-        membership = GroupMember.objects.filter(
-            group_id=self.group_id,
-            user_id=self.user.pk,
-        ).first()
-        if membership is None:
-            return None
-        return ("member", membership.membership_generation)
-
-    async def has_current_access(self):
-        """Prevent removed or rejoined members using stale sockets."""
-        current_identity = await self.get_access_identity()
-        return (
-            current_identity is not None
-            and current_identity == self.access_identity
-        )
-
-
-# ============================================================
-# 3. OWNER-ONLY REPOSITORY NOTIFICATION CONSUMER
+# 2. OWNER-ONLY REPOSITORY NOTIFICATION CONSUMER
 # ============================================================
 
 class RepositoryNotificationConsumer(MembershipRevocationMixin, AsyncJsonWebsocketConsumer):
@@ -387,7 +292,7 @@ class RepositoryNotificationConsumer(MembershipRevocationMixin, AsyncJsonWebsock
         )
 
 # ============================================================
-# 4. MEMBER-ONLY REPOSITORY DECISION NOTIFICATIONS
+# 3. MEMBER-ONLY REPOSITORY DECISION NOTIFICATIONS
 # ============================================================
 
 class RepositoryMemberNotificationConsumer(MembershipRevocationMixin, AsyncJsonWebsocketConsumer):
@@ -536,7 +441,7 @@ class RepositoryMemberNotificationConsumer(MembershipRevocationMixin, AsyncJsonW
         )
 
 # ============================================================
-# 5. GROUP-WIDE REPOSITORY UPDATE CONSUMER
+# 4. GROUP-WIDE REPOSITORY UPDATE CONSUMER
 # ============================================================
 
 class GroupRepositoryUpdateConsumer(MembershipRevocationMixin, AsyncJsonWebsocketConsumer):
@@ -709,7 +614,7 @@ class GroupRepositoryUpdateConsumer(MembershipRevocationMixin, AsyncJsonWebsocke
         )
 
 # ============================================================
-# 6. PRIVATE GROUP MEETING NOTIFICATION CONSUMER
+# 5. PRIVATE GROUP MEETING NOTIFICATION CONSUMER
 # ============================================================
 
 class GroupMeetingNotificationConsumer(

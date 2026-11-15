@@ -1,0 +1,2737 @@
+"""
+ColabVerse private development group views.
+
+Features:
+- Private invitation-only development groups
+- Group dashboard and membership management
+- Discussions, comments, replies, likes, and hiding
+- Group chat with text, code, voice notes, and files
+- Message editing and deletion
+- Private development meeting rooms
+- GitHub repository connection and read-only file browsing
+
+Private group membership is managed by invitation_views.py
+and invitations.py.
+"""
+
+import httpx
+
+import json
+import logging
+
+
+from community.github_auth import (
+    GitHubAuthError,
+    github_api_request,
+    get_installation_access_token,
+)
+
+from urllib.error import HTTPError, URLError
+from urllib.parse import quote
+from urllib.request import Request, urlopen
+
+from .github_oauth import (
+    has_repository_connection_permission,
+    start_github_authorization,
+)
+
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+
+from django.contrib import messages
+from django.contrib.auth import get_user_model
+from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
+from django.db import transaction
+from django.db.models import Count, Q
+from django.http import (
+    HttpResponseBadRequest,
+    HttpResponseForbidden,
+    JsonResponse,
+)
+from django.http import FileResponse, Http404
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.utils import timezone
+from django.views.decorators.http import require_GET, require_POST
+
+from .forms import (
+    ProjectGroupForm,
+    GroupDiscussionForm,
+    GroupDiscussionCommentForm,
+    GroupChatMessageForm,
+    GroupRepositoryForm,
+)
+from .models import (
+    ProjectGroup,
+    GroupMeeting,  # Tracks active and ended LiveKit meetings.
+    GroupMember,
+    GroupInvitation,  # Stores private group invitations.
+    GroupDiscussion,
+    GroupDiscussionComment,
+    GroupDiscussionLike,
+    HiddenDiscussion,
+    GroupChatMessage,
+    GroupMessageReaction,
+    GroupRepository,
+    RepositoryConnectionRequest,
+)
+
+from .permissions import (
+    is_group_owner,
+    is_group_member,
+    can_view_group,
+    can_manage_group_members,
+)
+
+logger = logging.getLogger(__name__)
+
+
+# ============================================================
+# HELPER FUNCTIONS
+# ============================================================
+
+OAUTH_MAX_AGE_SECONDS = 300
+
+def broadcast_repository_update(group_id):
+    """
+    Notify group members when the connected GitHub repository changes.
+
+    The event contains no GitHub tokens or private credentials.
+    """
+
+    # Get Django's configured Channels layer.
+    channel_layer = get_channel_layer()
+
+    if channel_layer is None:
+        return
+
+    # Send the repository update event to the group.
+    async_to_sync(channel_layer.group_send)(
+        f"group_repository_updates_{group_id}",
+        {
+            "type": "repository.updated",
+            "data": {
+                "type": "repository_updated",
+                "group_id": group_id,
+            },
+        },
+    )
+
+
+def broadcast_membership_revocation(group_id, user_id, membership_generation):
+    """Notify sockets belonging to a revoked membership period.
+
+    No private repository data or credentials are included.
+    """
+    channel_layer = get_channel_layer()
+    if channel_layer is None:
+        logger.warning(
+            "Membership revoked without a configured channel layer: group=%s user=%s",
+            group_id,
+            user_id,
+        )
+        return
+
+    async_to_sync(channel_layer.group_send)(
+        f"group_membership_access_{group_id}_{user_id}",
+        {
+            "type": "membership.revoked",
+            "group_id": group_id,
+            "user_id": user_id,
+            "membership_generation": str(membership_generation),
+        },
+    )
+
+
+def group_members_url(group_id):
+    """Return the URL for the group members section."""
+
+    return (
+        reverse("group_detail", kwargs={"group_id": group_id})
+        + "#group-members"
+    )
+
+
+def group_chat_url(group_id):
+    """Return the URL for the group chat section."""
+
+    return (
+        reverse("group_detail", kwargs={"group_id": group_id})
+        + "#group-chat"
+    )
+
+
+def is_ajax_request(request):
+    """Check whether JavaScript submitted the request."""
+
+    return (
+        request.headers.get("X-Requested-With")
+        == "XMLHttpRequest"
+    )
+
+
+def broadcast_group_event(group_name, event_type, data):
+    """
+    Send an event to connected WebSocket clients.
+
+    This helper keeps the event format used by the
+    existing CodeView Channels consumers.
+    """
+
+    channel_layer = get_channel_layer()
+
+    if channel_layer is None:
+        return
+
+    async_to_sync(channel_layer.group_send)(
+        group_name,
+        {
+            "type": event_type,
+            "data": data,
+        },
+    )
+
+
+def github_request_json(url):
+    """
+    Request JSON from the GitHub API.
+
+    The timeout prevents an external service from
+    keeping a Django request waiting indefinitely.
+    """
+
+    github_request = Request(
+        url,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "CodeView",
+        },
+    )
+
+    with urlopen(github_request, timeout=10) as response:
+        return json.load(response)
+
+
+# ============================================================
+# 1. GROUP DASHBOARD
+# ============================================================
+@login_required
+def groups(request):
+    """
+    Display the ColabVerse private development groups dashboard.
+
+    Rules:
+    1. Show only private development groups.
+    2. Show groups the developer belongs to.
+    3. Show groups owned by the developer.
+    4. Count pending invitations.
+    """
+
+    # Find groups where the developer is a member.
+    member_group_ids = GroupMember.objects.filter(
+        user=request.user,
+    ).values_list("group_id", flat=True)
+
+    # Show only private groups the developer owns or belongs to.
+    project_groups = (
+        ProjectGroup.objects
+        .filter(is_private=True)
+        .filter(
+            Q(id__in=member_group_ids)
+            | Q(owner=request.user)
+        )
+        .select_related("owner")
+        .distinct()
+    )
+
+    # Check membership for each displayed group.
+    for group in project_groups:
+
+        group.is_member = is_group_member(
+            group,
+            request.user,
+        )
+
+        # Keep compatibility with older templates.
+        group.has_pending_request = False
+
+    # Count invitations awaiting the developer's response.
+    pending_invitation_count = GroupInvitation.objects.filter(
+        invited_user=request.user,
+        status="pending",
+    ).count()
+
+    # Display the My Groups page.
+    return render(
+        request,
+        "community/groups.html",
+        {
+            "groups": project_groups,
+            "pending_invitation_count": pending_invitation_count,
+        },
+    )
+
+# ============================================================
+# 2. CREATE PRIVATE DEVELOPMENT GROUP
+# ============================================================
+
+@login_required
+def create_group(request):
+    """
+    Create a private development group in ColabVerse.
+
+    Rules:
+        1. Only authenticated developers can create groups.
+        2. Every newly created group is private.
+        3. Membership is invitation-only.
+        4. The creator becomes the group owner.
+        5. The creator is automatically added as an admin.
+        6. Group creation and owner membership are atomic.
+    """
+
+    # ========================================================
+    # 1. HANDLE FORM SUBMISSION
+    # ========================================================
+
+    if request.method == "POST":
+
+        # Validate the submitted group information.
+        form = ProjectGroupForm(request.POST)
+
+        if form.is_valid():
+
+            # =================================================
+            # 2. DATABASE TRANSACTION
+            # =================================================
+
+            # Both database operations must succeed together.
+            with transaction.atomic():
+
+                # Prepare the group without saving it yet.
+                group = form.save(commit=False)
+
+                # The authenticated developer owns the group.
+                group.owner = request.user
+
+                # Enforce private-only group creation.
+                group.is_private = True
+
+                # Private groups require invitations.
+                group.join_policy = "invite"
+
+                # Save the group to PostgreSQL.
+                group.save()
+
+                # =============================================
+                # 3. CREATE OWNER MEMBERSHIP
+                # =============================================
+
+                # The group owner becomes its first member.
+                GroupMember.objects.create(
+                    group=group,
+                    user=request.user,
+                    role="admin",
+                )
+
+            # =================================================
+            # 4. SUCCESS MESSAGE
+            # =================================================
+
+            messages.success(
+                request,
+                "Your private development group was created successfully!",
+            )
+
+            # Return to the My Groups page.
+            return redirect("groups")
+
+    else:
+
+        # Display an empty form for GET requests.
+        form = ProjectGroupForm()
+
+    # ========================================================
+    # 5. DISPLAY CREATE GROUP PAGE
+    # ========================================================
+
+    return render(
+        request,
+        "community/create_group.html",
+        {
+            "form": form,
+        },
+    )
+
+
+# ============================================================
+# 4. GROUP DETAILS
+# ============================================================
+@login_required
+def group_detail(request, group_id):
+    """
+    Display the group workspace.
+
+    Includes:
+    - Group members
+    - Discussions
+    - Active chat messages
+    - Saved emoji reactions
+    """
+
+    # ========================================================
+    # 1. FIND THE GROUP
+    # ========================================================
+
+    group = get_object_or_404(
+        ProjectGroup.objects.select_related("owner"),
+        id=group_id,
+    )
+
+    # Check whether the developer can view this group.
+    if not can_view_group(group, request.user):
+        return HttpResponseForbidden(
+            "You must be a member to access this private group."
+        )
+
+    # Check group membership.
+    is_member = is_group_member(
+        group,
+        request.user,
+    )
+
+    # Check group ownership.
+    is_owner = is_group_owner(
+        group,
+        request.user,
+    )
+
+    # ========================================================
+    # 2. LOAD GROUP MEMBERS
+    # ========================================================
+
+    members = (
+        GroupMember.objects
+        .filter(group=group)
+        .select_related("user")
+        .order_by("joined_at")
+    )
+
+    # ========================================================
+    # 3. LOAD DISCUSSIONS
+    # ========================================================
+
+    # Find discussions hidden by the current developer.
+    hidden_discussion_ids = HiddenDiscussion.objects.filter(
+        user=request.user,
+    ).values_list("discussion_id", flat=True)
+
+    # Load visible discussions.
+    discussions = list(
+        GroupDiscussion.objects
+        .filter(group=group)
+        .exclude(id__in=hidden_discussion_ids)
+        .select_related("author")
+        .annotate(
+            like_count=Count("likes", distinct=True),
+            comment_count=Count("comments", distinct=True),
+        )
+        .order_by("-created_at")[:20]
+    )
+
+    # Find discussions liked by the current developer.
+    liked_discussion_ids = set(
+        GroupDiscussionLike.objects
+        .filter(
+            user=request.user,
+            discussion__in=discussions,
+        )
+        .values_list("discussion_id", flat=True)
+    )
+
+    # Mark discussions liked by the developer.
+    for discussion in discussions:
+        discussion.liked_by_user = (
+            discussion.id in liked_discussion_ids
+        )
+
+    # ========================================================
+    # 4. LOAD GROUP CHAT
+    # ========================================================
+
+    chat_messages = []
+    chat_form = None
+
+    # Only group members can access chat messages.
+    if is_member:
+
+        # Load the latest 50 messages that are not deleted.
+        chat_messages = list(
+            GroupChatMessage.objects
+            .filter(
+                group=group,
+                deleted_at__isnull=True,
+            )
+            .select_related(
+                "sender",
+                "reply_to",
+                "reply_to__sender",
+            )
+            .prefetch_related(
+                "reactions",
+            )
+            .order_by("-created_at", "-id")[:50]
+        )
+
+        # Display messages from oldest to newest.
+        chat_messages.reverse()
+
+        # ====================================================
+        # 5. PREPARE EMOJI REACTIONS
+        # ====================================================
+
+        for chat_message in chat_messages:
+
+            # Count each emoji reaction.
+            reaction_summary = {}
+
+            # Store the current developer's reaction.
+            my_reaction = None
+
+            # Read saved reactions.
+            for reaction in chat_message.reactions.all():
+
+                emoji = reaction.emoji
+
+                # Increase the count for this emoji.
+                reaction_summary[emoji] = (
+                    reaction_summary.get(emoji, 0) + 1
+                )
+
+                # Identify the current developer's reaction.
+                if reaction.user_id == request.user.id:
+                    my_reaction = emoji
+
+            # Make reaction data available in HTML.
+            chat_message.reaction_summary = reaction_summary
+            chat_message.my_reaction = my_reaction
+
+        # Create the chat message form.
+        chat_form = GroupChatMessageForm()
+
+    # ========================================================
+    # 6. DISPLAY THE GROUP WORKSPACE
+    # ========================================================
+
+    return render(
+        request,
+        "community/group_detail.html",
+        {
+            "group": group,
+            "members": members,
+            "is_member": is_member,
+            "is_owner": is_owner,
+
+            # Only the owner has administrator permissions.
+            "is_admin": is_owner,
+
+            # Old approval requests no longer exist.
+            "pending_request": False,
+
+            # Group discussions.
+            "discussions": discussions,
+
+            # Group chat.
+            "chat_messages": chat_messages,
+            "chat_form": chat_form,
+        },
+    )
+
+
+# ============================================================
+# 5. REMOVE GROUP MEMBER
+# ============================================================
+
+@login_required
+@require_POST
+def remove_group_member(request, group_id, member_id):
+    """
+    Allow only the group owner to remove members.
+
+    The owner cannot remove themselves.
+    """
+
+    with transaction.atomic():
+
+        group = get_object_or_404(
+            ProjectGroup.objects.select_for_update(),
+            id=group_id,
+        )
+
+        if not can_manage_group_members(group, request.user):
+            return HttpResponseForbidden(
+                "Only the group owner can remove members."
+            )
+
+        target = get_object_or_404(
+            GroupMember.objects.select_for_update(),
+            id=member_id,
+            group=group,
+        )
+
+        if target.user_id == group.owner_id:
+            return HttpResponseForbidden(
+                "The group owner cannot be removed."
+            )
+
+        username = target.user.username
+
+        # Capture the membership identity before deleting the record.
+        revoked_user_id = target.user_id
+        revoked_generation = str(target.membership_generation)
+        revoked_group_id = group.id
+
+        target.delete()
+
+        # Notify only after the deletion has committed successfully.
+        transaction.on_commit(
+            lambda group_id=revoked_group_id,
+                   user_id=revoked_user_id,
+                   generation=revoked_generation: broadcast_membership_revocation(
+                group_id, user_id, generation
+            )
+        )
+
+    messages.success(
+        request,
+        f"{username} was removed from the group.",
+    )
+
+    return redirect(group_members_url(group_id))
+
+
+# ============================================================
+# 6. LEAVE GROUP
+# ============================================================
+
+@login_required
+@require_POST
+def leave_group(request, group_id):
+    """
+    Allow members to leave voluntarily.
+
+    The group owner cannot leave while still owning the group.
+    """
+
+    with transaction.atomic():
+
+        group = get_object_or_404(
+            ProjectGroup.objects.select_for_update(),
+            id=group_id,
+        )
+
+        if is_group_owner(group, request.user):
+            return HttpResponseForbidden(
+                "The group owner cannot leave their own group."
+            )
+
+        membership = GroupMember.objects.filter(
+            group=group,
+            user=request.user,
+        ).first()
+
+        if membership is None:
+            return HttpResponseBadRequest(
+                "You are not a member of this group."
+            )
+
+        # Keep the identity of the membership being revoked.
+        revoked_group_id = group.id
+        revoked_user_id = request.user.id
+        revoked_generation = str(membership.membership_generation)
+
+        membership.delete()
+
+        # A rollback must never disconnect a still-authorized developer.
+        transaction.on_commit(
+            lambda group_id=revoked_group_id,
+                   user_id=revoked_user_id,
+                   generation=revoked_generation: broadcast_membership_revocation(
+                group_id, user_id, generation
+            )
+        )
+
+    messages.success(
+        request,
+        "You have left the group successfully.",
+    )
+
+    return redirect("groups")
+
+
+# ============================================================
+# 7. SEARCH DEVELOPERS FOR INVITATIONS
+# ============================================================
+@login_required
+@require_GET
+def search_group_developers(request, group_id):
+    """
+    Allow private-group owners to search registered developers.
+
+    Rules:
+    1. Only private-group owners can search.
+    2. Existing members are excluded.
+    3. Developers with pending invitations are excluded.
+    4. Searching does not automatically add members.
+    """
+
+    # Find the requested group.
+    group = get_object_or_404(
+        ProjectGroup,
+        id=group_id,
+    )
+
+    # Only the owner of a private group can search developers.
+    if not group.is_private or not is_group_owner(
+        group,
+        request.user,
+    ):
+        return JsonResponse(
+            {"error": "Permission denied."},
+            status=403,
+        )
+
+    # Get the developer's search text.
+    query = request.GET.get("q", "").strip()
+
+    # Require at least two characters.
+    if len(query) < 2:
+        return JsonResponse({"users": []})
+
+    User = get_user_model()
+
+    # Find developers who already belong to this group.
+    existing_members = GroupMember.objects.filter(
+        group=group,
+    ).values_list("user_id", flat=True)
+
+    # Find developers who already have pending invitations.
+    pending_invitees = GroupInvitation.objects.filter(
+        group=group,
+        status="pending",
+    ).values_list("invited_user_id", flat=True)
+
+    # Search registered developers.
+    developers = (
+        User.objects
+        .filter(
+            username__icontains=query,
+            is_active=True,
+        )
+        .exclude(id__in=existing_members)
+        .exclude(id__in=pending_invitees)
+        .exclude(id=group.owner_id)
+        .order_by("username")[:10]
+    )
+
+    # Prepare results for developer_search.js.
+    results = [
+        {
+            "id": developer.id,
+            "username": developer.username,
+        }
+        for developer in developers
+    ]
+
+    return JsonResponse({
+        "users": results,
+    })
+
+
+# ============================================================
+# 8. PRIVATE DEVELOPMENT MEETING ROOM
+# ============================================================
+@login_required
+@require_GET
+def meeting_room(request, group_id):
+    """
+    Display the private development workspace.
+
+    Includes:
+    - Connected GitHub repository
+    - Repository connection approval requests
+    - Group chat messages
+
+    LiveKit meeting functionality will be connected later.
+    """
+
+    # ========================================================
+    # 1. FIND THE GROUP
+    # ========================================================
+
+    group = get_object_or_404(
+        ProjectGroup,
+        id=group_id,
+    )
+
+    if not group.is_private:
+        return HttpResponseForbidden(
+            "Meeting rooms are only available to private groups."
+        )
+
+    if not is_group_member(group, request.user):
+        return HttpResponseForbidden(
+            "You must belong to this group to enter its meeting room."
+        )
+
+    # ========================================================
+    # 2. LOAD THE GROUP REPOSITORY
+    # ========================================================
+
+    repository = GroupRepository.objects.filter(
+        group=group,
+    ).first()
+
+    repository_form = GroupRepositoryForm()
+
+    is_owner = is_group_owner(
+        group,
+        request.user,
+    )
+
+        # ========================================================
+    # REPOSITORY CONNECTION LOCK DURING ACTIVE MEETINGS
+    # ========================================================
+
+    # Check whether this private group has an active meeting.
+    repository_locked = GroupMeeting.objects.filter(
+        group=group,
+        status="active",
+    ).exists()
+
+    # ========================================================
+    # 3. LOAD REPOSITORY CONNECTION REQUESTS
+    # ========================================================
+
+    repository_requests = []
+
+    my_repository_request = None
+
+    can_request_repository = False
+
+    can_connect_repository = is_owner
+
+    if is_owner:
+
+        # Only the group owner sees pending requests.
+        repository_requests = list(
+            RepositoryConnectionRequest.objects.filter(
+                group=group,
+                status="pending",
+                owner_membership_generation=(
+                    group.owner_membership_generation
+                ),
+            )
+            .select_related("requested_by")
+            .order_by("created_at")
+        )
+
+    else:
+
+        membership = GroupMember.objects.filter(
+            group=group,
+            user=request.user,
+        ).first()
+
+        if membership:
+
+            # Only requests from the current membership
+            # and ownership periods are valid.
+            my_repository_request = (
+                RepositoryConnectionRequest.objects.filter(
+                    group=group,
+                    requested_by=request.user,
+                    membership_generation=(
+                        membership.membership_generation
+                    ),
+                    owner_membership_generation=(
+                        group.owner_membership_generation
+                    ),
+                    status__in=["pending", "approved"],
+                )
+                .order_by("-created_at")
+                .first()
+            )
+
+            can_request_repository = (
+                my_repository_request is None
+            )
+
+            can_connect_repository = (
+                my_repository_request is not None
+                and my_repository_request.status == "approved"
+            )
+
+    # ========================================================
+    # 4. LOAD CHAT MESSAGES
+    # ========================================================
+
+    recent_messages = list(
+        GroupChatMessage.objects
+        .filter(
+            group=group,
+            deleted_at__isnull=True,
+        )
+        .select_related(
+            "sender",
+            "reply_to",
+            "reply_to__sender",
+        )
+        .order_by("-created_at", "-id")[:50]
+    )
+
+    recent_messages.reverse()
+
+    # ========================================================
+    # 5. DISPLAY THE MEETING ROOM
+    # ========================================================
+
+    return render(
+        request,
+        "community/meeting_room.html",
+        {
+            "group": group,
+            "repository": repository,
+            "repository_form": repository_form,
+
+            # Existing owner permission.
+            "can_manage_repository": is_owner,
+
+            # New repository approval information.
+            "repository_requests": repository_requests,
+            "my_repository_request": my_repository_request,
+            "can_request_repository": can_request_repository,
+            "can_connect_repository": can_connect_repository,
+            # Tell the interface whether repository changes are locked.
+            "repository_locked": repository_locked,
+            # Existing group chat.
+            "chat_messages": recent_messages,
+        },
+    )
+
+# ============================================================
+# 9. CREATE DISCUSSION
+# ============================================================
+
+@login_required
+@require_POST
+def create_discussion(request, group_id):
+    """Allow group members to create discussions."""
+
+    group = get_object_or_404(
+        ProjectGroup,
+        id=group_id,
+    )
+
+    if not is_group_member(group, request.user):
+        return HttpResponseForbidden(
+            "You must be a group member to create discussions."
+        )
+
+    form = GroupDiscussionForm(request.POST)
+
+    if form.is_valid():
+
+        discussion = form.save(commit=False)
+
+        discussion.group = group
+        discussion.author = request.user
+
+        discussion.save()
+
+        messages.success(
+            request,
+            "Your discussion was posted successfully!",
+        )
+
+    else:
+
+        messages.error(
+            request,
+            "Please enter a valid discussion title and message.",
+        )
+
+    return redirect(
+        "group_detail",
+        group_id=group.id,
+    )
+
+
+# ============================================================
+# 10. DISCUSSION DETAILS
+# ============================================================
+
+@login_required
+def discussion_detail(request, group_id, discussion_id):
+    """Display a discussion and its comments."""
+
+    group = get_object_or_404(
+        ProjectGroup,
+        id=group_id,
+    )
+
+    if not can_view_group(group, request.user):
+        return HttpResponseForbidden(
+            "You must be a member to view this discussion."
+        )
+
+    discussion = get_object_or_404(
+        GroupDiscussion.objects.select_related("author"),
+        id=discussion_id,
+        group=group,
+    )
+
+    if HiddenDiscussion.objects.filter(
+        discussion=discussion,
+        user=request.user,
+    ).exists():
+        return HttpResponseForbidden(
+            "You have hidden this discussion."
+        )
+
+    comments = (
+        GroupDiscussionComment.objects
+        .filter(discussion=discussion)
+        .select_related("author", "parent")
+        .order_by("created_at", "-id")
+    )
+
+    liked_by_user = GroupDiscussionLike.objects.filter(
+        discussion=discussion,
+        user=request.user,
+    ).exists()
+
+    return render(
+        request,
+        "community/discussion_detail.html",
+        {
+            "group": group,
+            "discussion": discussion,
+            "comments": comments,
+            "liked_by_user": liked_by_user,
+            "is_member": is_group_member(group, request.user),
+            "comment_form": GroupDiscussionCommentForm(),
+        },
+    )
+
+
+# ============================================================
+# 11. ADD DISCUSSION COMMENT OR REPLY
+# ============================================================
+
+@login_required
+@require_POST
+def add_discussion_comment(request, group_id, discussion_id):
+    """Allow members to comment and reply to discussions."""
+
+    group = get_object_or_404(
+        ProjectGroup,
+        id=group_id,
+    )
+
+    if not is_group_member(group, request.user):
+        return HttpResponseForbidden(
+            "You must be a group member to comment."
+        )
+
+    discussion = get_object_or_404(
+        GroupDiscussion,
+        id=discussion_id,
+        group=group,
+    )
+
+    form = GroupDiscussionCommentForm(request.POST)
+
+    if not form.is_valid():
+
+        if is_ajax_request(request):
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": "Please enter a valid comment.",
+                    "errors": form.errors.get_json_data(),
+                },
+                status=400,
+            )
+
+        messages.error(
+            request,
+            "Please enter a valid comment.",
+        )
+
+        return redirect(
+            "discussion_detail",
+            group_id=group.id,
+            discussion_id=discussion.id,
+        )
+
+    comment = form.save(commit=False)
+
+    comment.discussion = discussion
+    comment.author = request.user
+
+    parent_id = request.POST.get("parent_id", "").strip()
+
+    if parent_id:
+
+        parent_comment = get_object_or_404(
+            GroupDiscussionComment,
+            id=parent_id,
+            discussion=discussion,
+        )
+
+        comment.parent = parent_comment
+
+    with transaction.atomic():
+
+        comment.save()
+
+        comment_count = GroupDiscussionComment.objects.filter(
+            discussion=discussion,
+        ).count()
+
+        event = {
+            "event": "discussion_comment",
+            "discussion_id": discussion.id,
+            "comment_count": comment_count,
+            "comment_id": comment.id,
+            "author": request.user.username,
+            "content": comment.content,
+            "parent_id": comment.parent_id,
+            "parent_author": (
+                comment.parent.author.username
+                if comment.parent_id
+                else None
+            ),
+            "created_at": comment.created_at.strftime(
+                "%b %d, %Y - %H:%M"
+            ),
+        }
+
+        transaction.on_commit(
+            lambda: broadcast_group_event(
+                f"group_discussions_{group.id}",
+                "discussion.comment",
+                event,
+            )
+        )
+
+    if is_ajax_request(request):
+        return JsonResponse(
+            {
+                "success": True,
+                "comment_id": comment.id,
+            }
+        )
+
+    return redirect(
+        "discussion_detail",
+        group_id=group.id,
+        discussion_id=discussion.id,
+    )
+
+
+# ============================================================
+# 12. LIKE OR UNLIKE DISCUSSION
+# ============================================================
+
+@login_required
+@require_POST
+def toggle_discussion_like(request, group_id, discussion_id):
+    """Toggle a discussion like and notify connected browsers."""
+
+    group = get_object_or_404(
+        ProjectGroup,
+        id=group_id,
+    )
+
+    if not is_group_member(group, request.user):
+        return HttpResponseForbidden(
+            "You must be a group member to like discussions."
+        )
+
+    discussion = get_object_or_404(
+        GroupDiscussion,
+        id=discussion_id,
+        group=group,
+    )
+
+    with transaction.atomic():
+
+        # Serialize overlapping likes from the same developer.
+        User = get_user_model()
+
+        User.objects.select_for_update().get(
+            pk=request.user.pk,
+        )
+
+        existing_like = GroupDiscussionLike.objects.filter(
+            discussion=discussion,
+            user=request.user,
+        ).first()
+
+        if existing_like:
+
+            existing_like.delete()
+            liked = False
+
+        else:
+
+            GroupDiscussionLike.objects.create(
+                discussion=discussion,
+                user=request.user,
+            )
+
+            liked = True
+
+        like_count = GroupDiscussionLike.objects.filter(
+            discussion=discussion,
+        ).count()
+
+        event = {
+            "event": "discussion_like",
+            "discussion_id": discussion.id,
+            "like_count": like_count,
+        }
+
+        transaction.on_commit(
+            lambda: broadcast_group_event(
+                f"group_discussions_{group.id}",
+                "discussion.like",
+                event,
+            )
+        )
+
+    if is_ajax_request(request):
+        return JsonResponse(
+            {
+                "liked": liked,
+                "like_count": like_count,
+            }
+        )
+
+    return redirect(
+        "discussion_detail",
+        group_id=group.id,
+        discussion_id=discussion.id,
+    )
+
+
+# ============================================================
+# 13. HIDE DISCUSSION
+# ============================================================
+
+@login_required
+@require_POST
+def hide_discussion(request, group_id, discussion_id):
+    """Hide a discussion from the current developer."""
+
+    group = get_object_or_404(
+        ProjectGroup,
+        id=group_id,
+    )
+
+    if not is_group_member(group, request.user):
+        return HttpResponseForbidden(
+            "You must be a group member to hide discussions."
+        )
+
+    discussion = get_object_or_404(
+        GroupDiscussion,
+        id=discussion_id,
+        group=group,
+    )
+
+    HiddenDiscussion.objects.get_or_create(
+        discussion=discussion,
+        user=request.user,
+    )
+
+    messages.success(
+        request,
+        "Discussion hidden from your feed.",
+    )
+
+    return redirect(
+        "group_detail",
+        group_id=group.id,
+    )
+
+
+# ============================================================
+# 14. GROUP CHAT ROOM
+# ============================================================
+# ============================================================
+# GROUP CHAT PAGE
+# ============================================================
+@login_required
+def group_chat(request, group_id):
+    """
+    Display chat history to authorized group members.
+
+    - Load the latest 50 active messages.
+    - Exclude deleted messages.
+    - Load saved emoji reactions.
+    - Identify the current user's reaction.
+    """
+
+    # ========================================================
+    # 1. FIND THE GROUP
+    # ========================================================
+
+    group = get_object_or_404(
+        ProjectGroup,
+        id=group_id,
+    )
+
+    # Only group members can access the chat.
+    if not is_group_member(group, request.user):
+        return HttpResponseForbidden(
+            "You must be a group member to access its chat."
+        )
+
+    # ========================================================
+    # 2. LOAD ONLY ACTIVE MESSAGES
+    # ========================================================
+
+    recent_messages = list(
+        GroupChatMessage.objects
+        .filter(
+            group=group,
+            deleted_at__isnull=True,
+        )
+        .select_related(
+            "sender",
+            "reply_to",
+            "reply_to__sender",
+        )
+        .prefetch_related(
+            "reactions",
+        )
+        .order_by("-created_at", "-id")[:50]
+    )
+
+    # Display oldest messages first.
+    recent_messages.reverse()
+
+    # ========================================================
+    # 3. PREPARE EMOJI REACTIONS
+    # ========================================================
+
+    for chat_message in recent_messages:
+
+        reaction_summary = {}
+        my_reaction = None
+
+        # Count saved emoji reactions.
+        for reaction in chat_message.reactions.all():
+
+            emoji = reaction.emoji
+
+            reaction_summary[emoji] = (
+                reaction_summary.get(emoji, 0) + 1
+            )
+
+            # Find the current developer's reaction.
+            if reaction.user_id == request.user.id:
+                my_reaction = emoji
+
+        # Make reaction information available to HTML.
+        chat_message.reaction_summary = reaction_summary
+        chat_message.my_reaction = my_reaction
+
+    # ========================================================
+    # 4. DISPLAY GROUP CHAT
+    # ========================================================
+
+    return render(
+        request,
+        "community/group_chat.html",
+        {
+            "group": group,
+            "chat_messages": recent_messages,
+            "chat_form": GroupChatMessageForm(),
+        },
+    )
+
+
+# ============================================================
+# 15. SEND GROUP CHAT MESSAGE
+# ============================================================
+@login_required
+@require_POST
+def send_group_message(request, group_id):
+    """
+    Save a chat message and broadcast it through WebSockets.
+
+    Supports:
+        - Text messages
+        - Code snippets
+        - Voice notes
+        - File attachments
+        - Replies
+
+    Attachments use protected download URLs.
+    """
+
+    # Find the group receiving the message.
+    group = get_object_or_404(
+        ProjectGroup,
+        id=group_id,
+    )
+
+    # Only group members can send messages.
+    if not is_group_member(group, request.user):
+        return HttpResponseForbidden(
+            "You must be a group member to send messages."
+        )
+
+    # Validate the submitted message and uploaded files.
+    form = GroupChatMessageForm(
+        request.POST,
+        request.FILES,
+    )
+
+    if not form.is_valid():
+
+        # Return validation errors for JavaScript requests.
+        if is_ajax_request(request):
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": "Your message is invalid.",
+                    "details": form.errors.get_json_data(),
+                },
+                status=400,
+            )
+
+        # Show an error for normal form submissions.
+        messages.error(
+            request,
+            "Your message is invalid. Check the content or attachment.",
+        )
+
+        return redirect(group_chat_url(group.id))
+
+    # Create the message object without saving it yet.
+    chat_message = form.save(commit=False)
+
+    # Associate the message with its group and sender.
+    chat_message.group = group
+    chat_message.sender = request.user
+
+    # Check whether the message is replying to another message.
+    reply_to_id = request.POST.get(
+        "reply_to_id",
+        "",
+    ).strip()
+
+    if reply_to_id:
+
+        # Replies must reference messages in the same group.
+        reply_to_message = get_object_or_404(
+            GroupChatMessage,
+            id=reply_to_id,
+            group=group,
+            deleted_at__isnull=True,
+        )
+
+        chat_message.reply_to = reply_to_message
+
+    # Save the message inside a database transaction.
+    with transaction.atomic():
+
+        chat_message.save()
+
+        # Default to no attachment.
+        attachment_url = None
+
+        # Generate a protected URL when an attachment exists.
+        if chat_message.attachment:
+
+            attachment_url = reverse(
+                "download_group_attachment",
+                args=[
+                    group.id,
+                    chat_message.id,
+                ],
+            )
+
+        # Prepare the message for WebSocket broadcasting.
+        message_data = {
+            "type": "message_created",
+            "message_id": chat_message.id,
+            "group_id": group.id,
+            "sender_id": request.user.id,
+            "sender": request.user.username,
+            "content": chat_message.content,
+            "message_type": chat_message.message_type,
+            "created_at": chat_message.created_at.isoformat(),
+            "reply_to_id": chat_message.reply_to_id,
+            "attachment_url": attachment_url,
+        }
+
+        # Broadcast only after the database transaction succeeds.
+        transaction.on_commit(
+            lambda: broadcast_group_event(
+                f"group_chat_{group.id}",
+                "chat.message",
+                message_data,
+            )
+        )
+
+    # Return JSON for JavaScript requests.
+    if is_ajax_request(request):
+        return JsonResponse(
+            {
+                "success": True,
+                "message_id": chat_message.id,
+                "message": "Message sent successfully.",
+            },
+            status=201,
+        )
+
+    # Redirect normal form submissions back to the group chat.
+    return redirect(group_chat_url(group.id))
+
+
+# ============================================================
+# 16. EDIT GROUP CHAT MESSAGE
+# ============================================================
+
+@login_required
+@require_POST
+def edit_group_message(request, group_id, message_id):
+    """Allow developers to edit their own text messages."""
+
+    group = get_object_or_404(
+        ProjectGroup,
+        id=group_id,
+    )
+
+    if not is_group_member(group, request.user):
+        return HttpResponseForbidden(
+            "You must be a group member to edit messages."
+        )
+
+    chat_message = get_object_or_404(
+        GroupChatMessage,
+        id=message_id,
+        group=group,
+    )
+
+    if chat_message.sender_id != request.user.id:
+        return HttpResponseForbidden(
+            "You can only edit your own messages."
+        )
+
+    if chat_message.message_type != "text":
+
+        if is_ajax_request(request):
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": "Only text messages can be edited.",
+                },
+                status=400,
+            )
+
+        messages.error(
+            request,
+            "Only text messages can be edited.",
+        )
+
+        return redirect(group_chat_url(group.id))
+
+    # Do not allow editing a deleted message.
+    if chat_message.deleted_at is not None:
+        return HttpResponseBadRequest(
+            "Deleted messages cannot be edited."
+        )
+
+    new_content = request.POST.get(
+        "content",
+        "",
+    ).strip()
+
+    if not new_content:
+
+        if is_ajax_request(request):
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": "Your message cannot be empty.",
+                },
+                status=400,
+            )
+
+        messages.error(
+            request,
+            "Your message cannot be empty.",
+        )
+
+        return redirect(group_chat_url(group.id))
+
+    with transaction.atomic():
+
+        chat_message.content = new_content
+        chat_message.edited_at = timezone.now()
+
+        chat_message.save(
+            update_fields=[
+                "content",
+                "edited_at",
+            ],
+        )
+
+        message_data = {
+            "type": "message_edited",
+            "message_id": chat_message.id,
+            "group_id": group.id,
+            "content": chat_message.content,
+            "edited_at": chat_message.edited_at.isoformat(),
+        }
+
+        transaction.on_commit(
+            lambda: broadcast_group_event(
+                f"group_chat_{group.id}",
+                "chat.message",
+                message_data,
+            )
+        )
+
+    if is_ajax_request(request):
+        return JsonResponse(
+            {
+                "success": True,
+                "message_id": chat_message.id,
+                "content": chat_message.content,
+                "edited_at": chat_message.edited_at.isoformat(),
+                "message": "Message updated successfully.",
+            }
+        )
+
+    messages.success(
+        request,
+        "Message updated successfully.",
+    )
+
+    return redirect(group_chat_url(group.id))
+
+
+# ============================================================
+# 17. DELETE GROUP CHAT MESSAGE
+# ============================================================
+
+@login_required
+@require_POST
+def delete_group_message(request, group_id, message_id):
+    """
+    Soft-delete a chat message.
+
+    The database record remains available for audit purposes,
+    but its content and attachment are no longer displayed.
+    """
+
+    group = get_object_or_404(
+        ProjectGroup,
+        id=group_id,
+    )
+
+    if not is_group_member(group, request.user):
+        return HttpResponseForbidden(
+            "You must be a group member to delete messages."
+        )
+
+    chat_message = get_object_or_404(
+        GroupChatMessage,
+        id=message_id,
+        group=group,
+    )
+
+    if chat_message.sender_id != request.user.id:
+        return HttpResponseForbidden(
+            "You can only delete your own messages."
+        )
+
+    with transaction.atomic():
+
+        # Check whether the message has already been deleted.
+        if chat_message.deleted_at is None:
+
+            # Record when the message was deleted.
+            chat_message.deleted_at = timezone.now()
+
+            # Save only the deletion timestamp.
+            chat_message.save(
+                update_fields=["deleted_at"],
+            )
+
+        message_data = {
+            "type": "message_deleted",
+            "message_id": chat_message.id,
+            "group_id": group.id,
+        }
+
+        transaction.on_commit(
+            lambda: broadcast_group_event(
+                f"group_chat_{group.id}",
+                "chat.message",
+                message_data,
+            )
+        )
+
+    if is_ajax_request(request):
+        return JsonResponse(
+            {
+                "success": True,
+                "message_id": chat_message.id,
+                "message": "Message deleted successfully.",
+            }
+        )
+
+    messages.success(
+        request,
+        "Message deleted successfully.",
+    )
+
+    return redirect(group_chat_url(group.id))
+
+
+# ============================================================
+# 18. CONNECT GITHUB REPOSITORY
+# ============================================================
+
+@login_required
+@require_POST
+def connect_group_repository(request, group_id):
+    """
+    Connect or replace a GitHub repository.
+
+    Public repositories connect directly.
+    Private repositories require GitHub OAuth.
+
+    Owners can connect directly.
+    Members require one valid approval per successful connection.
+    """
+
+    # 1. Find the private development group.
+    group = get_object_or_404(
+        ProjectGroup,
+        id=group_id,
+        is_private=True,
+    )
+
+    # 2. Check the user's permission.
+    if not has_repository_connection_permission(
+        group,
+        request.user,
+    ):
+        return HttpResponseForbidden(
+            "You do not have permission to connect repositories."
+        )
+
+    # 3. Validate the repository URL.
+    form = GroupRepositoryForm(request.POST)
+
+    if not form.is_valid():
+        messages.error(
+            request,
+            "Enter a valid GitHub repository URL.",
+        )
+        return redirect(
+            "meeting_room",
+            group_id=group.id,
+        )
+
+    owner = form.cleaned_data["github_owner"]
+    repository_name = form.cleaned_data["repository_name"]
+
+    # 4. Ask GitHub whether the repository is public.
+    api_url = (
+        "https://api.github.com/repos/"
+        f"{quote(owner, safe='')}/"
+        f"{quote(repository_name, safe='')}"
+    )
+
+    try:
+        repository_data = github_request_json(api_url)
+
+    except HTTPError as error:
+
+        # GitHub also returns 404 for inaccessible private repos.
+        if error.code == 404:
+            return start_github_authorization(
+                request,
+                group.id,
+            )
+
+        if error.code in (403, 429):
+            messages.error(
+                request,
+                "GitHub is temporarily limiting requests. Try again later.",
+            )
+        else:
+            messages.error(
+                request,
+                "GitHub could not verify this repository.",
+            )
+
+        return redirect(
+            "meeting_room",
+            group_id=group.id,
+        )
+
+    except (URLError, TimeoutError, ValueError, OSError):
+        messages.error(
+            request,
+            "Unable to contact GitHub. Please try again.",
+        )
+        return redirect(
+            "meeting_room",
+            group_id=group.id,
+        )
+
+    # 5. Private repositories must use OAuth.
+    if repository_data.get("private") is not False:
+        return start_github_authorization(
+            request,
+            group.id,
+        )
+
+    # 6. Verify the repository metadata.
+    verified_owner = (
+        repository_data.get("owner") or {}
+    ).get("login")
+
+    verified_name = repository_data.get("name")
+    default_branch = repository_data.get("default_branch")
+    github_repository_id = repository_data.get("id")
+
+    if not all((
+        verified_owner,
+        verified_name,
+        default_branch,
+        github_repository_id,
+    )):
+        messages.error(
+            request,
+            "GitHub returned incomplete repository information.",
+        )
+        return redirect(
+            "meeting_room",
+            group_id=group.id,
+        )
+
+    # 7. Verify permission and save atomically.
+    with transaction.atomic():
+
+        # Lock the group to serialize repository changes.
+        locked_group = (
+            ProjectGroup.objects
+            .select_for_update()
+            .get(id=group.id)
+        )
+
+        # ====================================================
+        # BLOCK REPOSITORY CHANGES DURING ACTIVE MEETINGS
+        # ====================================================
+
+        # Check whether this group has an active meeting.
+        # The group row is already locked by select_for_update().
+        if GroupMeeting.objects.filter(
+            group=locked_group,
+            status="active",
+        ).exists():
+            return HttpResponseForbidden(
+                "Repository connections are locked while "
+                "a group meeting is active. "
+                "Please wait until the meeting ends."
+            )
+
+        # Recheck permission after acquiring the lock.
+        if not has_repository_connection_permission(
+            locked_group,
+            request.user,
+        ):
+            return HttpResponseForbidden(
+                "Repository connection permission is no longer valid."
+            )
+
+        approval = None
+
+        # 8. Members must have a valid, unused approval.
+        if locked_group.owner_id != request.user.id:
+
+            membership = (
+                GroupMember.objects
+                .select_for_update()
+                .filter(
+                    group=locked_group,
+                    user=request.user,
+                )
+                .first()
+            )
+
+            if membership is None:
+                return HttpResponseForbidden(
+                    "You are no longer a member of this group."
+                )
+
+            approval = (
+                RepositoryConnectionRequest.objects
+                .select_for_update()
+                .filter(
+                    group=locked_group,
+                    requested_by=request.user,
+                    status="approved",
+                    membership_generation=(
+                        membership.membership_generation
+                    ),
+                    owner_membership_generation=(
+                        locked_group.owner_membership_generation
+                    ),
+                )
+                .first()
+            )
+
+            # IMPORTANT: Reject before saving anything.
+            if approval is None:
+                return HttpResponseForbidden(
+                    "Your repository approval is no longer valid."
+                )
+
+        # 9. Save the verified public repository.
+        GroupRepository.objects.update_or_create(
+            group=locked_group,
+            defaults={
+                "github_owner": verified_owner,
+                "repository_name": verified_name,
+                "default_branch": default_branch,
+                "github_repository_id": github_repository_id,
+                "github_installation_id": None,
+                "is_private": False,
+            },
+        )
+
+        # 10. Consume the member's approval after saving.
+        if approval is not None:
+            RepositoryConnectionRequest.objects.filter(
+                id=approval.id,
+                status="approved",
+            ).update(
+                status="used",
+                used_at=timezone.now(),
+            )
+                # Notify group members only after the database commits.
+        repository_group_id = locked_group.id
+
+        transaction.on_commit(
+            lambda: broadcast_repository_update(
+                repository_group_id
+            )
+        )
+                    # ====================================================
+        # 11. NOTIFY GROUP MEMBERS AFTER A SUCCESSFUL COMMIT
+        # ====================================================
+
+        # Capture the group ID before registering the callback.
+        repository_group_id = locked_group.id
+
+        # Prepare a minimal event without GitHub credentials.
+        repository_event = {
+            "type": "repository_updated",
+            "group_id": repository_group_id,
+        }
+
+        # Notify connected developers only after PostgreSQL
+        # successfully commits the repository connection.
+        transaction.on_commit(
+            lambda: broadcast_group_event(
+                f"group_repository_updates_{repository_group_id}",
+                "repository.updated",
+                repository_event,
+            )
+        )
+
+    # 12. Confirm success.
+    messages.success(
+        request,
+        "Public GitHub repository connected successfully!",
+    )
+
+    return redirect(
+        "meeting_room",
+        group_id=group.id,
+    )
+
+# ============================================================
+# 19. GITHUB REPOSITORY FILE EXPLORER
+# ============================================================
+@login_required
+@require_GET
+def group_repository_files(request, group_id):
+    """
+    Retrieve the connected GitHub repository's file tree.
+
+    Public repositories:
+        Access GitHub without authentication.
+
+    Private repositories:
+        Use a short-lived GitHub App installation token.
+
+    Only members of the private development group
+    can access the repository explorer.
+    """
+
+    # Find the development group.
+    group = get_object_or_404(
+        ProjectGroup,
+        id=group_id,
+    )
+
+    # Repository explorer is only available in private groups.
+    if not group.is_private:
+        return HttpResponseForbidden(
+            "Repository files are only available to private groups."
+        )
+
+    # Only group members can view repository files.
+    if not is_group_member(group, request.user):
+        return HttpResponseForbidden(
+            "You must belong to this group to view repository files."
+        )
+
+    # Retrieve the repository connected to this group.
+    repository = GroupRepository.objects.filter(
+        group=group,
+    ).first()
+
+    if repository is None:
+        return JsonResponse(
+            {"error": "No GitHub repository connected."},
+            status=404,
+        )
+
+    # Encode GitHub repository information safely.
+    owner = quote(repository.github_owner, safe="")
+    repo_name = quote(repository.repository_name, safe="")
+    branch = quote(repository.default_branch, safe="")
+
+    # GitHub API endpoint for retrieving repository files.
+    endpoint = (
+        f"/repos/{owner}/{repo_name}"
+        f"/git/trees/{branch}?recursive=1"
+    )
+
+    try:
+
+        # PRIVATE REPOSITORY
+        if repository.is_private:
+
+            # A private repository must have a GitHub App installation.
+            if not repository.github_installation_id:
+
+                return JsonResponse(
+                    {
+                        "error": (
+                            "GitHub App installation is missing "
+                            "for this private repository."
+                        )
+                    },
+                    status=502,
+                )
+
+            # Generate a short-lived installation access token.
+            # Never store this token in the database or browser.
+            installation_token = get_installation_access_token(
+                repository.github_installation_id
+            )
+
+            # Retrieve private repository files using
+            # the authenticated GitHub API.
+            repository_data = github_api_request(
+                "GET",
+                endpoint,
+                token=installation_token,
+            )
+
+        # PUBLIC REPOSITORY
+        else:
+
+            # Public repositories do not require GitHub authorization.
+            api_url = f"https://api.github.com{endpoint}"
+
+            repository_data = github_request_json(
+                api_url
+            )
+
+    except GitHubAuthError:
+
+        # Do not expose GitHub authentication details to the browser.
+        return JsonResponse(
+            {
+                "error": (
+                    "Unable to access this private GitHub repository. "
+                    "Check the GitHub App installation permissions."
+                )
+            },
+            status=502,
+        )
+
+    except HTTPError as error:
+
+        if error.code == 404:
+            message = "Repository or branch not found."
+
+        elif error.code in (403, 429):
+            message = "GitHub request limit reached. Try again later."
+
+        else:
+            message = "Unable to retrieve repository files."
+
+        return JsonResponse(
+            {"error": message},
+            status=502,
+        )
+
+    except (URLError, TimeoutError, ValueError, OSError):
+
+        return JsonResponse(
+            {"error": "Unable to contact GitHub."},
+            status=502,
+        )
+
+    # GitHub may truncate extremely large repository trees.
+    # Do not display an incomplete file list as if it were complete.
+    if repository_data.get("truncated"):
+
+        return JsonResponse(
+            {
+                "error": (
+                    "This repository is too large to load completely. "
+                    "Folder-by-folder loading will be added later."
+                )
+            },
+            status=422,
+        )
+
+    # Convert GitHub's tree format into CodeView's explorer format.
+    files = []
+
+    for item in repository_data.get("tree", []):
+
+        # Only include files and folders.
+        if item.get("type") not in ("blob", "tree"):
+            continue
+
+        files.append(
+            {
+                "name": item["path"].split("/")[-1],
+                "path": item["path"],
+                "type": (
+                    "folder"
+                    if item["type"] == "tree"
+                    else "file"
+                ),
+            }
+        )
+
+    # Return repository information and files to the frontend.
+    return JsonResponse(
+        {
+            "repository": (
+                f"{repository.github_owner}/"
+                f"{repository.repository_name}"
+            ),
+            "branch": repository.default_branch,
+            "files": files,
+        }
+    )
+
+# ============================================================
+# 20. GITHUB REPOSITORY FILE CONTENT
+# ============================================================
+@login_required
+@require_GET
+def group_repository_file_content(request, group_id):
+    """
+    Retrieve and preview a text file from a GitHub repository.
+
+    Public repositories:
+        Retrieve files without GitHub authentication.
+
+    Private repositories:
+        Use a short-lived GitHub App installation token.
+
+    Security:
+        - Only private development group members can view files.
+        - File paths are validated.
+        - File previews are limited to 1 MiB.
+        - GitHub tokens are never returned to the browser.
+        - Repository files remain read-only.
+    """
+
+    # STEP 1: Find the development group.
+    group = get_object_or_404(
+        ProjectGroup,
+        id=group_id,
+    )
+
+    # Only private development groups support this feature.
+    if not group.is_private:
+        return HttpResponseForbidden(
+            "Repository files are only available to private groups."
+        )
+
+    # Only group members can access repository files.
+    if not is_group_member(group, request.user):
+        return HttpResponseForbidden(
+            "You must belong to this group to view repository files."
+        )
+
+    # STEP 2: Get the repository connected to this group.
+    repository = GroupRepository.objects.filter(
+        group=group,
+    ).first()
+
+    if repository is None:
+        return JsonResponse(
+            {"error": "No GitHub repository connected."},
+            status=404,
+        )
+
+    # STEP 3: Get the requested file path.
+    file_path = request.GET.get("path", "")
+
+    # Reject invalid paths and directory traversal attempts.
+    if (
+        not file_path
+        or file_path.startswith("/")
+        or "\\" in file_path
+        or any(
+            part in ("", ".", "..")
+            for part in file_path.split("/")
+        )
+    ):
+        return JsonResponse(
+            {"error": "Invalid repository file path."},
+            status=400,
+        )
+
+    # STEP 4: Safely encode the repository information.
+    owner = quote(repository.github_owner, safe="")
+    repo_name = quote(repository.repository_name, safe="")
+    branch = quote(repository.default_branch, safe="")
+
+    # Encode each file path component separately.
+    encoded_path = "/".join(
+        quote(part, safe="")
+        for part in file_path.split("/")
+    )
+
+    # GitHub API endpoint for retrieving file contents.
+    endpoint = (
+        f"/repos/{owner}/{repo_name}"
+        f"/contents/{encoded_path}?ref={branch}"
+    )
+
+    api_url = f"https://api.github.com{endpoint}"
+
+    # Limit previews to 1 MiB.
+    max_file_size = 1024 * 1024
+
+    # STEP 5: Retrieve the file.
+    try:
+
+        # PRIVATE REPOSITORY
+        if repository.is_private:
+
+            # Private repositories require a GitHub App installation.
+            if not repository.github_installation_id:
+                return JsonResponse(
+                    {
+                        "error": (
+                            "GitHub App installation is missing "
+                            "for this private repository."
+                        )
+                    },
+                    status=502,
+                )
+
+            # Generate a short-lived installation access token.
+            installation_token = get_installation_access_token(
+                repository.github_installation_id
+            )
+
+            # Authenticate directly with GitHub.
+            # Use the raw-content media type to retrieve file bytes.
+            with httpx.Client(
+                timeout=10.0,
+                follow_redirects=False,
+                trust_env=False,
+            ) as client:
+
+                response = client.get(
+                    api_url,
+                    headers={
+                        "Accept": "application/vnd.github.raw+json",
+                        "Authorization": f"Bearer {installation_token}",
+                        "X-GitHub-Api-Version": "2022-11-28",
+                        "User-Agent": "CodeView",
+                    },
+                )
+
+                # Raise an exception for unsuccessful responses.
+                response.raise_for_status()
+
+                # Do not download files larger than the preview limit.
+                # Stream the response to enforce the size limit.
+                raw_content = bytearray()
+
+                for chunk in response.iter_bytes():
+
+                    raw_content.extend(chunk)
+
+                    if len(raw_content) > max_file_size:
+                        return JsonResponse(
+                            {
+                                "error": (
+                                    "This file is too large to preview."
+                                )
+                            },
+                            status=413,
+                        )
+
+                raw_content = bytes(raw_content)
+
+        # PUBLIC REPOSITORY
+        else:
+
+            # Public repositories do not require authentication.
+            github_request = Request(
+                api_url,
+                headers={
+                    "Accept": "application/vnd.github.raw+json",
+                    "User-Agent": "CodeView",
+                },
+            )
+
+            with urlopen(github_request, timeout=10) as response:
+
+                raw_content = response.read(
+                    max_file_size + 1
+                )
+
+    # STEP 6: Handle GitHub HTTP errors.
+    except httpx.HTTPStatusError as error:
+
+        status_code = error.response.status_code
+
+        if status_code == 404:
+            message = "File not found in the connected repository."
+
+        elif status_code in (403, 429):
+            message = (
+                "GitHub denied the request or applied "
+                "a request limit."
+            )
+
+        else:
+            message = "Unable to retrieve this file."
+
+        return JsonResponse(
+            {"error": message},
+            status=502,
+        )
+
+    except HTTPError as error:
+
+        if error.code == 404:
+            message = "File not found in the connected repository."
+
+        elif error.code in (403, 429):
+            message = "GitHub request limit reached. Try again later."
+
+        else:
+            message = "Unable to retrieve this file."
+
+        return JsonResponse(
+            {"error": message},
+            status=502,
+        )
+
+    # Handle GitHub App authentication failures.
+    except GitHubAuthError:
+
+        return JsonResponse(
+            {
+                "error": (
+                    "Unable to access this private repository. "
+                    "Check the GitHub App installation permissions."
+                )
+            },
+            status=502,
+        )
+
+    # Handle connection errors.
+    except (
+        httpx.RequestError,
+        URLError,
+        TimeoutError,
+        OSError,
+    ):
+
+        return JsonResponse(
+            {"error": "Unable to contact GitHub."},
+            status=502,
+        )
+
+    # STEP 7: Check file size.
+    if len(raw_content) > max_file_size:
+
+        return JsonResponse(
+            {"error": "This file is too large to preview."},
+            status=413,
+        )
+
+    # STEP 8: Convert file bytes into readable text.
+    try:
+        content = raw_content.decode("utf-8")
+
+    except UnicodeDecodeError:
+
+        return JsonResponse(
+            {
+                "error": (
+                    "This file is not supported as a text preview."
+                )
+            },
+            status=415,
+        )
+
+    # STEP 9: Return the file contents to the frontend.
+    return JsonResponse(
+        {
+            "path": file_path,
+            "content": content,
+            "branch": repository.default_branch,
+        }
+    )
+
+@login_required
+def download_group_attachment(request, group_id, message_id):
+    """
+    Securely serve group chat attachments.
+
+    Security rules:
+    1. The developer must be logged in.
+    2. The developer must belong to the group.
+    3. The message must belong to that group.
+    4. Deleted messages cannot expose attachments.
+
+    File behavior:
+    - Voice notes play inside the browser.
+    - Other attachments are downloaded.
+    """
+
+    # Find the requested group.
+    group = get_object_or_404(
+        ProjectGroup,
+        id=group_id,
+    )
+
+    # Only group members can access attachments.
+    if not is_group_member(group, request.user):
+        raise Http404("Attachment not found.")
+
+    # Find the message inside the requested group.
+    chat_message = get_object_or_404(
+        GroupChatMessage,
+        id=message_id,
+        group=group,
+    )
+
+    # Deleted messages must not expose attachments.
+    if chat_message.deleted_at is not None:
+        raise Http404("Attachment not found.")
+
+    # Confirm that the message contains a file.
+    if not chat_message.attachment:
+        raise Http404("This message has no attachment.")
+
+    # Get the original filename.
+    filename = chat_message.attachment.name.rsplit("/", 1)[-1]
+
+    # Identify whether this attachment is a voice note.
+    is_voice_note = chat_message.message_type == "voice"
+
+    # Supported browser audio formats.
+    audio_content_types = {
+        ".mp3": "audio/mpeg",
+        ".wav": "audio/wav",
+        ".ogg": "audio/ogg",
+        ".webm": "audio/webm",
+        ".m4a": "audio/mp4",
+    }
+
+    # Get the file extension.
+    extension = (
+        "." + filename.rsplit(".", 1)[-1].lower()
+        if "." in filename
+        else ""
+    )
+
+    # Open the private attachment.
+    try:
+        attachment_file = chat_message.attachment.open("rb")
+
+    except (FileNotFoundError, OSError):
+        raise Http404("Attachment file not found.")
+
+    # Voice notes should play directly inside the browser.
+    if is_voice_note:
+
+        # Only allow supported audio extensions for inline playback.
+        if extension not in audio_content_types:
+            attachment_file.close()
+            raise Http404("Unsupported voice note format.")
+
+        response = FileResponse(
+            attachment_file,
+            as_attachment=False,
+            content_type=audio_content_types[extension],
+        )
+
+    else:
+
+        # Other attachments should download normally.
+        response = FileResponse(
+            attachment_file,
+            as_attachment=True,
+            filename=filename,
+            content_type="application/octet-stream",
+        )
+
+    # Prevent browsers and shared caches from storing private files.
+    response["Cache-Control"] = "private, no-store"
+    response["X-Content-Type-Options"] = "nosniff"
+
+    return response
+
+    # ============================================================
+# GROUP CHAT MESSAGE REACTIONS
+# ============================================================
+
+@login_required
+@require_POST
+def toggle_group_message_reaction(request, group_id, message_id):
+    """
+    Add, change, or remove a developer's reaction.
+
+    Rules:
+        1. Only authenticated group members can react.
+        2. Deleted messages cannot receive reactions.
+        3. One developer can have one reaction per message.
+        4. Clicking the same emoji removes the reaction.
+        5. Clicking another emoji changes the reaction.
+        6. Changes are broadcast through WebSockets.
+    """
+
+    # ========================================================
+    # 1. CHECK GROUP MEMBERSHIP
+    # ========================================================
+
+    group = get_object_or_404(
+        ProjectGroup,
+        id=group_id,
+    )
+
+    if not is_group_member(group, request.user):
+
+        return HttpResponseForbidden(
+            "You must be a group member to react to messages."
+        )
+
+    # ========================================================
+    # 2. FIND THE MESSAGE
+    # ========================================================
+
+    # The message must belong to this group and not be deleted.
+    chat_message = get_object_or_404(
+        GroupChatMessage,
+        id=message_id,
+        group=group,
+        deleted_at__isnull=True,
+    )
+
+    # ========================================================
+    # 3. READ THE SELECTED EMOJI
+    # ========================================================
+
+    # The browser will send JSON containing the emoji.
+    try:
+
+        data = json.loads(request.body)
+
+    except (json.JSONDecodeError, UnicodeDecodeError):
+
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "Invalid JSON data.",
+            },
+            status=400,
+        )
+
+    emoji = data.get("emoji")
+
+    # Only allow supported emoji reactions.
+    allowed_emojis = {
+        choice[0]
+        for choice in GroupMessageReaction.REACTION_CHOICES
+    }
+
+    if not isinstance(emoji, str) or emoji not in allowed_emojis:
+
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "Unsupported emoji reaction.",
+            },
+            status=400,
+        )
+
+    # ========================================================
+    # 4. ADD, CHANGE, OR REMOVE REACTION
+    # ========================================================
+
+    with transaction.atomic():
+
+        # Serialize reaction changes for this message.
+        # This also prevents concurrent requests from the same
+        # developer from creating conflicting reactions.
+        chat_message = (
+            GroupChatMessage.objects
+            .select_for_update()
+            .get(
+                pk=chat_message.pk,
+                group=group,
+                deleted_at__isnull=True,
+            )
+        )
+
+        # Find the developer's existing reaction.
+        existing_reaction = (
+            GroupMessageReaction.objects
+            .filter(
+                message=chat_message,
+                user=request.user,
+            )
+            .first()
+        )
+
+        if existing_reaction is None:
+
+            # No previous reaction: create one.
+            GroupMessageReaction.objects.create(
+                message=chat_message,
+                user=request.user,
+                emoji=emoji,
+            )
+
+            action = "added"
+
+        elif existing_reaction.emoji == emoji:
+
+            # Same emoji clicked again: remove it.
+            existing_reaction.delete()
+
+            action = "removed"
+
+        else:
+
+            # Different emoji: replace the previous reaction.
+            existing_reaction.emoji = emoji
+
+            existing_reaction.save(
+                update_fields=["emoji"],
+            )
+
+            action = "changed"
+
+        # ====================================================
+        # 5. COUNT ALL REACTIONS
+        # ====================================================
+
+        reaction_counts = (
+            GroupMessageReaction.objects
+            .filter(message=chat_message)
+            .values("emoji")
+            .annotate(count=Count("id"))
+            .order_by("emoji")
+        )
+
+        # Example: {"❤️": 3, "😂": 2}
+        reactions = {
+            item["emoji"]: item["count"]
+            for item in reaction_counts
+        }
+
+        # Get the developer's current reaction.
+        current_reaction = (
+            GroupMessageReaction.objects
+            .filter(
+                message=chat_message,
+                user=request.user,
+            )
+            .values_list("emoji", flat=True)
+            .first()
+        )
+
+        # ====================================================
+        # 6. PREPARE WEBSOCKET EVENT
+        # ====================================================
+
+        message_data = {
+            "type": "message_reaction",
+            "group_id": group.id,
+            "message_id": chat_message.id,
+            "user_id": request.user.id,
+            "emoji": emoji,
+            "action": action,
+            "reactions": reactions,
+        }
+
+        # Broadcast only after the transaction commits.
+        transaction.on_commit(
+            lambda: broadcast_group_event(
+                f"group_chat_{group.id}",
+                "chat.reaction",
+                message_data,
+            )
+        )
+
+    # ========================================================
+    # 7. RETURN RESULT TO THE BROWSER
+    # ========================================================
+
+    return JsonResponse(
+        {
+            "success": True,
+            "message_id": chat_message.id,
+            "action": action,
+            "reactions": reactions,
+            "current_reaction": current_reaction,
+        }
+    )

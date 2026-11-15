@@ -264,3 +264,66 @@
 
 /* Respect hidden tabs, dialogs, and controls. */
 [hidden] { display: none !important; }
+
+/* ============================================================
+   GROUP DETAILS — FIXED PAGE LAYOUT
+============================================================ */
+
+/* Prevent the whole group page from scrolling. */
+body.group-workspace-page {
+    height: 100dvh;
+    overflow: hidden;
+}
+
+/* Keep the shared layout within the available screen. */
+body.group-workspace-page .layout {
+    height: calc(100dvh - 72px);
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Keep the Explorer stationary. */
+body.group-workspace-page .left {
+    min-height: 0;
+    overflow-y: auto;
+}
+
+/* Prevent the main content from scrolling the page. */
+body.group-workspace-page .main-content {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Allow the workspace to fill the available height. */
+body.group-workspace-page .workspace-layout,
+body.group-workspace-page .workspace-main,
+body.group-workspace-page .workspace-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Give the chat the remaining available space. */
+body.group-workspace-page #group-chat {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Only the message history should scroll. */
+body.group-workspace-page #group-chat .chat-messages {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+/* Keep the message composer stationary. */
+body.group-workspace-page #group-chat .chat-composer {
+    flex: 0 0 auto;
+}

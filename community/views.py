@@ -4,7 +4,6 @@ ColabVerse private development group views.
 Features:
 - Private invitation-only development groups
 - Group dashboard and membership management
-- Discussions, comments, replies, likes, and hiding
 - Group chat with text, code, voice notes, and files
 - Message editing and deletion
 - Private development meeting rooms
@@ -57,8 +56,6 @@ from django.views.decorators.http import require_GET, require_POST
 
 from .forms import (
     ProjectGroupForm,
-    GroupDiscussionForm,
-    GroupDiscussionCommentForm,
     GroupChatMessageForm,
     GroupRepositoryForm,
 )
@@ -67,10 +64,6 @@ from .models import (
     GroupMeeting,  # Tracks active and ended LiveKit meetings.
     GroupMember,
     GroupInvitation,  # Stores private group invitations.
-    GroupDiscussion,
-    GroupDiscussionComment,
-    GroupDiscussionLike,
-    HiddenDiscussion,
     GroupChatMessage,
     GroupMessageReaction,
     GroupRepository,
@@ -374,7 +367,6 @@ def group_detail(request, group_id):
 
     Includes:
     - Group members
-    - Discussions
     - Active chat messages
     - Saved emoji reactions
     """
@@ -416,44 +408,6 @@ def group_detail(request, group_id):
         .select_related("user")
         .order_by("joined_at")
     )
-
-    # ========================================================
-    # 3. LOAD DISCUSSIONS
-    # ========================================================
-
-    # Find discussions hidden by the current developer.
-    hidden_discussion_ids = HiddenDiscussion.objects.filter(
-        user=request.user,
-    ).values_list("discussion_id", flat=True)
-
-    # Load visible discussions.
-    discussions = list(
-        GroupDiscussion.objects
-        .filter(group=group)
-        .exclude(id__in=hidden_discussion_ids)
-        .select_related("author")
-        .annotate(
-            like_count=Count("likes", distinct=True),
-            comment_count=Count("comments", distinct=True),
-        )
-        .order_by("-created_at")[:20]
-    )
-
-    # Find discussions liked by the current developer.
-    liked_discussion_ids = set(
-        GroupDiscussionLike.objects
-        .filter(
-            user=request.user,
-            discussion__in=discussions,
-        )
-        .values_list("discussion_id", flat=True)
-    )
-
-    # Mark discussions liked by the developer.
-    for discussion in discussions:
-        discussion.liked_by_user = (
-            discussion.id in liked_discussion_ids
-        )
 
     # ========================================================
     # 4. LOAD GROUP CHAT
@@ -537,9 +491,6 @@ def group_detail(request, group_id):
 
             # Old approval requests no longer exist.
             "pending_request": False,
-
-            # Group discussions.
-            "discussions": discussions,
 
             # Group chat.
             "chat_messages": chat_messages,
@@ -920,356 +871,7 @@ def meeting_room(request, group_id):
     )
 
 # ============================================================
-# 9. CREATE DISCUSSION
-# ============================================================
-
-@login_required
-@require_POST
-def create_discussion(request, group_id):
-    """Allow group members to create discussions."""
-
-    group = get_object_or_404(
-        ProjectGroup,
-        id=group_id,
-    )
-
-    if not is_group_member(group, request.user):
-        return HttpResponseForbidden(
-            "You must be a group member to create discussions."
-        )
-
-    form = GroupDiscussionForm(request.POST)
-
-    if form.is_valid():
-
-        discussion = form.save(commit=False)
-
-        discussion.group = group
-        discussion.author = request.user
-
-        discussion.save()
-
-        messages.success(
-            request,
-            "Your discussion was posted successfully!",
-        )
-
-    else:
-
-        messages.error(
-            request,
-            "Please enter a valid discussion title and message.",
-        )
-
-    return redirect(
-        "group_detail",
-        group_id=group.id,
-    )
-
-
-# ============================================================
-# 10. DISCUSSION DETAILS
-# ============================================================
-
-@login_required
-def discussion_detail(request, group_id, discussion_id):
-    """Display a discussion and its comments."""
-
-    group = get_object_or_404(
-        ProjectGroup,
-        id=group_id,
-    )
-
-    if not can_view_group(group, request.user):
-        return HttpResponseForbidden(
-            "You must be a member to view this discussion."
-        )
-
-    discussion = get_object_or_404(
-        GroupDiscussion.objects.select_related("author"),
-        id=discussion_id,
-        group=group,
-    )
-
-    if HiddenDiscussion.objects.filter(
-        discussion=discussion,
-        user=request.user,
-    ).exists():
-        return HttpResponseForbidden(
-            "You have hidden this discussion."
-        )
-
-    comments = (
-        GroupDiscussionComment.objects
-        .filter(discussion=discussion)
-        .select_related("author", "parent")
-        .order_by("created_at", "-id")
-    )
-
-    liked_by_user = GroupDiscussionLike.objects.filter(
-        discussion=discussion,
-        user=request.user,
-    ).exists()
-
-    return render(
-        request,
-        "community/discussion_detail.html",
-        {
-            "group": group,
-            "discussion": discussion,
-            "comments": comments,
-            "liked_by_user": liked_by_user,
-            "is_member": is_group_member(group, request.user),
-            "comment_form": GroupDiscussionCommentForm(),
-        },
-    )
-
-
-# ============================================================
-# 11. ADD DISCUSSION COMMENT OR REPLY
-# ============================================================
-
-@login_required
-@require_POST
-def add_discussion_comment(request, group_id, discussion_id):
-    """Allow members to comment and reply to discussions."""
-
-    group = get_object_or_404(
-        ProjectGroup,
-        id=group_id,
-    )
-
-    if not is_group_member(group, request.user):
-        return HttpResponseForbidden(
-            "You must be a group member to comment."
-        )
-
-    discussion = get_object_or_404(
-        GroupDiscussion,
-        id=discussion_id,
-        group=group,
-    )
-
-    form = GroupDiscussionCommentForm(request.POST)
-
-    if not form.is_valid():
-
-        if is_ajax_request(request):
-            return JsonResponse(
-                {
-                    "success": False,
-                    "error": "Please enter a valid comment.",
-                    "errors": form.errors.get_json_data(),
-                },
-                status=400,
-            )
-
-        messages.error(
-            request,
-            "Please enter a valid comment.",
-        )
-
-        return redirect(
-            "discussion_detail",
-            group_id=group.id,
-            discussion_id=discussion.id,
-        )
-
-    comment = form.save(commit=False)
-
-    comment.discussion = discussion
-    comment.author = request.user
-
-    parent_id = request.POST.get("parent_id", "").strip()
-
-    if parent_id:
-
-        parent_comment = get_object_or_404(
-            GroupDiscussionComment,
-            id=parent_id,
-            discussion=discussion,
-        )
-
-        comment.parent = parent_comment
-
-    with transaction.atomic():
-
-        comment.save()
-
-        comment_count = GroupDiscussionComment.objects.filter(
-            discussion=discussion,
-        ).count()
-
-        event = {
-            "event": "discussion_comment",
-            "discussion_id": discussion.id,
-            "comment_count": comment_count,
-            "comment_id": comment.id,
-            "author": request.user.username,
-            "content": comment.content,
-            "parent_id": comment.parent_id,
-            "parent_author": (
-                comment.parent.author.username
-                if comment.parent_id
-                else None
-            ),
-            "created_at": comment.created_at.strftime(
-                "%b %d, %Y - %H:%M"
-            ),
-        }
-
-        transaction.on_commit(
-            lambda: broadcast_group_event(
-                f"group_discussions_{group.id}",
-                "discussion.comment",
-                event,
-            )
-        )
-
-    if is_ajax_request(request):
-        return JsonResponse(
-            {
-                "success": True,
-                "comment_id": comment.id,
-            }
-        )
-
-    return redirect(
-        "discussion_detail",
-        group_id=group.id,
-        discussion_id=discussion.id,
-    )
-
-
-# ============================================================
-# 12. LIKE OR UNLIKE DISCUSSION
-# ============================================================
-
-@login_required
-@require_POST
-def toggle_discussion_like(request, group_id, discussion_id):
-    """Toggle a discussion like and notify connected browsers."""
-
-    group = get_object_or_404(
-        ProjectGroup,
-        id=group_id,
-    )
-
-    if not is_group_member(group, request.user):
-        return HttpResponseForbidden(
-            "You must be a group member to like discussions."
-        )
-
-    discussion = get_object_or_404(
-        GroupDiscussion,
-        id=discussion_id,
-        group=group,
-    )
-
-    with transaction.atomic():
-
-        # Serialize overlapping likes from the same developer.
-        User = get_user_model()
-
-        User.objects.select_for_update().get(
-            pk=request.user.pk,
-        )
-
-        existing_like = GroupDiscussionLike.objects.filter(
-            discussion=discussion,
-            user=request.user,
-        ).first()
-
-        if existing_like:
-
-            existing_like.delete()
-            liked = False
-
-        else:
-
-            GroupDiscussionLike.objects.create(
-                discussion=discussion,
-                user=request.user,
-            )
-
-            liked = True
-
-        like_count = GroupDiscussionLike.objects.filter(
-            discussion=discussion,
-        ).count()
-
-        event = {
-            "event": "discussion_like",
-            "discussion_id": discussion.id,
-            "like_count": like_count,
-        }
-
-        transaction.on_commit(
-            lambda: broadcast_group_event(
-                f"group_discussions_{group.id}",
-                "discussion.like",
-                event,
-            )
-        )
-
-    if is_ajax_request(request):
-        return JsonResponse(
-            {
-                "liked": liked,
-                "like_count": like_count,
-            }
-        )
-
-    return redirect(
-        "discussion_detail",
-        group_id=group.id,
-        discussion_id=discussion.id,
-    )
-
-
-# ============================================================
-# 13. HIDE DISCUSSION
-# ============================================================
-
-@login_required
-@require_POST
-def hide_discussion(request, group_id, discussion_id):
-    """Hide a discussion from the current developer."""
-
-    group = get_object_or_404(
-        ProjectGroup,
-        id=group_id,
-    )
-
-    if not is_group_member(group, request.user):
-        return HttpResponseForbidden(
-            "You must be a group member to hide discussions."
-        )
-
-    discussion = get_object_or_404(
-        GroupDiscussion,
-        id=discussion_id,
-        group=group,
-    )
-
-    HiddenDiscussion.objects.get_or_create(
-        discussion=discussion,
-        user=request.user,
-    )
-
-    messages.success(
-        request,
-        "Discussion hidden from your feed.",
-    )
-
-    return redirect(
-        "group_detail",
-        group_id=group.id,
-    )
-
-
-# ============================================================
-# 14. GROUP CHAT ROOM
+# 9. GROUP CHAT ROOM
 # ============================================================
 # ============================================================
 # GROUP CHAT PAGE
@@ -1366,7 +968,7 @@ def group_chat(request, group_id):
 
 
 # ============================================================
-# 15. SEND GROUP CHAT MESSAGE
+# 10. SEND GROUP CHAT MESSAGE
 # ============================================================
 @login_required
 @require_POST
@@ -1506,7 +1108,7 @@ def send_group_message(request, group_id):
 
 
 # ============================================================
-# 16. EDIT GROUP CHAT MESSAGE
+# 11. EDIT GROUP CHAT MESSAGE
 # ============================================================
 
 @login_required
@@ -1630,7 +1232,7 @@ def edit_group_message(request, group_id, message_id):
 
 
 # ============================================================
-# 17. DELETE GROUP CHAT MESSAGE
+# 12. DELETE GROUP CHAT MESSAGE
 # ============================================================
 
 @login_required
@@ -1709,7 +1311,7 @@ def delete_group_message(request, group_id, message_id):
 
 
 # ============================================================
-# 18. CONNECT GITHUB REPOSITORY
+# 13. CONNECT GITHUB REPOSITORY
 # ============================================================
 
 @login_required
@@ -1976,7 +1578,7 @@ def connect_group_repository(request, group_id):
     )
 
 # ============================================================
-# 19. GITHUB REPOSITORY FILE EXPLORER
+# 14. GITHUB REPOSITORY FILE EXPLORER
 # ============================================================
 @login_required
 @require_GET
@@ -2160,7 +1762,7 @@ def group_repository_files(request, group_id):
     )
 
 # ============================================================
-# 20. GITHUB REPOSITORY FILE CONTENT
+# 15. GITHUB REPOSITORY FILE CONTENT
 # ============================================================
 @login_required
 @require_GET

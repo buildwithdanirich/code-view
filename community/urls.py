@@ -4,7 +4,6 @@ URL routes for ColabVerse private development groups.
 Features:
 - Private invitation-only development groups
 - Owner-sent invitations
-- Group discussions
 - Group chat
 - Group membership management
 - GitHub repository integration
@@ -19,7 +18,7 @@ from django.urls import path
 # LiveKit webhook endpoint.
 from .livekit_webhooks import livekit_webhook_view
 
-# Group dashboard, discussions, chat, and repositories.
+# Group dashboard, chat, and repositories.
 from . import views
 
 # Private-group invitations.
@@ -115,41 +114,7 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # 6. GROUP DISCUSSIONS
-    # ========================================================
-
-    path(
-        "<int:group_id>/discussions/create/",
-        views.create_discussion,
-        name="create_discussion",
-    ),
-
-    path(
-        "<int:group_id>/discussions/<int:discussion_id>/",
-        views.discussion_detail,
-        name="discussion_detail",
-    ),
-
-    path(
-        "<int:group_id>/discussions/<int:discussion_id>/comment/",
-        views.add_discussion_comment,
-        name="add_discussion_comment",
-    ),
-
-    path(
-        "<int:group_id>/discussions/<int:discussion_id>/like/",
-        views.toggle_discussion_like,
-        name="toggle_discussion_like",
-    ),
-
-    path(
-        "<int:group_id>/discussions/<int:discussion_id>/hide/",
-        views.hide_discussion,
-        name="hide_discussion",
-    ),
-
-    # ========================================================
-    # 7. GROUP CHAT
+    # 6. GROUP CHAT
     # ========================================================
 
     path(
@@ -177,7 +142,7 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # 8. GROUP CHAT MESSAGE REACTIONS
+    # 7. GROUP CHAT MESSAGE REACTIONS
     # ========================================================
 
     path(
@@ -187,7 +152,7 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # 9. SECURE GROUP CHAT ATTACHMENT DOWNLOAD
+    # 8. SECURE GROUP CHAT ATTACHMENT DOWNLOAD
     # ========================================================
 
     path(
@@ -197,7 +162,7 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # 10. GITHUB REPOSITORY INTEGRATION
+    # 9. GITHUB REPOSITORY INTEGRATION
     # ========================================================
 
     path(
@@ -240,7 +205,7 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # 11. PRIVATE-GROUP MEETING ROOM
+    # 10. PRIVATE-GROUP MEETING ROOM
     # ========================================================
 
     path(
@@ -250,7 +215,7 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # 12. LIVEKIT MEETING ACTIONS
+    # 11. LIVEKIT MEETING ACTIONS
     # ========================================================
 
     # Any accepted member can start a meeting.
@@ -275,7 +240,7 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # 13. CHECK ACTIVE MEETING STATUS
+    # 12. CHECK ACTIVE MEETING STATUS
     # ========================================================
 
     # Check whether a meeting is active and repository
@@ -287,7 +252,7 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # 14. SCREEN-SHARING PERMISSION REQUESTS
+    # 13. SCREEN-SHARING PERMISSION REQUESTS
     # ========================================================
 
     # A group member requests permission to share their screen.
@@ -319,7 +284,7 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # 15. RELEASE SCREEN-SHARING PERMISSION
+    # 14. RELEASE SCREEN-SHARING PERMISSION
     # ========================================================
 
     # An approved presenter releases their screen-sharing slot.
@@ -334,7 +299,7 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # 16. SCREEN-SHARING PERMISSION STATE
+    # 15. SCREEN-SHARING PERMISSION STATE
     # ========================================================
 
     # Allow accepted group members to retrieve their current
@@ -349,7 +314,7 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # 17. LIVEKIT WEBHOOK
+    # 16. LIVEKIT WEBHOOK
     # ========================================================
 
     path(

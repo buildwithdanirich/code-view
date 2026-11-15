@@ -333,3 +333,26 @@
         width: 100%;
     }
 }
+
+/* ==========================================================
+   COLABVERSE — GROUP MEMBER AVATAR
+   ========================================================== */
+
+.member-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+
+    border-radius: 50%;
+
+    background: #174c37;
+    color: #4ade80;
+
+    font-size: 16px;
+    font-weight: 700;
+    text-transform: uppercase;
+}

@@ -1,22 +1,20 @@
 """
-CodeView — WebSocket URL Routing.
+ColabVerse — WebSocket URL Routing.
 
 Connects WebSocket URLs to their Django Channels consumers.
 
 Features:
 1. Real-time group chat.
-2. Real-time group discussions.
-3. Owner repository request notifications.
-4. Member repository approval/rejection notifications.
-5. Group-wide repository synchronization.
-6. Private-group voice/video meeting notifications.
+2. Owner repository request notifications.
+3. Member repository approval/rejection notifications.
+4. Group-wide repository synchronization.
+5. Private-group voice/video meeting notifications.
 """
 
 from django.urls import re_path
 
 from .consumers import (
     GroupChatConsumer,
-    GroupDiscussionConsumer,
     RepositoryNotificationConsumer,
     RepositoryMemberNotificationConsumer,
     GroupRepositoryUpdateConsumer,
@@ -36,16 +34,7 @@ websocket_urlpatterns = [
     ),
 
     # ========================================================
-    # 2. GROUP DISCUSSIONS
-    # ========================================================
-
-    re_path(
-        r"^ws/groups/(?P<group_id>\d+)/discussions/$",
-        GroupDiscussionConsumer.as_asgi(),
-    ),
-
-    # ========================================================
-    # 3. OWNER REPOSITORY REQUEST NOTIFICATIONS
+    # 2. OWNER REPOSITORY REQUEST NOTIFICATIONS
     # ========================================================
 
     re_path(
@@ -54,7 +43,7 @@ websocket_urlpatterns = [
     ),
 
     # ========================================================
-    # 4. MEMBER REPOSITORY APPROVAL/REJECTION NOTIFICATIONS
+    # 3. MEMBER REPOSITORY APPROVAL/REJECTION NOTIFICATIONS
     # ========================================================
 
     re_path(
@@ -63,7 +52,7 @@ websocket_urlpatterns = [
     ),
 
     # ========================================================
-    # 5. GROUP-WIDE REPOSITORY UPDATES
+    # 4. GROUP-WIDE REPOSITORY UPDATES
     # ========================================================
 
     re_path(
@@ -72,7 +61,7 @@ websocket_urlpatterns = [
     ),
 
     # ========================================================
-    # 6. PRIVATE-GROUP MEETING NOTIFICATIONS
+    # 5. PRIVATE-GROUP MEETING NOTIFICATIONS
     # ========================================================
 
     # Only authenticated, authorized private-group members

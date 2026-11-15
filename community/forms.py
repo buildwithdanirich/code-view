@@ -1,10 +1,10 @@
 """
-Forms for CodeView groups, discussions, comments, chat, and GitHub.
+Forms for ColabVerse private development groups, chat, and GitHub.
 
 Group rules:
-    1. Normal chat groups are public and open to registered developers.
-    2. Private development groups require owner-sent invitations.
-    3. Private groups allow at most 15 members including the owner.
+    1. Development groups are private and invitation-only.
+    2. Only group owners can send membership invitations.
+    3. Private groups allow at most 10 members, including the owner.
 
 This file does not create memberships or send invitations.
 Those actions are handled by the views and invitation service.
@@ -18,10 +18,9 @@ from django import forms
 
 from .models import (
     ProjectGroup,
-    GroupDiscussion,
-    GroupDiscussionComment,
     GroupChatMessage,
 )
+
 
 # ============================================================
 # 1. CREATE PRIVATE DEVELOPMENT GROUP FORM
@@ -50,7 +49,6 @@ class ProjectGroupForm(forms.ModelForm):
         ]
 
         widgets = {
-
             "name": forms.TextInput(
                 attrs={
                     "class": "group-input",
@@ -130,123 +128,12 @@ class ProjectGroupForm(forms.ModelForm):
 
 
 # ============================================================
-# 2. GROUP DISCUSSION FORM
-# ============================================================
-
-class GroupDiscussionForm(forms.ModelForm):
-    """
-    Collect the title and content of a group discussion.
-
-    Only authorized group members can create discussions.
-    The view checks membership before saving.
-    """
-
-    class Meta:
-        model = GroupDiscussion
-
-        fields = [
-            "title",
-            "content",
-        ]
-
-        widgets = {
-
-            "title": forms.TextInput(
-                attrs={
-                    "class": "group-input",
-                    "placeholder": "Enter discussion title",
-                }
-            ),
-
-            "content": forms.Textarea(
-                attrs={
-                    "class": "group-textarea",
-                    "placeholder": "What would you like to discuss?",
-                    "rows": 5,
-                }
-            ),
-        }
-
-    def clean_title(self):
-        """Reject empty discussion titles."""
-
-        title = self.cleaned_data["title"].strip()
-
-        if not title:
-            raise forms.ValidationError(
-                "Please enter a discussion title."
-            )
-
-        return title
-
-    def clean_content(self):
-        """Reject empty discussion messages."""
-
-        content = self.cleaned_data["content"].strip()
-
-        if not content:
-            raise forms.ValidationError(
-                "Please enter a discussion message."
-            )
-
-        return content
-
-
-# ============================================================
-# 3. GROUP DISCUSSION COMMENT FORM
-# ============================================================
-
-class GroupDiscussionCommentForm(forms.ModelForm):
-    """
-    Collect comments and replies underneath discussions.
-
-    Supports:
-        - Normal comments
-        - Replies to comments
-        - Replies to other replies
-
-    The view assigns the author, discussion, and parent.
-    """
-
-    class Meta:
-        model = GroupDiscussionComment
-
-        fields = [
-            "content",
-        ]
-
-        widgets = {
-
-            "content": forms.Textarea(
-                attrs={
-                    "class": "group-textarea",
-                    "placeholder": "Write your comment or reply...",
-                    "rows": 3,
-                    "maxlength": 2000,
-                }
-            ),
-        }
-
-    def clean_content(self):
-        """Reject empty comments and replies."""
-
-        content = self.cleaned_data["content"].strip()
-
-        if not content:
-            raise forms.ValidationError(
-                "Please enter a comment or reply."
-            )
-
-        return content
-
-
-# ============================================================
-# 4. GROUP CHAT MESSAGE FORM
+# 2. GROUP CHAT MESSAGE FORM
 # ============================================================
 
 class GroupChatMessageForm(forms.ModelForm):
     """
-    Collect messages sent inside CodeView group chats.
+    Collect messages sent inside ColabVerse group chats.
 
     Supports:
         1. Text messages
@@ -274,7 +161,6 @@ class GroupChatMessageForm(forms.ModelForm):
         ]
 
         widgets = {
-
             "message_type": forms.Select(
                 attrs={
                     "class": "group-input",
@@ -335,7 +221,7 @@ class GroupChatMessageForm(forms.ModelForm):
 
     def clean_attachment(self):
         """
-        Validate files uploaded to CodeView group chats.
+        Validate files uploaded to ColabVerse group chats.
 
         Rules:
         1. Maximum file size is 20 MB.
@@ -362,7 +248,7 @@ class GroupChatMessageForm(forms.ModelForm):
                 "Files cannot exceed 20 MB."
             )
 
-        # File types supported by CodeView.
+        # File types supported by ColabVerse.
         allowed_extensions = {
             # Programming files.
             ".py",
@@ -477,12 +363,12 @@ class GroupChatMessageForm(forms.ModelForm):
 
 
 # ============================================================
-# 5. GITHUB REPOSITORY CONNECTION FORM
+# 3. GITHUB REPOSITORY CONNECTION FORM
 # ============================================================
 
 class GroupRepositoryForm(forms.Form):
     """
-    Collect and validate a public GitHub repository URL.
+    Collect and validate a GitHub repository URL.
 
     Example:
         https://github.com/owner/repository
