@@ -1,16 +1,37 @@
 // ============================================================
-// CODEVIEW — GROUPS PAGE JAVASCRIPT
+// COLABVERSE — MY GROUPS SEARCH
+//
+// Purpose:
+// 1. Search existing development groups.
+// 2. Support Enter and Search button.
+// 3. Display matching group cards.
+// 4. Show a message when no groups match.
+// 5. Clear search and restore all groups.
+//
+// This searches only groups already loaded into the HTML.
 // ============================================================
 
-// Wait until the HTML page has finished loading.
+
+// Wait until the HTML document has loaded.
 document.addEventListener("DOMContentLoaded", () => {
 
-    // Find the group search input.
-    const searchInput = document.getElementById("group-search");
+    // ========================================================
+    // 1. GET HTML ELEMENTS
+    // ========================================================
 
-    // Find all existing group cards.
-    const groupCards = document.querySelectorAll(
-        "[data-group-card]"
+    // Find the search form.
+    const searchForm = document.getElementById(
+        "group-search-form"
+    );
+
+    // Find the search input.
+    const searchInput = document.getElementById(
+        "group-search"
+    );
+
+    // Find the Clear button.
+    const clearButton = document.getElementById(
+        "group-search-clear"
     );
 
     // Find the message displayed when no groups match.
@@ -18,121 +39,145 @@ document.addEventListener("DOMContentLoaded", () => {
         "group-search-empty"
     );
 
-    // Find the group selection dropdown.
-    const groupSelect = document.getElementById("group-select");
-
-    // Find the button used to open a selected group.
-    const openGroupButton = document.getElementById(
-        "open-selected-group"
+    // Find all group cards.
+    const groupCards = document.querySelectorAll(
+        "[data-group-card]"
     );
 
     // Stop if the required elements are missing.
     if (
+        !searchForm ||
         !searchInput ||
-        !searchEmpty ||
-        !groupSelect ||
-        !openGroupButton
+        !clearButton ||
+        !searchEmpty
     ) {
         return;
     }
 
 
     // ========================================================
-    // FUNCTION 1 — SEARCH EXISTING GROUPS
+    // 2. SEARCH GROUPS
     // ========================================================
 
-    function filterGroups() {
+    function searchGroups() {
 
-        // Read the search text and ignore capitalization.
+        // Read the search text.
+        // trim() removes unnecessary spaces.
+        // toLowerCase() ignores capitalization.
         const searchText = searchInput.value
             .trim()
-            .toLocaleLowerCase();
-
-        let visibleCount = 0;
-
-        // Check each existing group.
-        groupCards.forEach((card) => {
-
-            const groupName = (card.dataset.groupName || "")
             .toLowerCase();
 
-            // Check whether the group name contains the search.
+        // Count matching groups.
+        let visibleCount = 0;
+
+        // Check each group card.
+        groupCards.forEach((card) => {
+
+            // Get the group name from the HTML.
+            const groupName = (
+                card.dataset.groupName || ""
+            ).toLowerCase();
+
+            // Check whether the group name matches.
             const matches = groupName.includes(searchText);
 
             // Show matching groups and hide others.
             card.hidden = !matches;
 
+            // Increase the count for matching groups.
             if (matches) {
                 visibleCount++;
             }
 
         });
 
-        // Display a message if no groups match.
-        searchEmpty.hidden =
-            visibleCount > 0 || groupCards.length === 0;
 
-        // Filter the group selection dropdown too.
-        Array.from(groupSelect.options).forEach((option) => {
+        // ====================================================
+        // 3. SHOW OR HIDE EMPTY SEARCH MESSAGE
+        // ====================================================
 
-            // Keep the default placeholder option.
-            if (!option.value) {
-                return;
-            }
+        // Only show the message when:
+        // - A search was entered.
+        // - Groups exist on the page.
+        // - No groups matched.
+        searchEmpty.hidden = !(
+            searchText.length > 0 &&
+            groupCards.length > 0 &&
+            visibleCount === 0
+        );
 
-            const groupName = option.dataset.groupName
-                .toLocaleLowerCase();
 
-            option.hidden = !groupName.includes(searchText);
+        // ====================================================
+        // 4. SHOW OR HIDE CLEAR BUTTON
+        // ====================================================
 
+        // Show Clear when the search contains text.
+        clearButton.hidden = searchText.length === 0;
+
+    }
+
+
+    // ========================================================
+    // 5. CLEAR SEARCH
+    // ========================================================
+
+    function clearSearch() {
+
+        // Empty the search input.
+        searchInput.value = "";
+
+        // Show all group cards again.
+        groupCards.forEach((card) => {
+            card.hidden = false;
         });
 
-        // Clear the selected group if it no longer matches.
-        const selectedOption = groupSelect.selectedOptions[0];
+        // Hide the no-results message.
+        searchEmpty.hidden = true;
 
-        if (selectedOption && selectedOption.hidden) {
-            groupSelect.value = "";
-        }
+        // Hide the Clear button.
+        clearButton.hidden = true;
 
-        // Update the Open Group button.
-        openGroupButton.disabled = !groupSelect.value;
+        // Put the cursor back into the search input.
+        searchInput.focus();
+
     }
 
 
     // ========================================================
-    // FUNCTION 2 — OPEN SELECTED GROUP
+    // 6. SEARCH FORM SUBMISSION
     // ========================================================
 
-    function openSelectedGroup() {
+    // The submit event runs when:
+    // - The Search button is clicked.
+    // - Enter is pressed inside the search field.
+    searchForm.addEventListener("submit", (event) => {
 
-        // Get the selected group's existing Django URL.
-        const selectedGroupUrl = groupSelect.value;
+        // Prevent the browser from reloading the page.
+        event.preventDefault();
 
-        // Only navigate when a group has been selected.
-        if (selectedGroupUrl) {
-            window.location.assign(selectedGroupUrl);
-        }
-    }
-
-
-    // ========================================================
-    // EVENT LISTENERS
-    // ========================================================
-
-    // Filter groups whenever the developer types.
-    searchInput.addEventListener("input", filterGroups);
-
-    // Enable or disable the button when selection changes.
-    groupSelect.addEventListener("change", () => {
-
-        openGroupButton.disabled = !groupSelect.value;
+        // Run the group search.
+        searchGroups();
 
     });
 
-    // Open the selected group when the button is clicked.
-    openGroupButton.addEventListener(
-        "click",
-        openSelectedGroup
-    );
+
+    // ========================================================
+    // 7. CLEAR BUTTON
+    // ========================================================
+
+    // Restore all groups when Clear is clicked.
+    clearButton.addEventListener("click", clearSearch);
+
+
+    // ========================================================
+    // 8. INITIAL STATE
+    // ========================================================
+
+    // Hide the Clear button until a search is performed.
+    clearButton.hidden = true;
+
+    // Hide the no-results message initially.
+    searchEmpty.hidden = true;
 
 });

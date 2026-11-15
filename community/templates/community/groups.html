@@ -1,541 +1,394 @@
+{% extends "questions/base.html" %}
 {% load static %}
 
-<!DOCTYPE html>
-<html lang="en">
+{% block title %}My Groups{% endblock %}
 
-<head>
-    <meta charset="UTF-8">
+{% block content %}
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+<!-- ============================================================
+     COLABVERSE — MY GROUPS PAGE
 
-    <title>Project Groups | CodeView</title>
+     Features:
+     1. Search groups by name
+     2. Search using Enter or the Search button
+     3. Clear search
+     4. Display development groups
+     5. Preserve existing group membership permissions
+============================================================ -->
 
-    <!-- Shared CodeView styles -->
-    <link
-        rel="stylesheet"
-        href="{% static 'community/sheared.css' %}"
-    >
+<link
+    rel="stylesheet"
+    href="{% static 'community/sheared.css' %}"
+>
 
-    <!-- Groups dashboard styles -->
-    <link
-        rel="stylesheet"
-        href="{% static 'community/groups/groups.css' %}"
-    >
+<link
+    rel="stylesheet"
+    href="{% static 'community/groups/groups.css' %}"
+>
 
-</head>
+<div class="cv-groups-page">
 
-<body>
+    <!-- ========================================================
+         1. PAGE HEADING
+    ======================================================== -->
 
-    <!-- =====================================================
-         1. TOP NAVIGATION
-    ====================================================== -->
+    <section class="page-heading">
 
-    <header class="navbar">
+        <div>
 
-        <a href="{% url 'groups' %}" class="brand">
-            &lt;/&gt; CodeView
-        </a>
+            <h1>My Groups</h1>
 
-        <nav class="top-links">
-
-            <a
-                href="{% url 'groups' %}"
-                class="active"
-                aria-current="page"
-            >
-                Groups
-            </a>
-
-            <a href="{% url 'create_group' %}">
-                Create Group
-            </a>
-
-            <!-- Available to every logged-in developer. -->
-            <a
-                href="{% url 'received_group_invitations' %}"
-                class="invitations-nav-link"
-            >
-                ✉ My Invitations
-
-                {% if pending_invitation_count %}
-                    <span class="invitation-count">
-                        {{ pending_invitation_count }}
-                    </span>
-                {% endif %}
-
-            </a>
-
-        </nav>
-
-        <div class="profile">
-
-            <span class="avatar">
-                {{ request.user.username|first|upper }}
-            </span>
-
-            <span>
-                {{ request.user.username }}
-            </span>
+            <p>
+                Manage your private development groups and
+                collaborate with other developers.
+            </p>
 
         </div>
 
-    </header>
+    </section>
 
 
-    <!-- =====================================================
-         2. GROUPS DASHBOARD
-    ====================================================== -->
+    <!-- ========================================================
+         2. GROUP SEARCH
 
-    <main class="page-container cv-groups-page">
+         The form will be handled by groups.js.
+         No backend request is needed for local filtering.
+    ======================================================== -->
 
-        <!-- Django notifications -->
+    <section
+        class="cv-group-search"
+        aria-label="Search development groups"
+    >
 
-        {% if messages %}
-
-            <section
-                class="notifications"
-                aria-live="polite"
-            >
-
-                {% for message in messages %}
-
-                    <div
-                        class="notification notification-{{ message.tags }}"
-                        role="status"
-                    >
-                        {{ message }}
-                    </div>
-
-                {% endfor %}
-
-            </section>
-
-        {% endif %}
-
-
-        <!-- =================================================
-             3. PAGE HEADING
-        ================================================== -->
-
-        <section class="page-heading">
-
-            <div>
-
-                <h1>Groups</h1>
-
-                <p>
-                    Find, create, and manage your development groups.
-                </p>
-
-            </div>
-
-            <a
-                href="{% url 'create_group' %}"
-                class="primary-button"
-            >
-                + Create Group
-            </a>
-
-        </section>
-
-
-        <!-- =================================================
-             4. MY INVITATIONS
-        ================================================== -->
-
-        <section
-            class="cv-invitations-banner"
-            aria-labelledby="invitations-heading"
+        <form
+            id="group-search-form"
+            class="cv-search-form"
+            role="search"
         >
 
-            <div class="cv-invitations-banner-content">
-
-                <span
-                    class="cv-invitations-icon"
-                    aria-hidden="true"
-                >
-                    ✉
-                </span>
-
-                <div>
-
-                    <h2 id="invitations-heading">
-                        My Group Invitations
-                    </h2>
-
-                    {% if pending_invitation_count %}
-
-                        <p>
-                            You have
-                            <strong>
-                                {{ pending_invitation_count }}
-                            </strong>
-                            pending group invitation{{ pending_invitation_count|pluralize }}.
-                        </p>
-
-                    {% else %}
-
-                        <p>
-                            Invitations to private development groups
-                            will appear here.
-                        </p>
-
-                    {% endif %}
-
-                </div>
-
-            </div>
-
-            <a
-                href="{% url 'received_group_invitations' %}"
-                class="secondary-button"
-            >
-                View Invitations
-            </a>
-
-        </section>
-
-
-        <!-- =================================================
-             5. SEARCH EXISTING GROUPS
-        ================================================== -->
-
-        <section class="cv-group-search">
-
-            <label for="group-search">
-                Search Existing Groups
-            </label>
+            <!-- Search input -->
 
             <div class="cv-search-field">
 
-                <span aria-hidden="true">
-                    ⌕
+                <label
+                    for="group-search"
+                    class="cv-search-label"
+                >
+                    Search development groups
+                </label>
+
+                <!-- Search icon -->
+
+                <span
+                    class="cv-search-icon"
+                    aria-hidden="true"
+                >
+
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <circle
+                            cx="11"
+                            cy="11"
+                            r="8"
+                        ></circle>
+
+                        <path
+                            d="m21 21-4.35-4.35"
+                        ></path>
+                    </svg>
+
                 </span>
 
                 <input
                     type="search"
                     id="group-search"
-                    placeholder="Search groups by name..."
+                    name="q"
+                    placeholder="Search development groups..."
                     autocomplete="off"
                 >
 
             </div>
 
+
+            <!-- Search button -->
+
+            <button
+                type="submit"
+                id="group-search-button"
+                class="primary-button cv-search-button"
+            >
+                Search
+            </button>
+
+
+            <!-- Clear search button -->
+
+            <button
+                type="button"
+                id="group-search-clear"
+                class="secondary-button cv-search-clear"
+                hidden
+            >
+                Clear
+            </button>
+
+        </form>
+
+    </section>
+
+
+    <!-- ========================================================
+         3. DEVELOPMENT GROUPS
+    ======================================================== -->
+
+    <section
+        class="cv-groups-section"
+        aria-labelledby="development-groups-heading"
+    >
+
+        <div class="cv-section-heading">
+
+            <h2 id="development-groups-heading">
+                Development Groups
+            </h2>
+
             <p>
-                Search the groups currently available on this page.
+                Open your workspace or explore available groups.
             </p>
 
-        </section>
+        </div>
 
 
-        <!-- =================================================
-             6. GROUP ACTIONS
-        ================================================== -->
+        <!-- ====================================================
+             GROUP CARDS
+        ==================================================== -->
 
-        <section class="cv-group-actions">
+        <div
+            class="groups-grid"
+            id="groups-grid"
+        >
 
-            <!-- SELECT EXISTING GROUP -->
+            {% for group in groups %}
 
-            <article class="cv-action-card">
+                <article
+                    class="group-card"
+                    data-group-card
+                    data-group-name="{{ group.name }}"
+                >
 
-                <div class="cv-action-heading">
+                    <!-- ========================================
+                         GROUP ICON AND PRIVACY
+                    ======================================== -->
 
-                    <span class="cv-action-icon cv-blue-icon">
-                        ▦
-                    </span>
+                    <div class="group-card-top">
 
-                    <div>
+                        <!-- Group initial -->
 
-                        <h2>
-                            Select Group
-                        </h2>
+                        <div class="group-icon">
+                            {{ group.name|first|upper }}
+                        </div>
 
-                        <p>
-                            Choose an existing group to view its workspace.
-                        </p>
+
+                        {% if group.is_private %}
+
+                            <!-- Private group -->
+
+                            <span class="privacy-badge private">
+
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    aria-hidden="true"
+                                >
+                                    <rect
+                                        x="5"
+                                        y="10"
+                                        width="14"
+                                        height="11"
+                                        rx="2"
+                                    ></rect>
+
+                                    <path
+                                        d="M8 10V7a4 4 0 0 1 8 0v3"
+                                    ></path>
+                                </svg>
+
+                                Private
+
+                            </span>
+
+                        {% else %}
+
+                            <!-- Existing public groups remain supported
+                                 until backend rules are updated. -->
+
+                            <span class="privacy-badge public">
+                                Public
+                            </span>
+
+                        {% endif %}
 
                     </div>
 
-                </div>
 
-                <label for="group-select">
-                    Available Groups
-                </label>
+                    <!-- ========================================
+                         GROUP INFORMATION
+                    ======================================== -->
 
-                <select id="group-select">
+                    <div class="group-card-content">
 
-                    <option value="">
-                        Select a group...
-                    </option>
-
-                    {% for group in groups %}
-
-                        <option
-                            value="{% url 'group_detail' group.id %}"
-                            data-group-name="{{ group.name }}"
-                        >
+                        <h2 class="group-name">
                             {{ group.name }}
-                        </option>
-
-                    {% endfor %}
-
-                </select>
-
-                <button
-                    type="button"
-                    id="open-selected-group"
-                    class="primary-button"
-                    disabled
-                >
-                    View Group
-                </button>
-
-                <p class="cv-action-note">
-                    Joining and access permissions still apply.
-                </p>
-
-            </article>
-
-
-            <!-- CREATE GROUP -->
-
-            <article class="cv-action-card">
-
-                <div class="cv-action-heading">
-
-                    <span class="cv-action-icon cv-green-icon">
-                        +
-                    </span>
-
-                    <div>
-
-                        <h2>
-                            Create Group
                         </h2>
 
-                        <p>
-                            Start a development group and collaborate
-                            with other developers.
+                        <p class="group-owner">
+                            Created by @{{ group.owner.username }}
                         </p>
 
-                    </div>
-
-                </div>
-
-                <p class="cv-create-description">
-                    Create a public community that developers can
-                    join freely, or a private development group
-                    that requires an invitation.
-                </p>
-
-                <a
-                    href="{% url 'create_group' %}"
-                    class="primary-button"
-                >
-                    + Create New Group
-                </a>
-
-            </article>
-
-        </section>
-
-
-        <!-- =================================================
-             7. EXISTING GROUPS
-        ================================================== -->
-
-        <section class="cv-groups-section">
-
-            <div class="cv-section-heading">
-
-                <h2>
-                    Existing Groups
-                </h2>
-
-                <p>
-                    Explore groups and access the ones you've joined.
-                </p>
-
-            </div>
-
-
-            <div
-                class="groups-grid"
-                id="groups-grid"
-            >
-
-                {% for group in groups %}
-
-                    <article
-                        class="group-card"
-                        data-group-card
-                        data-group-name="{{ group.name }}"
-                    >
-
-                        <!-- GROUP ICON AND PRIVACY -->
-
-                        <div class="group-card-top">
-
-                            <div class="group-icon">
-                                {{ group.name|first|upper }}
-                            </div>
+                        <p class="cv-group-policy">
 
                             {% if group.is_private %}
 
-                                <span class="privacy-badge private">
-                                    🔒 Private
-                                </span>
+                                Invitation Only
 
                             {% else %}
 
-                                <span class="privacy-badge public">
-                                    ◉ Public
-                                </span>
+                                Anyone Can Join
 
                             {% endif %}
 
-                        </div>
-
-
-                        <!-- GROUP DETAILS -->
-
-                        <div class="group-card-content">
-
-                            <h2 class="group-name">
-                                {{ group.name }}
-                            </h2>
-
-                            <p class="group-owner">
-                                Created by @{{ group.owner.username }}
-                            </p>
-
-                            <p class="cv-group-policy">
-
-                                {% if group.is_private %}
-
-                                    Invitation Only
-
-                                {% else %}
-
-                                    Anyone Can Join
-
-                                {% endif %}
-
-                            </p>
-
-                        </div>
-
-
-                        <!-- MEMBERSHIP ACTIONS -->
-
-                        <div class="group-card-footer">
-
-                            <span class="group-date">
-                                {{ group.created_at|date:"M d, Y" }}
-                            </span>
-
-
-                            {% if group.is_member %}
-
-                                <!-- Existing members open their workspace. -->
-
-                                <a
-                                    href="{% url 'group_detail' group.id %}"
-                                    class="primary-button"
-                                >
-                                    Open Workspace
-                                </a>
-
-
-                            {% elif group.is_private %}
-
-                                <!-- Private groups require an invitation. -->
-
-                                <span class="coming-soon">
-                                    Invitation Only
-                                </span>
-
-
-                            {% else %}
-
-                                <!-- Public groups allow direct joining. -->
-
-                                <form
-                                    method="POST"
-                                    action="{% url 'join_group' group.id %}"
-                                >
-
-                                    {% csrf_token %}
-
-                                    <button
-                                        type="submit"
-                                        class="primary-button"
-                                    >
-                                        Join Group
-                                    </button>
-
-                                </form>
-
-                            {% endif %}
-
-                        </div>
-
-                    </article>
-
-
-                {% empty %}
-
-                    <div class="empty-state">
-
-                        <h2>
-                            No project groups yet
-                        </h2>
-
-                        <p>
-                            Create the first project group
-                            and start collaborating.
                         </p>
-
-                        <a
-                            href="{% url 'create_group' %}"
-                            class="primary-button"
-                        >
-                            Create Your First Group
-                        </a>
 
                     </div>
 
-                {% endfor %}
 
-            </div>
+                    <!-- ========================================
+                         GROUP MEMBERSHIP ACTIONS
+                    ======================================== -->
 
+                    <div class="group-card-footer">
 
-            <!-- Displayed when a search has no matches. -->
-
-            <p
-                id="group-search-empty"
-                class="cv-search-empty"
-                hidden
-            >
-                No groups match your search.
-            </p>
-
-        </section>
-
-    </main>
+                        <span class="group-date">
+                            {{ group.created_at|date:"M d, Y" }}
+                        </span>
 
 
-    <!-- =====================================================
-         8. EXTERNAL JAVASCRIPT
-    ====================================================== -->
+                        {% if group.is_member %}
 
-    <script
-        src="{% static 'community/groups/groups.js' %}"
-        defer
-    ></script>
+                            <!-- Members can open their workspace. -->
 
-</body>
-</html>
+                            <a
+                                href="{% url 'group_detail' group.id %}"
+                                class="primary-button"
+                            >
+                                Open Workspace
+                            </a>
+
+
+                        {% elif group.is_private %}
+
+                            <!-- Private groups require an invitation. -->
+
+                            <span class="coming-soon">
+                                Invitation Only
+                            </span>
+
+
+                        {% else %}
+
+                            <!-- Preserve existing public-group behavior. -->
+
+                            <form
+                                method="POST"
+                                action="{% url 'join_group' group.id %}"
+                            >
+
+                                {% csrf_token %}
+
+                                <button
+                                    type="submit"
+                                    class="primary-button"
+                                >
+                                    Join Group
+                                </button>
+
+                            </form>
+
+                        {% endif %}
+
+                    </div>
+
+                </article>
+
+
+            {% empty %}
+
+                <!-- No groups available -->
+
+                <div class="empty-state">
+
+                    <h2>
+                        No development groups yet
+                    </h2>
+
+                    <p>
+                        Create a private development group
+                        to start collaborating with other developers.
+                    </p>
+
+                    <a
+                        href="{% url 'create_group' %}"
+                        class="primary-button"
+                    >
+                        Create Your First Group
+                    </a>
+
+                </div>
+
+            {% endfor %}
+
+        </div>
+
+
+        <!-- ====================================================
+             NO SEARCH RESULTS
+        ==================================================== -->
+
+        <p
+            id="group-search-empty"
+            class="cv-search-empty"
+            role="status"
+            aria-live="polite"
+            hidden
+        >
+            No groups match your search.
+        </p>
+
+    </section>
+
+</div>
+
+
+<!-- ============================================================
+     4. GROUP SEARCH JAVASCRIPT
+
+     External JavaScript only.
+     The next step will update this file.
+============================================================ -->
+
+<script
+    src="{% static 'community/groups/groups.js' %}"
+    defer
+></script>
+
+{% endblock %}
