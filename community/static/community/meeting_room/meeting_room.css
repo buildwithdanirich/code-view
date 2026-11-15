@@ -1,674 +1,1831 @@
 /* ============================================================
-   CODEVIEW DEVELOPMENT ROOM
-   ============================================================ */
+   COLABVERSE — DEVELOPMENT MEETING ROOM
+   Dark Navy + Purple + Blue
 
-/* Main workspace layout */
-.development-workspace {
-    display: grid;
-    grid-template-columns: 260px minmax(0, 1fr);
-    min-height: 500px;
-    margin-top: 24px;
-    border: 1px solid #363636;
-    border-radius: 10px;
-    overflow: hidden;
-    background: #1e1e1e;
+   Design:
+   - Full-width development workspace
+   - No left navigation sidebar
+   - ColabVerse branding
+   - GitHub repository toolbar
+   - Branch selector
+   - Commit button near repository
+   - Read-only code editor
+   - Collapsible Team Chat
+
+   Existing Django and JavaScript functionality is preserved.
+   LiveKit-specific styling remains in livekit_meeting.css.
+============================================================ */
+
+
+/* ============================================================
+   1. DESIGN VARIABLES
+============================================================ */
+
+body.colabverse-meeting-page {
+    --room-bg: #090f20;
+    --room-card: #111a30;
+    --room-card-alt: #17223b;
+    --room-input: #0b1428;
+    --room-editor: #10151f;
+    --room-explorer: #111827;
+
+    --room-border: #293650;
+    --room-border-light: #394966;
+
+    --room-text: #f4f7ff;
+    --room-muted: #94a3bf;
+    --room-soft-text: #cbd5e1;
+
+    --room-purple: #7048f5;
+    --room-purple-hover: #825eff;
+    --room-purple-light: #a78bfa;
+
+    --room-blue: #2379f5;
+    --room-blue-hover: #3b8cff;
+    --room-blue-light: #93c5fd;
+
+    --room-green: #16a34a;
+    --room-green-hover: #15803d;
+    --room-green-light: #4ade80;
+
+    --room-red: #ef4444;
+    --room-warning: #fbbf24;
+
+    --room-radius: 12px;
+
+    margin: 0;
+    min-height: 100vh;
+
+    color: var(--room-text);
+    background: var(--room-bg);
+
+    font-family:
+        Inter,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Arial,
+        sans-serif;
 }
 
-/* Left file explorer */
-.development-explorer {
-    background: #252526;
-    border-right: 1px solid #363636;
-    padding: 16px;
-    min-width: 0;
+
+/* ============================================================
+   2. GLOBAL MEETING ROOM RULES
+============================================================ */
+
+body.colabverse-meeting-page,
+body.colabverse-meeting-page * ,
+body.colabverse-meeting-page *::before,
+body.colabverse-meeting-page *::after {
+    box-sizing: border-box;
 }
 
-/* Explorer heading */
-.explorer-header {
-    margin-bottom: 20px;
-}
-
-.explorer-header h2 {
-    margin: 0 0 8px;
-    font-size: 14px;
-    text-transform: uppercase;
-}
-
-.explorer-header span {
-    color: #9ca3af;
-    font-size: 13px;
-    overflow-wrap: anywhere;
-}
-
-/* File tree */
-#github-file-tree {
-    font-size: 14px;
-    color: #d4d4d4;
-    overflow-wrap: anywhere;
-}
-
-/* File and folder buttons */
-.explorer-item {
-    display: block;
-    width: 100%;
-    padding: 7px 8px;
-    border: none;
-    border-radius: 5px;
-    background: transparent;
-    color: #d4d4d4;
-    text-align: left;
-    cursor: pointer;
+body.colabverse-meeting-page button,
+body.colabverse-meeting-page input,
+body.colabverse-meeting-page textarea,
+body.colabverse-meeting-page select {
     font: inherit;
 }
 
+body.colabverse-meeting-page button {
+    cursor: pointer;
+}
+
+body.colabverse-meeting-page button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+body.colabverse-meeting-page a {
+    text-decoration: none;
+}
+
+body.colabverse-meeting-page [hidden] {
+    display: none !important;
+}
+
+body.colabverse-meeting-page :is(
+    button,
+    a,
+    input,
+    textarea,
+    select
+):focus-visible {
+    outline: 2px solid var(--room-purple-light);
+    outline-offset: 3px;
+}
+
+body.colabverse-meeting-page svg {
+    flex-shrink: 0;
+}
+
+
+/* ============================================================
+   3. TOP NAVIGATION
+============================================================ */
+
+body.colabverse-meeting-page .colabverse-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    width: 100%;
+    min-height: 74px;
+    padding: 0 28px;
+
+    background: #0c1429;
+    border: none;
+    border-bottom: 1px solid var(--room-border);
+
+    position: relative;
+    z-index: 20;
+}
+
+.colabverse-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+
+    color: #ffffff;
+    text-decoration: none;
+}
+
+.colabverse-brand-icon {
+    width: 38px;
+    height: 38px;
+}
+
+.colabverse-brand-name {
+    color: #ffffff;
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.9px;
+}
+
+.colabverse-brand-name span {
+    color: var(--room-blue);
+}
+
+.colabverse-topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+.colabverse-notification-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 42px;
+    height: 42px;
+
+    color: #e2e8f0;
+    background: transparent;
+
+    border: 1px solid transparent;
+    border-radius: 10px;
+}
+
+.colabverse-notification-button:hover {
+    background: var(--room-card-alt);
+    border-color: var(--room-border);
+}
+
+.colabverse-profile {
+    display: flex;
+    align-items: center;
+}
+
+.colabverse-profile-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 42px;
+    height: 42px;
+
+    color: #e9e4ff;
+    background: #24224e;
+
+    border: 1px solid #50449a;
+    border-radius: 12px;
+
+    font-size: 16px;
+    font-weight: 700;
+}
+
+
+/* ============================================================
+   4. FULL-WIDTH PAGE LAYOUT
+============================================================ */
+
+body.colabverse-meeting-page .cv-layout,
+body.colabverse-meeting-page .colabverse-room-layout {
+    display: block;
+
+    width: 100%;
+    max-width: none;
+
+    margin: 0;
+    padding: 20px 24px 35px;
+
+    background: var(--room-bg);
+}
+
+body.colabverse-meeting-page .cv-main,
+body.colabverse-meeting-page .colabverse-room-main {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* The old navigation sidebar must not appear. */
+
+body.colabverse-meeting-page .codeview-sidebar {
+    display: none !important;
+}
+
+
+/* ============================================================
+   5. PAGE HEADING
+============================================================ */
+
+.colabverse-room-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+
+    gap: 18px;
+
+    margin: 0 0 18px;
+    padding: 4px 0 10px;
+
+    background: transparent;
+    border: none;
+    border-radius: 0;
+}
+
+.colabverse-heading-left {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    min-width: 0;
+}
+
+.colabverse-back-to-chat {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+
+    width: fit-content;
+    margin: 0;
+
+    color: var(--room-purple-light);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.colabverse-back-to-chat:hover {
+    color: #c4b5fd;
+}
+
+.colabverse-room-title {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.colabverse-room-title-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 46px;
+    height: 46px;
+
+    color: var(--room-purple-light);
+    background: #211b47;
+
+    border: 1px solid #463b80;
+    border-radius: 12px;
+}
+
+.colabverse-room-heading h1 {
+    margin: 0 0 5px;
+
+    color: var(--room-text);
+
+    font-size: clamp(20px, 2vw, 26px);
+    font-weight: 750;
+    line-height: 1.3;
+
+    overflow-wrap: anywhere;
+}
+
+.colabverse-room-heading p {
+    margin: 0;
+
+    color: var(--room-muted);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+
+/* ============================================================
+   6. MEETING ACTION BUTTONS
+============================================================ */
+
+.colabverse-meeting-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+
+    gap: 9px;
+}
+
+.colabverse-meeting-actions .cv-call-button,
+.colabverse-meeting-actions .cv-chat-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+
+    min-height: 40px;
+    padding: 9px 14px;
+
+    color: #e2e8f0;
+    background: #17223b;
+
+    border: 1px solid #354563;
+    border-radius: 9px;
+
+    font-size: 12px;
+    font-weight: 600;
+
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease;
+}
+
+.colabverse-meeting-actions .cv-call-button:hover:not(:disabled) {
+    background: #23314f;
+    border-color: #526485;
+}
+
+.colabverse-meeting-actions .colabverse-team-chat-button {
+    color: #ffffff;
+    background: var(--room-purple);
+    border-color: var(--room-purple);
+}
+
+.colabverse-meeting-actions .colabverse-team-chat-button:hover {
+    background: var(--room-purple-hover);
+    border-color: var(--room-purple-hover);
+}
+
+.chat-unread-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+
+    color: #ffffff;
+    background: var(--room-red);
+
+    border-radius: 999px;
+
+    font-size: 11px;
+    font-weight: 700;
+}
+
+
+/* ============================================================
+   7. DJANGO MESSAGES
+============================================================ */
+
+.development-room-messages {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.development-room-messages .message {
+    padding: 13px 16px;
+
+    color: #e2e8f0;
+    background: var(--room-card-alt);
+
+    border: 1px solid var(--room-border);
+    border-radius: 9px;
+
+    font-size: 13px;
+}
+
+.development-room-messages .message.success {
+    color: #bbf7d0;
+    background: #052e16;
+    border-color: #166534;
+}
+
+.development-room-messages .message.error {
+    color: #fecaca;
+    background: #450a0a;
+    border-color: #991b1b;
+}
+
+.development-room-messages .message.warning {
+    color: #fde68a;
+    background: #451a03;
+    border-color: #92400e;
+}
+
+
+/* ============================================================
+   8. GITHUB REPOSITORY CARD
+============================================================ */
+
+.colabverse-repository-card {
+    width: 100%;
+    min-width: 0;
+
+    margin: 0 0 14px;
+    padding: 18px 22px;
+
+    color: var(--room-text);
+    background: linear-gradient(
+        135deg,
+        #141d32,
+        #111827
+    );
+
+    border: 1px solid var(--room-border-light);
+    border-radius: var(--room-radius);
+}
+
+.colabverse-repository-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+
+    margin-bottom: 12px;
+}
+
+.colabverse-repository-heading {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.colabverse-repository-heading > svg {
+    width: 30px;
+    height: 30px;
+
+    color: #ffffff;
+    fill: currentColor;
+    stroke: none;
+}
+
+.colabverse-repository-heading h2 {
+    margin: 0;
+
+    color: #ffffff;
+    font-size: 17px;
+    font-weight: 700;
+}
+
+.repository-status,
+.cv-disconnected {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+
+    padding: 5px 10px;
+
+    border-radius: 999px;
+
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.repository-status {
+    color: #86efac;
+    background: #064e3b;
+    border: 1px solid #15803d;
+}
+
+.repository-status::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+
+    background: #4ade80;
+    border-radius: 50%;
+}
+
+.cv-disconnected {
+    color: #fcd34d;
+    background: #422006;
+    border: 1px solid #92400e;
+}
+
+.colabverse-repository-description {
+    margin: 10px 0;
+
+    color: var(--room-muted);
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+
+/* ============================================================
+   9. CONNECTED REPOSITORY
+============================================================ */
+
+.colabverse-connected-repository {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+
+    gap: 18px;
+
+    min-width: 0;
+}
+
+.colabverse-repository-details {
+    flex: 1 1 280px;
+    min-width: 0;
+}
+
+.colabverse-repository-name {
+    margin: 0 0 8px;
+
+    color: #cbd5e1;
+    font-size: 13px;
+    line-height: 1.6;
+
+    overflow-wrap: anywhere;
+}
+
+.colabverse-repository-name strong {
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.colabverse-repository-name a {
+    color: #85b9ff;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.colabverse-repository-name a:hover {
+    color: #bfdbfe;
+}
+
+.colabverse-repository-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+
+    gap: 12px;
+
+    color: var(--room-muted);
+    font-size: 11px;
+}
+
+
+/* ============================================================
+   10. BRANCH AND COMMIT TOOLBAR
+============================================================ */
+
+.colabverse-repository-toolbar {
+    display: flex;
+    align-items: flex-end;
+    flex-wrap: wrap;
+
+    gap: 10px;
+}
+
+.colabverse-branch-control {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+
+    min-width: 175px;
+}
+
+.colabverse-branch-control label {
+    color: #b8c5df;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.colabverse-branch-selector {
+    width: 100%;
+    min-height: 39px;
+    padding: 9px 30px 9px 12px;
+
+    color: #ffffff;
+    background: #111b30;
+
+    border: 1px solid #465779;
+    border-radius: 8px;
+
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.colabverse-branch-selector:hover {
+    border-color: var(--room-purple-light);
+}
+
+.colabverse-branch-selector option {
+    color: #ffffff;
+    background: #111827;
+}
+
+.colabverse-commit-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+
+    min-height: 39px;
+    padding: 9px 17px;
+
+    color: #ffffff;
+    background: var(--room-purple);
+
+    border: 1px solid #8b6aff;
+    border-radius: 8px;
+
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.colabverse-commit-button:hover:not(:disabled) {
+    background: var(--room-purple-hover);
+}
+
+.colabverse-repository-icon-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 39px;
+    height: 39px;
+    padding: 0;
+
+    color: #dbeafe;
+    background: #18243a;
+
+    border: 1px solid #465779;
+    border-radius: 8px;
+}
+
+.colabverse-repository-icon-button:hover:not(:disabled) {
+    background: #263653;
+}
+
+.colabverse-repository-status-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+
+    gap: 10px;
+
+    margin-top: 12px;
+}
+
+.colabverse-branch-status,
+.cv-commit-status {
+    margin: 0;
+
+    color: var(--room-muted);
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+
+/* ============================================================
+   11. REPOSITORY CONNECTION FORM
+============================================================ */
+
+.colabverse-repository-connection {
+    margin-top: 16px;
+    padding-top: 16px;
+
+    border-top: 1px solid var(--room-border);
+}
+
+.colabverse-repository-connection h3 {
+    margin: 0 0 12px;
+
+    color: #e2e8f0;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.colabverse-repository-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    margin: 0;
+}
+
+.colabverse-repository-form label {
+    color: #aebbd5;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.colabverse-repository-input-row {
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
+}
+
+.colabverse-repository-input-row input {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 42px;
+
+    padding: 10px 13px;
+
+    color: #ffffff;
+    background: var(--room-input);
+
+    border: 1px solid #394968;
+    border-radius: 8px;
+
+    font-size: 12px;
+}
+
+.colabverse-repository-input-row input::placeholder {
+    color: #7888a6;
+}
+
+.colabverse-repository-input-row input:focus {
+    border-color: var(--room-purple);
+    outline: none;
+}
+
+.colabverse-connect-button {
+    flex-shrink: 0;
+
+    min-height: 42px;
+    padding: 10px 17px;
+
+    color: #ffffff;
+    background: var(--room-blue);
+
+    border: 1px solid var(--room-blue);
+    border-radius: 8px;
+
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.colabverse-connect-button:hover:not(:disabled) {
+    background: var(--room-blue-hover);
+}
+
+.colabverse-repository-help {
+    margin: 10px 0 0;
+
+    color: var(--room-muted);
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+
+/* ============================================================
+   12. REPOSITORY LOCK NOTICE
+============================================================ */
+
+.repository-meeting-lock-notice {
+    margin: 12px 0 !important;
+    padding: 12px 14px;
+
+    color: #fde68a !important;
+    background: #422006;
+
+    border: 1px solid #92400e;
+    border-radius: 8px;
+
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+
+/* ============================================================
+   13. REPOSITORY APPROVAL REQUESTS
+============================================================ */
+
+.colabverse-repository-requests {
+    margin-top: 18px;
+    padding-top: 16px;
+
+    border-top: 1px solid var(--room-border);
+}
+
+.colabverse-repository-requests h3 {
+    margin: 0 0 12px;
+
+    color: var(--room-text);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.colabverse-no-requests {
+    margin: 0;
+
+    color: var(--room-muted);
+    font-size: 12px;
+}
+
+.repository-approval-request {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+
+    gap: 12px;
+
+    margin-bottom: 10px;
+    padding: 12px;
+
+    background: var(--room-card-alt);
+
+    border: 1px solid var(--room-border);
+    border-radius: 9px;
+}
+
+.repository-approval-request p {
+    flex: 1 1 200px;
+    margin: 0;
+
+    color: var(--room-soft-text);
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.repository-approval-request form {
+    margin: 0;
+}
+
+.repository-approval-request button,
+.repository-member-permission form button {
+    min-height: 36px;
+    padding: 8px 13px;
+
+    color: #ffffff;
+    background: var(--room-purple);
+
+    border: 1px solid var(--room-purple);
+    border-radius: 8px;
+
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.repository-approval-request form:last-child button {
+    background: #991b1b;
+    border-color: #991b1b;
+}
+
+.repository-approval-request form:last-child button:hover:not(:disabled) {
+    background: #b91c1c;
+}
+
+.repository-member-permission {
+    margin-top: 14px;
+}
+
+.repository-member-permission p {
+    color: var(--room-muted);
+    font-size: 12px;
+    line-height: 1.7;
+}
+
+
+/* ============================================================
+   14. WORKSPACE AND TEAM CHAT LAYOUT
+============================================================ */
+
+.colabverse-workspace-with-chat {
+    display: grid;
+    grid-template-columns:
+        minmax(0, 1fr)
+        minmax(300px, 340px);
+
+    align-items: stretch;
+    gap: 12px;
+
+    width: 100%;
+    min-width: 0;
+}
+
+.colabverse-workspace-with-chat.chat-collapsed {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.colabverse-workspace-main {
+    min-width: 0;
+}
+
+#team-chat-panel[hidden] {
+    display: none !important;
+}
+
+
+/* ============================================================
+   15. DEVELOPMENT WORKSPACE
+============================================================ */
+
+.colabverse-development-workspace {
+    display: grid;
+    grid-template-columns: 245px minmax(0, 1fr);
+
+    width: 100%;
+    min-width: 0;
+    min-height: 650px;
+
+    margin: 0;
+
+    overflow: hidden;
+
+    background: var(--room-editor);
+
+    border: 1px solid var(--room-border-light);
+    border-radius: var(--room-radius);
+}
+
+
+/* ============================================================
+   16. FILE EXPLORER
+============================================================ */
+
+.colabverse-development-explorer {
+    min-width: 0;
+    padding: 0;
+
+    color: #dbe4f5;
+    background: var(--room-explorer);
+
+    border-right: 1px solid var(--room-border);
+
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.explorer-header {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    min-height: 68px;
+    margin: 0;
+    padding: 14px 15px;
+
+    border-bottom: 1px solid var(--room-border);
+}
+
+.explorer-header h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    margin: 0;
+
+    color: #f1f5f9;
+
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.explorer-header > span {
+    color: var(--room-muted);
+    font-size: 11px;
+
+    overflow-wrap: anywhere;
+}
+
+#github-file-tree {
+    padding: 10px 7px;
+
+    color: #d4dce9;
+    font-size: 12px;
+    line-height: 1.6;
+
+    overflow-wrap: anywhere;
+}
+
+.explorer-item {
+    display: block;
+
+    width: 100%;
+    padding: 8px 10px;
+
+    color: #dbe4f5;
+    background: transparent;
+
+    border: none;
+    border-radius: 6px;
+
+    text-align: left;
+    font-size: 12px;
+
+    overflow-wrap: anywhere;
+}
+
 .explorer-item:hover {
-    background: #37373d;
+    color: #ffffff;
+    background: #243250;
 }
 
 .explorer-item:focus-visible {
-    outline: 2px solid #4ade80;
-    outline-offset: 2px;
+    outline: 1px solid var(--room-purple-light);
 }
 
-/* Nested folders */
 .explorer-children {
-    margin-left: 14px;
-    padding-left: 8px;
-    border-left: 1px solid #404040;
+    margin-left: 11px;
+    padding-left: 9px;
+
+    border-left: 1px solid #34435f;
 }
 
-/* Center editor */
-.development-editor {
-    min-width: 0;
-    background: #1e1e1e;
-}
-
-/* Editor tab/header */
-.editor-header {
-    padding: 14px 18px;
-    background: #2d2d2d;
-    border-bottom: 1px solid #363636;
-    color: #ffffff;
-}
-
-/* Editor body */
-.editor-content {
-    padding: 24px;
-    color: #9ca3af;
-}
-
-/* Small screens */
-@media (max-width: 768px) {
-    .development-workspace {
-        grid-template-columns: 1fr;
-    }
-
-    .development-explorer {
-        border-right: none;
-        border-bottom: 1px solid #363636;
-        max-height: 350px;
-        overflow-y: auto;
-    }
-}
 
 /* ============================================================
-   SOURCE CODE VIEWER
-   ============================================================ */
+   17. CODE EDITOR
+============================================================ */
 
-/* Preserve indentation and line breaks in source code. */
-.source-code {
-    margin: 0;
-    padding: 20px;
-    overflow: auto;
-    white-space: pre;
+.colabverse-development-editor {
+    display: flex;
+    flex-direction: column;
+
+    min-width: 0;
+    min-height: 0;
+
+    background: var(--room-editor);
+}
+
+.colabverse-editor-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 12px;
+
+    min-height: 52px;
+    padding: 10px 16px;
+
+    color: #e2e8f0;
+    background: #161d2c;
+
+    border-bottom: 1px solid #303a4f;
+
+    font-size: 12px;
+}
+
+.colabverse-editor-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+
+    min-width: 0;
+
+    color: #e2e8f0;
+    font-weight: 600;
+}
+
+.colabverse-editor-tab svg {
+    color: var(--room-purple-light);
+}
+
+#active-file-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cv-readonly-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    flex-shrink: 0;
+
+    padding: 6px 10px;
+
+    color: #93c5fd;
+    background: #17345c;
+
+    border: 1px solid #24548c;
+    border-radius: 7px;
+
+    font-size: 11px;
+    font-weight: 600;
+}
+
+
+/* ============================================================
+   18. CODE VIEWER CONTENT
+============================================================ */
+
+.colabverse-editor-content {
+    flex: 1 1 auto;
+
+    min-width: 0;
+    min-height: 590px;
+    max-height: 85vh;
+
+    padding: 12px;
+
     color: #d4d4d4;
-    font-family: "Courier New", monospace;
-    font-size: 14px;
-    line-height: 1.6;
-    tab-size: 4;
-}
+    background: var(--room-editor);
 
-/* Allow the editor to scroll when source code is long. */
-.editor-content {
-    min-height: 400px;
-    max-height: 650px;
     overflow: auto;
 }
 
-/* Ensure the hidden attribute works despite other styles. */
-.source-code[hidden] {
-    display: none;
+#editor-placeholder {
+    margin: 40px 0;
+
+    color: #8996ad;
+    font-size: 13px;
+    text-align: center;
+    line-height: 1.7;
 }
 
-/* ========================================
-   VS CODE-STYLE SOURCE CODE VIEWER
-======================================== */
-
-/* Arrange line numbers beside the source code. */
 .code-viewer {
     display: flex;
     align-items: flex-start;
+
     width: max-content;
     min-width: 100%;
-    font-family: monospace;
-    font-size: 14px;
-    line-height: 1.6;
+
+    font-family:
+        "JetBrains Mono",
+        "Fira Code",
+        Consolas,
+        monospace;
+
+    font-size: 12px;
+    line-height: 1.75;
 }
 
-/* Keep the viewer hidden until a file is opened. */
 .code-viewer[hidden] {
-    display: none;
+    display: none !important;
 }
 
-/* Style the line-number column. */
 .line-numbers {
     flex-shrink: 0;
-    padding: 16px 12px;
+
     margin: 0;
-    color: #858585;
+    padding: 12px;
+
+    color: #718096;
+
+    border-right: 1px solid #303a4f;
+
     text-align: right;
     user-select: none;
-    border-right: 1px solid #333;
 }
 
-/* Style the actual source code. */
 .code-content {
-    padding: 16px;
     margin: 0;
+    padding: 12px 16px;
+
     color: #d4d4d4;
+
     white-space: pre;
     tab-size: 4;
 }
 
-/* Allow scrolling when a code line is too long. */
-.editor-content {
-    overflow: auto;
-}
-
-/* ========================================
-   SYNTAX HIGHLIGHTING
-======================================== */
-
-/* Keep the editor background consistent. */
 .code-content,
-.code-content code {
-    background: transparent;
-}
-
-/* Preserve indentation and spacing. */
-.code-content code {
-    font-family: monospace;
-    white-space: pre;
-    tab-size: 4;
-}
-
-/* Prevent Prism's theme from changing our code layout. */
+.code-content code,
 .code-content[class*="language-"],
 .code-content code[class*="language-"] {
     background: transparent;
     text-shadow: none;
 }
 
-/* ============================================================
-   GITHUB REPOSITORY CARD
-============================================================ */
-
-/* Main repository card. */
-.github-repository-section {
-    width: 100%;
-    box-sizing: border-box;
-    margin: 24px 0;
-    padding: 24px;
-
-    background: #111827;
-    border: 1px solid #334155;
-    border-radius: 12px;
+.code-content code {
+    font-family: inherit;
+    white-space: pre;
+    tab-size: 4;
 }
 
-/* Repository heading. */
-.github-repository-section h2 {
-    margin: 0 0 20px;
-    color: #f8fafc;
+.source-code {
+    margin: 0;
+    padding: 16px;
+
+    color: #d4d4d4;
+
+    font-family: Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.7;
+
+    white-space: pre;
+    tab-size: 4;
+
+    overflow: auto;
+}
+
+
+/* ============================================================
+   19. EMPTY WORKSPACE
+============================================================ */
+
+.colabverse-empty-workspace {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    min-height: 520px;
+    padding: 35px;
+
+    color: var(--room-text);
+    background: var(--room-card);
+
+    border: 1px solid var(--room-border);
+    border-radius: var(--room-radius);
+
+    text-align: center;
+}
+
+.colabverse-empty-workspace-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 90px;
+    height: 90px;
+    margin-bottom: 22px;
+
+    color: var(--room-purple-light);
+    background: #211b47;
+
+    border: 1px solid #493d83;
+    border-radius: 20px;
+}
+
+.colabverse-empty-workspace h2 {
+    margin: 0 0 12px;
+
+    color: #ffffff;
     font-size: 20px;
 }
 
-/* Connected repository information. */
-.connected-repository {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-/* Repository details. */
-.connected-repository p {
+.colabverse-empty-workspace p {
+    max-width: 440px;
     margin: 0;
-    color: #cbd5e1;
-    font-size: 14px;
-    line-height: 1.6;
-}
 
-.connected-repository strong {
-    color: #f8fafc;
-}
-
-/* Repository link. */
-.connected-repository a {
-    color: #22c55e;
-    text-decoration: none;
-}
-
-.connected-repository a:hover {
-    text-decoration: underline;
-}
-
-/* Connected status badge. */
-.repository-status {
-    display: inline-flex;
-    align-items: center;
-    align-self: flex-start;
-
-    padding: 6px 12px;
-    background: rgba(34, 197, 94, 0.12);
-    border: 1px solid rgba(34, 197, 94, 0.3);
-    border-radius: 20px;
-
-    color: #22c55e !important;
-    font-size: 12px !important;
-    font-weight: 600;
-}
-
-/* Repository connection form. */
-.repository-form {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-
-    margin-top: 22px;
-    padding-top: 20px;
-
-    border-top: 1px solid #334155;
-}
-
-/* Form label. */
-.repository-form label {
-    color: #cbd5e1;
+    color: var(--room-muted);
     font-size: 13px;
-    font-weight: 600;
+    line-height: 1.8;
 }
 
-/* Repository URL input. */
-.repository-form input {
-    width: 100%;
-    box-sizing: border-box;
 
-    padding: 12px 14px;
-    background: #020617;
-    color: #f8fafc;
-
-    border: 1px solid #475569;
-    border-radius: 8px;
-
-    font-size: 14px;
-}
-
-.repository-form input:focus {
-    outline: none;
-    border-color: #22c55e;
-}
-
-/* Change repository button. */
-.repository-form button {
-    align-self: flex-start;
-
-    padding: 12px 20px;
-    background: #16a34a;
-    color: white;
-
-    border: none;
-    border-radius: 8px;
-
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.repository-form button:hover {
-    background: #15803d;
-}
-
-/* Mobile layout. */
-@media (max-width: 600px) {
-    .github-repository-section {
-        padding: 16px;
-    }
-
-    .repository-form button {
-        width: 100%;
-    }
-}
-/* Keep repository heading and status on the same row. */
-.repository-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 12px;
-
-    margin-bottom: 20px;
-}
-
-.repository-card-header h2 {
-    margin: 0;
-}
 /* ============================================================
-   CODEVIEW — NEW MEETING ROOM DESIGN
+   20. TEAM CHAT PANEL
 ============================================================ */
 
-/* Overall page layout */
-.cv-layout {
-    display: grid;
-    grid-template-columns: 230px minmax(0, 1fr);
-    gap: 20px;
+.colabverse-chat-panel,
+#team-chat-panel {
+    display: flex;
+    flex-direction: column;
 
-    width: min(1800px, 98%);
-    margin: 20px auto;
-
-    align-items: start;
-}
-
-.cv-main {
     min-width: 0;
+    min-height: 650px;
+    max-height: 85vh;
+
+    color: var(--room-text);
+    background: var(--room-card);
+
+    border: 1px solid var(--room-border-light);
+    border-radius: var(--room-radius);
+
+    overflow: hidden;
 }
 
-/* ============================================================
-   SIDEBAR
-============================================================ */
-
-.codeview-sidebar {
-    position: sticky;
-    top: 20px;
-
-    padding: 20px 14px;
-
-    background: #111827;
-    border: 1px solid #334155;
-    border-radius: 12px;
-}
-
-.sidebar-group-info {
-    padding: 8px 8px 20px;
-    border-bottom: 1px solid #334155;
-}
-
-.sidebar-group-avatar {
+.cv-chat-header {
     display: flex;
-    justify-content: center;
     align-items: center;
+    justify-content: space-between;
 
-    width: 55px;
-    height: 55px;
+    gap: 12px;
 
-    margin-bottom: 14px;
+    flex: 0 0 auto;
 
-    background: #1e3a5f;
-    color: #93c5fd;
+    min-height: 53px;
+    padding: 13px 15px;
 
-    border-radius: 10px;
+    background: #17223b;
+    border-bottom: 1px solid var(--room-border);
+}
 
-    font-size: 24px;
+.cv-chat-header h2,
+.cv-chat-header h3 {
+    margin: 0;
+
+    color: #ffffff;
+    font-size: 14px;
     font-weight: 700;
 }
 
-.sidebar-group-info h2 {
-    margin: 0 0 8px;
-    color: #f8fafc;
-    font-size: 18px;
-}
-
-.sidebar-group-info p {
-    margin: 0;
-    color: #94a3b8;
-    font-size: 12px;
-}
-
-.sidebar-navigation {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-
-    margin-top: 20px;
-}
-
-.sidebar-link {
-    display: flex;
+#close-chat {
+    display: inline-flex;
     align-items: center;
-    gap: 10px;
+    justify-content: center;
 
-    width: 100%;
-    box-sizing: border-box;
+    width: 30px;
+    height: 30px;
+    padding: 0;
 
-    padding: 12px;
-
-    background: transparent;
-    color: #cbd5e1;
+    color: #ffffff;
+    background: #293650;
 
     border: none;
-    border-radius: 8px;
+    border-radius: 7px;
 
-    text-decoration: none;
-    text-align: left;
-
-    font-size: 14px;
-    cursor: pointer;
+    font-size: 20px;
 }
 
-.sidebar-link:hover {
-    background: #1e293b;
+#close-chat:hover {
+    background: #3b4c6b;
 }
 
-.sidebar-link.active {
-    background: #064e3b;
-    color: #ffffff;
 
-    border-left: 3px solid #22c55e;
+/* ============================================================
+   21. CHAT MESSAGE HISTORY
+============================================================ */
+
+.cv-chat-messages,
+#chat-messages {
+    flex: 1 1 auto;
+
+    min-height: 0;
+    padding: 14px;
+
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
-.cv-sidebar-button {
-    font-family: inherit;
+.cv-chat-empty {
+    padding: 30px 12px;
+
+    color: var(--room-muted);
+    font-size: 12px;
+    text-align: center;
+    line-height: 1.7;
 }
 
-.cv-sidebar-note {
-    margin-top: 25px;
+.cv-chat-message {
+    margin-bottom: 12px;
     padding: 12px;
 
-    color: #94a3b8;
-    background: #020617;
+    background: #1a2741;
 
-    border-radius: 8px;
-
-    font-size: 12px;
-    line-height: 1.6;
+    border: 1px solid #30405d;
+    border-radius: 10px;
 }
 
-/* ============================================================
-   PAGE HEADER
-============================================================ */
-
-.cv-page-heading {
+.cv-chat-message-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 20px;
+    justify-content: space-between;
 
-    padding: 20px 24px;
-    margin-bottom: 18px;
-
-    background: #111827;
-    border: 1px solid #334155;
-    border-radius: 12px;
+    gap: 8px;
+    margin-bottom: 8px;
 }
 
-.cv-page-heading h1 {
-    margin: 12px 0 8px;
-
-    color: #f8fafc;
-    font-size: 25px;
-}
-
-.cv-page-heading p {
-    margin: 0;
-    color: #94a3b8;
-    font-size: 14px;
-}
-
-.cv-chat-toggle {
-    padding: 11px 16px;
-
-    background: #166534;
-    color: #ffffff;
-
-    border: 1px solid #22c55e;
-    border-radius: 8px;
-
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.cv-chat-toggle:hover {
-    background: #15803d;
-}
-
-/* ============================================================
-   REPOSITORY CARD
-============================================================ */
-
-.github-repository-section {
-    margin: 0 0 18px;
-}
-
-.cv-disconnected {
-    padding: 6px 12px;
-
-    color: #fbbf24;
-    background: rgba(245, 158, 11, 0.12);
-
-    border-radius: 20px;
+.cv-chat-message-author {
+    color: #a78bfa;
     font-size: 12px;
-}
-
-/* ============================================================
-   WORKSPACE AND CHAT LAYOUT
-============================================================ */
-
-.cv-workspace-with-chat {
-    display: grid;
-
-    grid-template-columns:
-        minmax(0, 1fr)
-        310px;
-
-    gap: 16px;
-
-    align-items: start;
-}
-
-.cv-workspace-main {
-    min-width: 0;
-}
-
-/* Expand the workspace when chat is hidden */
-.cv-workspace-with-chat.chat-collapsed {
-    grid-template-columns: minmax(0, 1fr);
-}
-
-/* Make sure hidden panels stay hidden */
-.cv-chat-panel[hidden] {
-    display: none !important;
-}
-
-/* ============================================================
-   FILE EXPLORER AND EDITOR
-============================================================ */
-
-.development-workspace {
-    grid-template-columns: 230px minmax(0, 1fr);
-
-    margin-top: 0;
-
-    min-height: 520px;
-
-    border-color: #334155;
-    border-radius: 12px;
-}
-
-.development-explorer {
-    background: #111827;
-}
-
-.development-editor {
-    background: #020617;
-}
-
-.editor-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-
-    padding: 14px 18px;
-
-    background: #1e293b;
-    border-bottom: 1px solid #334155;
+    font-weight: 700;
 
     overflow-wrap: anywhere;
 }
 
-.cv-readonly-badge {
+.cv-chat-message-time {
     flex-shrink: 0;
 
-    padding: 5px 9px;
-
-    color: #93c5fd;
-    background: #1e3a5f;
-
-    border-radius: 6px;
+    color: var(--room-muted);
     font-size: 11px;
 }
 
-.editor-content {
-    min-height: 440px;
-    max-height: 700px;
+.cv-chat-message-content {
+    margin: 0;
 
-    padding: 18px;
+    color: #e2e8f0;
+    font-size: 12px;
+    line-height: 1.7;
+
+    overflow-wrap: anywhere;
 }
 
-.cv-empty-workspace {
-    padding: 35px;
+.cv-chat-message-reply {
+    margin-bottom: 10px;
+    padding: 9px 11px;
 
-    background: #111827;
-    border: 1px solid #334155;
-    border-radius: 12px;
+    color: #cbd5e1;
+    background: #111a30;
+
+    border-left: 3px solid var(--room-purple);
+    border-radius: 6px;
+
+    font-size: 12px;
+    line-height: 1.6;
 }
 
-.cv-empty-workspace h2 {
-    color: #f8fafc;
+.cv-chat-message-reply p {
+    margin: 5px 0 0;
+
+    color: var(--room-muted);
+    overflow-wrap: anywhere;
 }
 
-.cv-empty-workspace p {
-    color: #94a3b8;
+.cv-chat-message audio {
+    width: 100%;
+    max-width: 100%;
 }
+
+.cv-chat-message > a {
+    color: #93c5fd;
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+
 
 /* ============================================================
-   COLLABORATION CARDS
+   22. CHAT MESSAGE ACTIONS
+============================================================ */
+
+.cv-chat-message-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+
+    gap: 7px;
+    margin-top: 12px;
+}
+
+.cv-chat-message-actions button {
+    min-height: 29px;
+    padding: 6px 9px;
+
+    color: #cbd5e1;
+    background: #293650;
+
+    border: 1px solid #3b4c6b;
+    border-radius: 6px;
+
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.cv-chat-message-actions button:hover {
+    background: #3b4c6b;
+}
+
+.cv-chat-delete-button {
+    color: #fecaca !important;
+}
+
+.cv-chat-delete-button:hover {
+    background: #7f1d1d !important;
+}
+
+
+/* ============================================================
+   23. REPLY PREVIEW
+============================================================ */
+
+.cv-chat-reply-preview,
+#chat-reply-preview {
+    flex: 0 0 auto;
+
+    padding: 12px 15px;
+
+    background: #1e2941;
+    border-top: 1px solid var(--room-border);
+}
+
+#chat-reply-description {
+    color: #cbd5e1;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.cv-chat-reply-preview button {
+    margin-top: 8px;
+    padding: 7px 11px;
+
+    color: #ffffff;
+    background: #334155;
+
+    border: none;
+    border-radius: 7px;
+
+    font-size: 12px;
+}
+
+
+/* ============================================================
+   24. CHAT COMPOSER
+============================================================ */
+
+.cv-chat-composer {
+    flex: 0 0 auto;
+
+    padding: 14px;
+
+    background: var(--room-card);
+    border-top: 1px solid var(--room-border);
+}
+
+#meeting-chat-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.cv-chat-composer label {
+    color: #b9c6dc;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+#chat-message-input {
+    display: block;
+
+    width: 100%;
+    min-height: 90px;
+    margin: 0;
+    padding: 12px;
+
+    color: #ffffff;
+    background: var(--room-input);
+
+    border: 1px solid #354563;
+    border-radius: 9px;
+
+    font-size: 12px;
+    line-height: 1.6;
+
+    resize: vertical;
+}
+
+#chat-message-input::placeholder {
+    color: #7c8ba5;
+}
+
+#chat-message-input:focus {
+    border-color: var(--room-purple);
+    outline: none;
+}
+
+.cv-send-message {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    min-height: 40px;
+    padding: 10px 14px;
+
+    color: #ffffff;
+    background: var(--room-purple);
+
+    border: 1px solid var(--room-purple);
+    border-radius: 8px;
+
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.cv-send-message:hover:not(:disabled) {
+    background: var(--room-purple-hover);
+}
+
+.cv-chat-help {
+    margin: 10px 0 0;
+
+    color: var(--room-muted);
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+
+/* ============================================================
+   25. CHAT NOTIFICATION POPUP
+============================================================ */
+
+.cv-chat-notification {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+
+    z-index: 1000;
+
+    width: min(350px, calc(100vw - 48px));
+    padding: 17px;
+
+    color: var(--room-text);
+    background: #1a2741;
+
+    border: 1px solid #52608a;
+    border-radius: 12px;
+
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.45);
+}
+
+.cv-chat-notification strong {
+    display: block;
+    margin-bottom: 8px;
+
+    color: #a78bfa;
+    font-size: 13px;
+}
+
+.cv-chat-notification p {
+    margin: 0 0 14px;
+
+    color: #e2e8f0;
+    font-size: 12px;
+    line-height: 1.6;
+
+    overflow-wrap: anywhere;
+}
+
+.cv-chat-notification-actions {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.cv-chat-notification-actions button {
+    min-height: 34px;
+    padding: 8px 12px;
+
+    color: #ffffff;
+    background: #334155;
+
+    border: 1px solid #475569;
+    border-radius: 8px;
+
+    font-size: 12px;
+    font-weight: 600;
+}
+
+#notification-reply {
+    background: var(--room-purple);
+    border-color: var(--room-purple);
+}
+
+#notification-reply:hover {
+    background: var(--room-purple-hover);
+}
+
+
+/* ============================================================
+   26. INLINE MESSAGE EDITING
+============================================================ */
+
+.cv-chat-inline-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    margin-top: 10px;
+}
+
+.cv-chat-edit-textarea {
+    width: 100%;
+    min-height: 85px;
+    padding: 11px;
+
+    color: #ffffff;
+    background: var(--room-input);
+
+    border: 1px solid #475569;
+    border-radius: 8px;
+
+    font-size: 12px;
+    line-height: 1.6;
+
+    resize: vertical;
+}
+
+.cv-chat-edit-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.cv-chat-save-button,
+.cv-chat-cancel-edit-button {
+    min-height: 34px;
+    padding: 8px 13px;
+
+    color: #ffffff;
+
+    border: none;
+    border-radius: 7px;
+
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.cv-chat-save-button {
+    background: var(--room-purple);
+}
+
+.cv-chat-save-button:hover:not(:disabled) {
+    background: var(--room-purple-hover);
+}
+
+.cv-chat-cancel-edit-button {
+    background: #475569;
+}
+
+
+/* ============================================================
+   27. INLINE DELETE CONFIRMATION
+============================================================ */
+
+.cv-chat-delete-confirmation {
+    margin-top: 12px;
+    padding: 14px;
+
+    background: #1e293b;
+
+    border: 1px solid #7f1d1d;
+    border-radius: 9px;
+}
+
+.cv-chat-delete-confirmation p {
+    margin: 0 0 12px;
+
+    color: #f8fafc;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.cv-chat-delete-cancel,
+.cv-chat-delete-confirm {
+    min-height: 34px;
+    padding: 8px 13px;
+    margin-right: 8px;
+
+    color: #ffffff;
+
+    border: none;
+    border-radius: 7px;
+
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.cv-chat-delete-cancel {
+    background: #475569;
+}
+
+.cv-chat-delete-confirm {
+    background: var(--room-red);
+}
+
+.cv-chat-delete-confirm:hover {
+    background: #b91c1c;
+}
+
+
+/* ============================================================
+   28. OPTIONAL FEATURE CARDS
 ============================================================ */
 
 .cv-feature-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
 
-    gap: 15px;
-    margin-top: 18px;
+    gap: 16px;
+    margin-top: 20px;
 }
 
 .cv-feature-grid .group-card {
@@ -676,536 +1833,218 @@
 }
 
 .cv-coming-soon {
-    display: inline-block;
-
-    padding: 9px 12px;
-
-    color: #94a3b8;
-    background: #1e293b;
-
-    border-radius: 8px;
-    font-size: 12px;
-}
-
-/* ============================================================
-   TEAM CHAT PANEL
-============================================================ */
-
-.cv-chat-panel {
-    display: flex;
-    flex-direction: column;
-
-    min-height: 520px;
-    max-height: 760px;
-
-    background: #111827;
-    border: 1px solid #334155;
-    border-radius: 12px;
-
-    overflow: hidden;
-}
-
-/* Chat header */
-.cv-chat-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 10px;
-
-    padding: 18px;
-
-    background: #1e293b;
-    border-bottom: 1px solid #334155;
-}
-
-.cv-chat-header h2 {
-    margin: 0 0 6px;
-
-    color: #f8fafc;
-    font-size: 17px;
-}
-
-.cv-chat-header p {
-    margin: 0;
-
-    color: #94a3b8;
-    font-size: 12px;
-}
-
-.cv-close-chat {
-    width: 32px;
-    height: 32px;
-
-    background: #334155;
-    color: #ffffff;
-
-    border: none;
-    border-radius: 7px;
-
-    cursor: pointer;
-}
-
-.cv-close-chat:hover {
-    background: #475569;
-}
-
-/* Message area */
-.cv-chat-messages {
-    flex: 1;
-
-    min-height: 260px;
-    padding: 16px;
-
-    overflow-y: auto;
-}
-
-.cv-chat-empty {
-    padding: 30px 12px;
-
-    text-align: center;
-}
-
-.cv-chat-empty h3 {
-    margin-bottom: 10px;
-
-    color: #f8fafc;
-    font-size: 15px;
-}
-
-.cv-chat-empty p {
-    color: #94a3b8;
-
-    font-size: 13px;
-    line-height: 1.7;
-}
-
-/* Reply preview */
-.cv-chat-reply-preview {
-    padding: 12px;
-
-    background: #1e293b;
-    border-top: 1px solid #334155;
-}
-
-.cv-chat-reply-preview[hidden] {
-    display: none;
-}
-
-.cv-chat-reply-preview p {
-    margin: 0 0 8px;
-
-    color: #cbd5e1;
-    font-size: 12px;
-}
-
-.cv-chat-reply-preview button {
-    padding: 7px 10px;
-
-    color: #f8fafc;
-    background: #334155;
-
-    border: none;
-    border-radius: 6px;
-
-    cursor: pointer;
-}
-
-/* Message input */
-.cv-chat-composer {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-
-    padding: 15px;
-
-    border-top: 1px solid #334155;
-}
-
-.cv-chat-composer label {
-    color: #cbd5e1;
-    font-size: 12px;
-}
-
-.cv-chat-composer textarea {
-    width: 100%;
-    box-sizing: border-box;
-
-    padding: 12px;
-
-    color: #f8fafc;
-    background: #020617;
-
-    border: 1px solid #334155;
-    border-radius: 8px;
-
-    resize: vertical;
-    font-family: inherit;
-}
-
-.cv-send-message {
-    padding: 11px;
-
-    color: #ffffff;
-    background: #16a34a;
-
-    border: none;
-    border-radius: 8px;
-
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.cv-send-message:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.cv-chat-help {
-    margin: 0;
-
-    color: #94a3b8;
-    font-size: 11px;
-}
-
-/* Unread message counter */
-.chat-unread-count {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
 
-    min-width: 19px;
-    height: 19px;
+    padding: 8px 12px;
 
-    padding: 0 5px;
+    color: var(--room-muted);
+    background: var(--room-card-alt);
 
-    color: #ffffff;
-    background: #dc2626;
+    border-radius: 8px;
 
-    border-radius: 20px;
-
-    font-size: 11px;
-    font-weight: 700;
+    font-size: 12px;
 }
 
-.chat-unread-count[hidden] {
-    display: none;
-}
 
 /* ============================================================
-   RESPONSIVE DESIGN
+   29. TABLET RESPONSIVENESS
 ============================================================ */
 
-@media (max-width: 1200px) {
+@media (max-width: 1100px) {
 
-    .cv-workspace-with-chat {
+    .colabverse-workspace-with-chat {
         grid-template-columns: minmax(0, 1fr);
     }
 
-    .cv-chat-panel {
-        max-height: 550px;
+    .colabverse-workspace-with-chat.chat-collapsed {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .colabverse-chat-panel,
+    #team-chat-panel {
+        min-height: 420px;
+        max-height: 560px;
+    }
+
+    .colabverse-development-workspace {
+        min-height: 550px;
+    }
+
+    .colabverse-editor-content {
+        min-height: 490px;
     }
 
 }
 
-@media (max-width: 900px) {
 
-    .cv-layout {
-        grid-template-columns: 1fr;
+@media (max-width: 850px) {
+
+    body.colabverse-meeting-page .colabverse-room-layout {
+        padding: 18px 14px 30px;
     }
 
-    .codeview-sidebar {
-        position: static;
+    .colabverse-room-heading {
+        align-items: flex-start;
     }
 
-    .cv-feature-grid {
-        grid-template-columns: 1fr;
+    .colabverse-meeting-actions {
+        justify-content: flex-start;
+        width: 100%;
     }
 
-}
-
-@media (max-width: 600px) {
-
-    .cv-page-heading {
+    .colabverse-repository-card {
         padding: 16px;
     }
 
-    .cv-page-heading h1 {
-        font-size: 21px;
+    .colabverse-connected-repository {
+        align-items: stretch;
     }
 
-    .development-workspace {
-        grid-template-columns: 1fr;
-    }
-
-    .development-explorer {
-        max-height: 300px;
-        overflow-y: auto;
-    }
-
-    .cv-chat-toggle {
+    .colabverse-repository-toolbar {
         width: 100%;
     }
 
+    .colabverse-development-workspace {
+        grid-template-columns: 210px minmax(0, 1fr);
+    }
+
+    .cv-feature-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
 }
 
-/* ========================================
-   MEETING ROOM COMMUNICATION BUTTONS
-======================================== */
 
-.cv-meeting-actions {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 10px;
-}
+/* ============================================================
+   30. MOBILE RESPONSIVENESS
+============================================================ */
 
-/* Voice and video call buttons */
-.cv-call-button {
-    padding: 11px 16px;
+@media (max-width: 650px) {
 
-    background: #172b4d;
-    color: #e2e8f0;
+    body.colabverse-meeting-page .colabverse-topbar {
+        min-height: 64px;
+        padding: 0 14px;
+    }
 
-    border: 1px solid #294466;
-    border-radius: 8px;
+    .colabverse-brand-name {
+        font-size: 20px;
+    }
 
-    font-size: 13px;
-    font-weight: 600;
-}
+    .colabverse-brand-icon {
+        width: 32px;
+        height: 32px;
+    }
 
-/* Show that calling is not yet available */
-.cv-call-button:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-}
+    .colabverse-topbar-actions {
+        gap: 7px;
+    }
 
-/* Mobile layout */
-@media (max-width: 600px) {
+    .colabverse-notification-button,
+    .colabverse-profile-avatar {
+        width: 36px;
+        height: 36px;
+    }
 
-    .cv-meeting-actions {
+    body.colabverse-meeting-page .colabverse-room-layout {
+        padding: 12px 10px 25px;
+    }
+
+    .colabverse-room-heading h1 {
+        font-size: 19px;
+    }
+
+    .colabverse-room-title-icon {
+        width: 40px;
+        height: 40px;
+    }
+
+    .colabverse-meeting-actions {
+        gap: 7px;
+    }
+
+    .colabverse-meeting-actions .cv-call-button,
+    .colabverse-meeting-actions .cv-chat-toggle {
+        flex: 1 1 120px;
+        padding: 9px 10px;
+    }
+
+    .colabverse-repository-card {
+        padding: 14px;
+    }
+
+    .colabverse-repository-heading h2 {
+        font-size: 15px;
+    }
+
+    .colabverse-repository-input-row {
+        flex-direction: column;
+    }
+
+    .colabverse-connect-button {
         width: 100%;
     }
 
-    .cv-call-button,
-    .cv-meeting-actions .cv-chat-toggle {
-        flex: 1;
+    .colabverse-repository-toolbar {
+        align-items: stretch;
     }
+
+    .colabverse-branch-control {
+        flex: 1 1 100%;
+    }
+
+    .colabverse-commit-button {
+        flex: 1 1 auto;
+    }
+
+    .colabverse-development-workspace {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .colabverse-development-explorer {
+        max-height: 250px;
+
+        border-right: none;
+        border-bottom: 1px solid var(--room-border);
+    }
+
+    .colabverse-editor-content {
+        min-height: 380px;
+        max-height: 65vh;
+        padding: 8px;
+    }
+
+    .colabverse-chat-panel,
+    #team-chat-panel {
+        min-height: 440px;
+        max-height: 600px;
+    }
+
+    .cv-chat-notification {
+        right: 12px;
+        bottom: 12px;
+
+        width: calc(100vw - 24px);
+    }
+
+    .cv-feature-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
 }
+
+
 /* ============================================================
-   MEETING ROOM — CHAT NOTIFICATION POPUP
+   31. REDUCED MOTION
 ============================================================ */
 
-.cv-chat-notification {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    width: min(320px, calc(100vw - 48px));
-    padding: 16px;
-    background: #1e293b;
-    color: #ffffff;
-    border: 1px solid #475569;
-    border-radius: 12px;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
-    z-index: 1000;
-}
+@media (prefers-reduced-motion: reduce) {
 
-.cv-chat-notification[hidden] {
-    display: none;
-}
+    .colabverse-meeting-actions button,
+    .colabverse-commit-button,
+    .colabverse-connect-button,
+    .colabverse-notification-button {
+        transition: none;
+    }
 
-.cv-chat-notification strong {
-    display: block;
-    margin-bottom: 8px;
-}
-
-.cv-chat-notification p {
-    margin: 0 0 14px;
-    overflow-wrap: anywhere;
-}
-
-.cv-chat-notification-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-}
-
-.cv-chat-notification-actions button {
-    padding: 8px 12px;
-    border: 1px solid #64748b;
-    border-radius: 6px;
-    background: #334155;
-    color: white;
-    cursor: pointer;
-}
-
-.cv-chat-notification-actions button:hover {
-    background: #475569;
-}
-
-/* ============================================
-   KEEP CHAT INPUT BELOW MESSAGES
-============================================ */
-
-#team-chat-panel {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-}
-
-#team-chat-panel .cv-chat-messages {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-}
-
-#team-chat-panel .cv-chat-composer {
-    flex: 0 0 auto;
-}
-
-#team-chat-panel .cv-chat-reply-preview {
-    flex: 0 0 auto;
-}
-/* ============================================================
-   MEETING ROOM CHAT LAYOUT
-============================================================ */
-
-/* Arrange the chat vertically. */
-#team-chat-panel {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-}
-
-/* Messages occupy the available space and can scroll. */
-#chat-messages {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-}
-
-/* Keep the reply preview above the textarea. */
-#chat-reply-preview {
-    flex: 0 0 auto;
-}
-
-/* Hide the reply preview when no reply is selected. */
-#chat-reply-preview[hidden] {
-    display: none;
-}
-
-/* Keep the textarea and Send button below messages. */
-.cv-chat-composer {
-    flex: 0 0 auto;
-}
-
-/* Arrange the message buttons. */
-.cv-chat-message-actions {
-    display: flex;
-    gap: 8px;
-    margin-top: 8px;
-}
-
-/* Style Reply, Edit, and Delete. */
-.cv-chat-message-actions button {
-    padding: 6px 10px;
-    background: #1e293b;
-    color: white;
-    border: 1px solid #475569;
-    border-radius: 6px;
-    cursor: pointer;
-}
-
-/* Make the textarea fit the chat panel. */
-#chat-message-input {
-    display: block;
-    width: 100%;
-    box-sizing: border-box;
-    margin: 8px 0;
-}
-/* ============================================
-   MEETING ROOM — INLINE MESSAGE EDITOR
-============================================ */
-
-.cv-chat-inline-editor {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-top: 8px;
-}
-
-.cv-chat-edit-textarea {
-    width: 100%;
-    min-height: 75px;
-    padding: 10px;
-    border: 1px solid #64748b;
-    border-radius: 8px;
-    background: #0f172a;
-    color: #ffffff;
-    font: inherit;
-    resize: vertical;
-    box-sizing: border-box;
-}
-
-.cv-chat-edit-controls {
-    display: flex;
-    gap: 8px;
-}
-
-.cv-chat-save-button,
-.cv-chat-cancel-edit-button {
-    padding: 7px 14px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font: inherit;
-}
-
-.cv-chat-save-button {
-    background: #2563eb;
-    color: white;
-}
-
-.cv-chat-cancel-edit-button {
-    background: #334155;
-    color: white;
-}
-
-.cv-chat-save-button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-/* ============================================
-   INLINE DELETE CONFIRMATION
-============================================ */
-
-.cv-chat-delete-confirmation {
-    margin-top: 10px;
-    padding: 12px;
-    background: #1e293b;
-    border: 1px solid #475569;
-    border-radius: 8px;
-}
-
-.cv-chat-delete-confirmation p {
-    margin-bottom: 12px;
-    color: #f8fafc;
-}
-
-.cv-chat-delete-cancel,
-.cv-chat-delete-confirm {
-    padding: 8px 12px;
-    margin-right: 8px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-}
-
-.cv-chat-delete-cancel {
-    background: #475569;
-    color: white;
-}
-
-.cv-chat-delete-confirm {
-    background: #dc2626;
-    color: white;
 }
