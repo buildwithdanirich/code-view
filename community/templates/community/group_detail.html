@@ -1,240 +1,20 @@
+{% extends "questions/base.html" %}
 {% load static %}
 
-<!DOCTYPE html>
-<html lang="en">
+{% block title %}{{ group.name }}{% endblock %}
 
-<head>
-    <meta charset="UTF-8">
+{% block content %}
+<link rel="stylesheet" href="{% static 'community/sheared.css' %}">
+<link rel="stylesheet" href="{% static 'community/group_detail/group_detail.css' %}">
+<link rel="stylesheet" href="{% static 'community/group_detail/group_chat.css' %}">
+<link rel="stylesheet" href="{% static 'community/group_detail/group_members.css' %}">
+<link rel="stylesheet" href="{% static 'community/group_detail/group_meeting_notifications.css' %}">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <title>{{ group.name }} | ColabVerse</title>
-
-    <!-- Existing ColabVerse styles. -->
-    <link rel="stylesheet" href="{% static 'community/sheared.css' %}">
-    <link rel="stylesheet" href="{% static 'community/group_detail/group_detail.css' %}">
-    <link rel="stylesheet" href="{% static 'community/group_detail/group_discussions.css' %}">
-    <link rel="stylesheet" href="{% static 'community/group_detail/group_chat.css' %}">
-    <link rel="stylesheet" href="{% static 'community/group_detail/group_members.css' %}">
-    <link rel="stylesheet" href="{% static 'community/group_detail/group_meeting_notifications.css' %}">
-</head>
-
-<body
-    data-current-user-id="{{ request.user.id }}"
-    data-discussion-socket-url="{% if request.is_secure %}wss{% else %}ws{% endif %}://{{ request.get_host }}/ws/groups/{{ group.id }}/discussions/"
+<div class="cv-group-detail" data-current-user-id="{{ request.user.id }}"
     {% if group.is_private and is_member %}
     data-meeting-notification-socket-url="{% if request.is_secure %}wss{% else %}ws{% endif %}://{{ request.get_host }}/ws/groups/{{ group.id }}/meetings/notifications/"
-    {% endif %}
->
-
-    <!-- =====================================================
-         1. TOP NAVIGATION
-    ====================================================== -->
-
-    <header class="navbar">
-
-        <a href="{% url 'groups' %}" class="brand">
-            &lt;/&gt; ColabVerse
-        </a>
-
-        <nav class="top-links">
-
-            <a href="{% url 'groups' %}" class="active">
-                Groups
-            </a>
-
-            <a href="{% url 'create_group' %}">
-                Create Group
-            </a>
-
-        </nav>
-
-        <div class="profile">
-
-            <span class="avatar">
-                {{ request.user.username|first|upper }}
-            </span>
-
-            <span>
-                {{ request.user.username }}
-            </span>
-
-        </div>
-
-    </header>
-
-
-    <!-- =====================================================
-         2. GROUP LAYOUT
-    ====================================================== -->
-
-    <div class="workspace-layout">
-
-        <!-- LEFT SIDEBAR -->
-
-        <aside class="workspace-sidebar">
-
-            <div class="sidebar-title">
-                PRIVATE DEVELOPMENT GROUP
-            </div>
-
-            <div class="sidebar-group-name">
-                {{ group.name }}
-            </div>
-
-            <div class="sidebar-group-description">
-                {{ group.description|truncatechars:90 }}
-            </div>
-
-            <nav
-                class="sidebar-links"
-                aria-label="Group navigation"
-            >
-
-                <!-- Discussions are visible to authorized viewers. -->
-
-                <a
-                    href="#group-discussions"
-                    class="sidebar-link active"
-                    data-workspace-tab="discussions"
-                    aria-current="page"
-                >
-                    💬
-
-                    <span class="sidebar-link-text">
-                        Discussions
-                    </span>
-                </a>
-
-
-                {% if is_member %}
-
-                    <!-- Chat is available only to group members. -->
-
-                    <a
-                        href="#group-chat"
-                        class="sidebar-link"
-                        data-workspace-tab="chat"
-                    >
-                        #
-
-                        <span class="sidebar-link-text">
-                            Group Chat
-                        </span>
-                    </a>
-
-
-                    <!-- Member list and invitation management. -->
-
-                    <a
-                        href="#group-members"
-                        class="sidebar-link"
-                        data-workspace-tab="members"
-                    >
-                        👥
-
-                        <span class="sidebar-link-text">
-                            Members
-                        </span>
-                    </a>
-
-
-                    {% if group.is_private %}
-
-                        <!-- Development features belong to private groups. -->
-
-                        <a
-                            href="{% url 'meeting_room' group.id %}"
-                            class="sidebar-link"
-                        >
-                            🚀
-
-                            <span class="sidebar-link-text">
-                                Development Room
-                            </span>
-                        </a>
-
-                    {% endif %}
-
-                {% endif %}
-
-            </nav>
-
-
-            <!-- The old membership approval navigation is removed. -->
-
-            <div class="sidebar-divider"></div>
-
-            <nav
-                class="sidebar-links"
-                aria-label="Other navigation"
-            >
-
-                <a
-                    href="{% url 'groups' %}"
-                    class="sidebar-link"
-                >
-                    ←
-
-                    <span class="sidebar-link-text">
-                        All Groups
-                    </span>
-                </a>
-
-                <!-- Link to invitations received by this developer. -->
-
-                <a
-                    href="{% url 'received_group_invitations' %}"
-                    class="sidebar-link"
-                >
-                    ✉
-
-                    <span class="sidebar-link-text">
-                        My Invitations
-                    </span>
-                </a>
-
-            </nav>
-
-        </aside>
-
-
-        <!-- =================================================
-             3. MAIN GROUP PAGE
-        ================================================== -->
-
-        <main class="workspace-main">
-
-            <div class="workspace-content">
-
-                <!-- Django success and error messages. -->
-
-                {% if messages %}
-
-                    <section
-                        class="notifications"
-                        aria-live="polite"
-                    >
-
-                        {% for message in messages %}
-
-                            <div
-                                class="notification notification-{{ message.tags }}"
-                                role="status"
-                            >
-                                {{ message }}
-                            </div>
-
-                        {% endfor %}
-
-                    </section>
-
-                {% endif %}
-
-
+    {% endif %}>
+    <div class="workspace-content">
                 {% if group.is_private and is_member %}
                     <!-- Real-time meeting alert; populated by external JavaScript. -->
                     <section
@@ -270,61 +50,36 @@
                     </section>
                 {% endif %}
 
-                <!-- =================================================
-                     4. GROUP HEADING
-                ================================================== -->
+                {% if is_member %}
+                    <!-- Workspace navigation above the group name. -->
+                    <nav class="group-top-navigation" aria-label="Group workspace sections">
+                        <a href="#group-chat" class="group-top-tab active" data-workspace-tab="chat" aria-current="page">Group Chat</a>
+                        <a href="{% url 'meeting_room' group.id %}" class="group-top-tab">Development Room</a>
+                        <a href="#group-members" class="group-top-tab" data-workspace-tab="members">Members</a>
+                    </nav>
+                {% endif %}
 
-                <div class="workspace-heading">
-
-                    <div>
-
-                        <h1>
-                            💬 Group Discussions
-                        </h1>
-
-                        <p class="workspace-subtitle">
-                            Share ideas, ask questions, and collaborate
-                            with developers.
-                        </p>
-
+                <!-- Compact group information. -->
+                <section class="workspace-group-info" aria-labelledby="group-title">
+                    <div class="group-identity-row">
+                        <h1 id="group-title">{{ group.name }}</h1>
+                        <span class="privacy-badge private">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <rect x="5" y="10" width="14" height="11" rx="2"></rect>
+                                <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
+                            </svg>
+                            Private
+                        </span>
                     </div>
-
-                </div>
-
-
-                <!-- =================================================
-                     5. GROUP INFORMATION
-                ================================================== -->
-
-                <section class="workspace-group-info">
-
-                    <h2>
-                        {{ group.name }}
-                    </h2>
-
-                    <!-- Private development groups require invitations. -->
-                    <span class="privacy-badge private">
-                        Private Development Group
-                    </span>
-
-                    <p>
-                        {{ group.description|linebreaksbr }}
-                    </p>
-
                     <div class="workspace-group-meta">
-
-                        <span>
-                            Created by {{ group.owner.username }}
-                        </span>
-
-                        <span>
-                            Invitation Only
-                        </span>
-
+                        <span>Owner: {{ group.owner.username }}</span>
+                        {% if is_member %}<span>Members: {{ members|length }}/10</span>{% endif %}
+                        <span>Invitation Only</span>
                     </div>
-
+                    <div class="group-description">
+                        <p>{{ group.description|linebreaksbr }}</p>
+                    </div>
                 </section>
-
 
                 <!-- =================================================
                      6. MEMBERSHIP ACTIONS
@@ -362,270 +117,6 @@
 
 
                 <!-- =================================================
-                     7. CREATE DISCUSSION
-                ================================================== -->
-
-                {% if is_member %}
-
-                    <section
-                        class="workspace-section"
-                        id="create-discussion"
-                    >
-
-                        <h2>
-                            Create a Discussion
-                        </h2>
-
-                        <p class="workspace-section-description">
-                            Ask a question, share an idea, or start
-                            a conversation with your group.
-                        </p>
-
-                        <form
-                            method="POST"
-                            action="{% url 'create_discussion' group.id %}"
-                        >
-
-                            {% csrf_token %}
-
-                            <div class="form-field">
-
-                                <label for="discussion-title">
-                                    Discussion Title
-                                </label>
-
-                                <input
-                                    type="text"
-                                    id="discussion-title"
-                                    name="title"
-                                    class="group-input"
-                                    maxlength="200"
-                                    placeholder="What would you like to discuss?"
-                                    required
-                                >
-
-                            </div>
-
-                            <div class="form-field">
-
-                                <label for="discussion-content">
-                                    Your Message
-                                </label>
-
-                                <textarea
-                                    id="discussion-content"
-                                    name="content"
-                                    class="group-textarea"
-                                    rows="5"
-                                    placeholder="Share your thoughts or ask a question..."
-                                    required
-                                ></textarea>
-
-                            </div>
-
-                            <button
-                                type="submit"
-                                class="group-action"
-                            >
-                                Publish Discussion
-                            </button>
-
-                        </form>
-
-                    </section>
-
-                {% endif %}
-
-
-                <!-- =================================================
-                     8. DISCUSSION FEED
-                ================================================== -->
-
-                <section
-                    class="workspace-section workspace-panel"
-                    id="group-discussions"
-                    data-workspace-panel="discussions"
-                >
-
-                    <h2>
-                        Recent Discussions
-                    </h2>
-
-                    {% for discussion in discussions %}
-
-                        <article
-                            class="discussion-card"
-                            id="discussion-{{ discussion.id }}"
-                        >
-
-                            <!-- Discussion author and creation date. -->
-
-                            <div class="discussion-author">
-
-                                <span class="discussion-avatar">
-                                    {{ discussion.author.username|first|upper }}
-                                </span>
-
-                                <span class="discussion-username">
-                                    {{ discussion.author.username }}
-                                </span>
-
-                                <span class="discussion-date">
-                                    {{ discussion.created_at|date:"M d, Y - H:i" }}
-                                </span>
-
-                            </div>
-
-
-                            <!-- Discussion title. -->
-
-                            <h3 class="discussion-title">
-
-                                <a
-                                    href="{% url 'discussion_detail' group.id discussion.id %}"
-                                >
-                                    {{ discussion.title }}
-                                </a>
-
-                            </h3>
-
-
-                            <!-- Discussion preview. -->
-
-                            <p class="discussion-content">
-                                {{ discussion.content|truncatewords:50|linebreaksbr }}
-                            </p>
-
-
-                            <!-- Discussion statistics. -->
-
-                            <div class="discussion-stats">
-
-                                <span>
-
-                                    💚
-
-                                    <span id="like-count-{{ discussion.id }}">
-                                        {{ discussion.like_count }}
-                                    </span>
-
-                                    likes
-
-                                </span>
-
-                                <span>
-
-                                    <span id="comment-count-{{ discussion.id }}">
-                                        {{ discussion.comment_count }}
-                                    </span>
-
-                                    comments
-
-                                </span>
-
-                            </div>
-
-
-                            <!-- Discussion actions. -->
-
-                            <div class="discussion-actions">
-
-                                {% if is_member %}
-
-                                    <form
-                                        method="POST"
-                                        action="{% url 'toggle_discussion_like' group.id discussion.id %}"
-                                        class="like-form"
-                                        data-discussion-id="{{ discussion.id }}"
-                                    >
-
-                                        {% csrf_token %}
-
-                                        <button
-                                            type="submit"
-                                            class="like-button {% if discussion.liked_by_user %}liked{% endif %}"
-                                            aria-pressed="{% if discussion.liked_by_user %}true{% else %}false{% endif %}"
-                                        >
-
-                                            <span class="like-label">
-
-                                                {% if discussion.liked_by_user %}
-                                                    💚 Liked
-                                                {% else %}
-                                                    ♡ Like
-                                                {% endif %}
-
-                                            </span>
-
-                                        </button>
-
-                                    </form>
-
-                                {% endif %}
-
-
-                                <a
-                                    href="{% url 'discussion_detail' group.id discussion.id %}"
-                                    class="comment-button"
-                                >
-                                    💬 Comment
-                                </a>
-
-
-                                {% if is_member %}
-
-                                    <form
-                                        method="POST"
-                                        action="{% url 'hide_discussion' group.id discussion.id %}"
-                                    >
-
-                                        {% csrf_token %}
-
-                                        <button
-                                            type="submit"
-                                            class="hide-button"
-                                        >
-                                            Hide Post
-                                        </button>
-
-                                    </form>
-
-                                {% endif %}
-
-                            </div>
-
-
-                            <!-- JavaScript displays like errors here. -->
-
-                            <p
-                                class="like-error"
-                                id="like-error-{{ discussion.id }}"
-                                role="alert"
-                                hidden
-                            ></p>
-
-                        </article>
-
-                    {% empty %}
-
-                        <p class="workspace-section-description">
-                            No discussions have been published yet.
-                        </p>
-
-                        {% if is_member %}
-
-                            <p class="workspace-section-description">
-                                Be the first to start a conversation!
-                            </p>
-
-                        {% endif %}
-
-                    {% endfor %}
-
-                </section>
-
-
-                <!-- =================================================
                      9. GROUP CHAT
                      Only members can access the chat.
                 ================================================== -->
@@ -636,25 +127,9 @@
                         class="workspace-section workspace-panel"
                         id="group-chat"
                         data-workspace-panel="chat"
-                        hidden
                     >
 
-                        <header class="chat-header">
 
-                            <div>
-
-                                <h2>
-                                    # {{ group.name }}
-                                </h2>
-
-                                <p class="workspace-section-description">
-                                    Chat, share code, and collaborate
-                                    with your group members.
-                                </p>
-
-                            </div>
-
-                        </header>
 
 
                         <!-- Chat message history. -->
@@ -1335,12 +810,9 @@
 
                 {% endif %}
 
-            </div>
-
-        </main>
 
     </div>
-
+</div>
 
     <!-- =====================================================
          14. REMOVE MEMBER CONFIRMATION MODAL
@@ -1462,12 +934,6 @@
          All JavaScript stays in separate files.
     ====================================================== -->
 
-    <!-- Discussion interactions -->
-    <script
-        src="{% static 'community/group_detail/discussions.js' %}"
-        defer
-    ></script>
-
     <!-- Workspace navigation and confirmation modals -->
     <script
         src="{% static 'community/group_detail/group_workspace.js' %}"
@@ -1494,5 +960,5 @@
         ></script>
     {% endif %}
 
-</body>
-</html>
+
+{% endblock %}

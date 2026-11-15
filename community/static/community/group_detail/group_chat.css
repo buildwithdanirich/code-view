@@ -1,6 +1,6 @@
 /* ==========================================
    10. GROUP CHAT WORKSPACE
-   Keep the original CodeView chat design.
+   ColabVerse navy theme; preserve existing chat interactions.
 ========================================== */
 
 /*
@@ -14,7 +14,6 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-    overflow: hidden;
     padding: 0;
 }
 
@@ -36,7 +35,7 @@
     min-height: 0;
     margin: 0;
     padding: 0;
-    background: #17181b;
+    background: #101729;
     border: none;
     border-radius: 0;
 }
@@ -51,7 +50,7 @@
     justify-content: space-between;
     gap: 15px;
     padding: 20px 25px;
-    border-bottom: 1px solid #35363b;
+    border-bottom: 1px solid #2b3855;
     flex-shrink: 0;
 }
 
@@ -89,7 +88,7 @@
 }
 
 #group-chat .chat-message:hover {
-    background: #202126;
+    background: #1b2741;
 }
 
 /* Developer avatar. */
@@ -100,8 +99,8 @@
     width: 39px;
     height: 39px;
     flex-shrink: 0;
-    background: #244c38;
-    color: #86efac;
+    background: #273b74;
+    color: #a5b4fc;
     border-radius: 50%;
     font-weight: 700;
 }
@@ -122,7 +121,7 @@
 }
 
 #group-chat .message-author {
-    color: #4ade80;
+    color: #8b9fff;
     font-size: 14px;
     font-weight: 700;
 }
@@ -147,8 +146,8 @@
 #group-chat .message-reply {
     padding: 10px 12px;
     margin-bottom: 10px;
-    background: #25272d;
-    border-left: 3px solid #22c55e;
+    background: #18233d;
+    border-left: 3px solid #6366f1;
     border-radius: 5px;
     color: #d1d5db;
     font-size: 12px;
@@ -165,10 +164,10 @@
 #group-chat .message-code {
     padding: 16px;
     margin-top: 10px;
-    background: #0f1117;
-    border: 1px solid #343842;
+    background: #0b1224;
+    border: 1px solid #303e60;
     border-radius: 8px;
-    color: #d1fae5;
+    color: #e0e7ff;
     font-size: 13px;
     line-height: 1.6;
     overflow-x: auto;
@@ -176,7 +175,7 @@
 
 #group-chat .code-language {
     margin-bottom: 8px;
-    color: #4ade80;
+    color: #8b9fff;
     font-size: 12px;
 }
 
@@ -187,7 +186,7 @@
 #group-chat .message-attachment {
     display: inline-block;
     margin-top: 10px;
-    color: #86efac;
+    color: #a5b4fc;
 }
 
 #group-chat .message-audio {
@@ -217,7 +216,7 @@
 }
 
 #group-chat .message-actions button:hover {
-    color: #4ade80;
+    color: #8b9fff;
 }
 
 /* Empty chat message. */
@@ -240,8 +239,8 @@
 
 #group-chat .chat-composer {
     padding: 18px 25px 25px;
-    background: #17181b;
-    border-top: 1px solid #35363b;
+    background: #101729;
+    border-top: 1px solid #2b3855;
     flex-shrink: 0;
 }
 
@@ -252,8 +251,8 @@
     align-items: flex-end;
     gap: 12px;
     padding: 12px;
-    background: #26282d;
-    border: 1px solid #41434a;
+    background: #17233b;
+    border: 1px solid #344464;
     border-radius: 12px;
 }
 
@@ -290,7 +289,7 @@
     width: 39px;
     height: 39px;
     flex-shrink: 0;
-    background: #383b42;
+    background: #263657;
     border: none;
     border-radius: 9px;
     color: #e5e7eb;
@@ -299,17 +298,17 @@
 }
 
 #group-chat .composer-button:hover {
-    background: #4b5563;
+    background: #344a74;
 }
 
 /* Send message button. */
 #group-chat .composer-send {
-    background: #16a34a;
+    background: #4f46e5;
     color: #ffffff;
 }
 
 #group-chat .composer-send:hover {
-    background: #15803d;
+    background: #4338ca;
 }
 
 /* Disabled microphone button. */
@@ -347,20 +346,20 @@
 }
 
 #group-chat #attach-file-button:hover {
-    background: #383b42;
+    background: #263657;
 }
 
 /* Display the name of the selected file. */
 #group-chat .selected-file-name {
     margin: 10px 0 0;
-    color: #86efac;
+    color: #a5b4fc;
     font-size: 12px;
     overflow-wrap: anywhere;
 }
 
 /* Highlight the message box when typing. */
 #group-chat .composer-box:focus-within {
-    border-color: #16a34a;
+    border-color: #4f46e5;
 }
 /* Responsive chat layout */
 @media (max-width: 750px) {
@@ -408,9 +407,9 @@
 #group-chat .message-delete-form {
     margin-top: 12px;
     padding: 15px;
-    background: #202227;
+    background: #17233b;
     color: #e7e9ed;
-    border: 1px solid #353942;
+    border: 1px solid #2b3855;
     border-radius: 10px;
 }
 
@@ -420,9 +419,9 @@
     width: 100%;
     min-height: 85px;
     padding: 12px;
-    background: #17191d;
+    background: #0e172a;
     color: #f4f5f7;
-    border: 1px solid #414650;
+    border: 1px solid #344464;
     border-radius: 8px;
     font: inherit;
     line-height: 1.5;
@@ -431,8 +430,8 @@
 
 #group-chat .message-edit-input:focus {
     outline: none;
-    border-color: #22c76a;
-    box-shadow: 0 0 0 3px rgba(34, 199, 106, 0.15);
+    border-color: #818cf8;
+    box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.15);
 }
 
 #group-chat .message-edit-actions {
@@ -455,15 +454,15 @@
 }
 
 #group-chat .edit-save-button {
-    background: #159a51;
+    background: #4f46e5;
     color: #fff;
 }
 
 #group-chat .edit-cancel-button,
 #group-chat .delete-cancel-button {
-    background: #32363e;
+    background: #263657;
     color: #e5e7eb;
-    border-color: #474c55;
+    border-color: #344464;
 }
 
 #group-chat .delete-confirm-button {
@@ -630,5 +629,79 @@
 @media (prefers-reduced-motion: reduce) {
     #group-chat #voice-recording-indicator {
         animation: none;
+    }
+}
+/* ============================================================
+   22. GROUP-ONLY THEME AND FIXED CHAT SCROLL AREA
+   These rules win over older group_detail.css selectors.
+   The Questions and Developer Feed pages are unaffected.
+============================================================ */
+
+body.group-workspace-page #group-chat {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-width: 0;
+    height: clamp(420px, calc(100dvh - 285px), 1100px);
+    min-height: 420px;
+    overflow: hidden;
+    background: #111827;
+    border: 1px solid #293653;
+    border-radius: 10px;
+}
+
+body.group-workspace-page #group-chat .chat-messages {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: #111827;
+    scrollbar-color: #35476d transparent;
+    scrollbar-width: thin;
+}
+
+body.group-workspace-page #group-chat .chat-composer {
+    flex: 0 0 auto;
+    background: #151e30;
+    border-top: 1px solid #293653;
+}
+
+body.group-workspace-page #group-chat .composer-box {
+    background: #1a2742;
+    border-color: #344464;
+}
+
+body.group-workspace-page #group-chat .composer-send {
+    background: #4f46e5;
+}
+
+body.group-workspace-page #group-chat .composer-send:hover {
+    background: #4338ca;
+}
+
+body.group-workspace-page #group-chat .chat-message:hover {
+    background: #1b2741;
+}
+
+body.group-workspace-page #group-chat .message-author,
+body.group-workspace-page #group-chat .message-actions button:hover {
+    color: #a5b4fc;
+}
+
+body.group-workspace-page #group-chat .message-avatar {
+    color: #e0e7ff;
+    background: #273b74;
+}
+
+/* No animation on chat message containers: only scroll history. */
+body.group-workspace-page #group-chat .chat-message {
+    animation: none;
+    transition: background-color 0.15s ease;
+}
+
+@media (max-width: 600px) {
+    body.group-workspace-page #group-chat {
+        height: clamp(400px, calc(100dvh - 240px), 750px);
+        min-height: 400px;
     }
 }

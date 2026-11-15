@@ -1,46 +1,66 @@
-// ========================================
-// CODEVIEW GROUP WORKSPACE
-// Switch between Discussions, Chat,
-// and Members without reloading the page.
-// ========================================
+// ============================================================
+// COLABVERSE — PRIVATE GROUP WORKSPACE
+// File: group_workspace.js
+//
+// Responsibilities:
+// 1. Open Group Chat by default.
+// 2. Switch between Group Chat and Members.
+// 3. Keep group information visible.
+// 4. Support browser Back/Forward navigation.
+// 5. Confirm member removal.
+// 6. Confirm leaving a group.
+//
+// All functionality uses external JavaScript.
+// ============================================================
 
 document.addEventListener("DOMContentLoaded", function () {
 
-    // Find all sidebar links that switch workspace sections.
+    // ========================================================
+    // 1. WORKSPACE NAVIGATION
+    // ========================================================
+
+    // Find navigation links for sections on this page.
     const tabs = document.querySelectorAll("[data-workspace-tab]");
 
-    // Find the main workspace content.
-    const workspaceContent = document.querySelector(".workspace-content");
-
-    // Find the discussions, chat, and members sections.
-    const discussionSections = [
-        document.getElementById("create-discussion"),
-        document.getElementById("group-discussions")
-    ];
-
+    // Find the existing workspace panels.
     const chatSection = document.getElementById("group-chat");
-
     const membersSection = document.getElementById("group-members");
 
-    // Find the heading and group information.
-    const workspaceHeading = document.querySelector(".workspace-heading");
-    const groupInformation = document.querySelector(".workspace-group-info");
+    // Find the scrollable workspace container.
+    const workspaceMain = document.querySelector(".workspace-main");
 
-    // Find the membership notice for nonmembers.
-    const membershipNotice = document.querySelector(".membership-notice");
+    // Only these sections are supported.
+    const supportedTabs = ["chat", "members"];
 
 
-    // ========================================
+    // ========================================================
+    // FUNCTION: GET THE ACTIVE TAB FROM THE URL
+    // ========================================================
+
+    function getTabFromURL() {
+
+        // Members is selected when the URL ends in #group-members.
+        if (window.location.hash === "#group-members") {
+            return "members";
+        }
+
+        // Group Chat is the default for all other URLs.
+        return "chat";
+    }
+
+
+    // ========================================================
     // FUNCTION: SWITCH WORKSPACE TAB
-    // ========================================
+    // ========================================================
 
     function switchTab(tabName) {
-        // Only allow the three supported workspace tabs.
-        if (!["discussions", "chat", "members"].includes(tabName)) {
-        return;
-    } 
 
-        // Check whether the selected section exists.
+        // Reject unsupported navigation values.
+        if (!supportedTabs.includes(tabName)) {
+            return;
+        }
+
+        // Do not switch to a section that does not exist.
         if (tabName === "chat" && !chatSection) {
             return;
         }
@@ -49,18 +69,7 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
-        // ====================================
-        // 1. HIDE ALL WORKSPACE SECTIONS
-        // ====================================
-
-        discussionSections.forEach(function (section) {
-
-            if (section) {
-                section.hidden = true;
-            }
-
-        });
-
+        // Hide both workspace panels.
         if (chatSection) {
             chatSection.hidden = true;
         }
@@ -69,60 +78,16 @@ document.addEventListener("DOMContentLoaded", function () {
             membersSection.hidden = true;
         }
 
-        if (workspaceHeading) {
-            workspaceHeading.hidden = true;
-        }
-
-        if (groupInformation) {
-            groupInformation.hidden = true;
-        }
-
-        if (membershipNotice) {
-            membershipNotice.hidden = true;
-        }
-
-
-        // ====================================
-        // 2. SHOW THE SELECTED SECTION
-        // ====================================
-
-        if (tabName === "discussions") {
-
-            discussionSections.forEach(function (section) {
-
-                if (section) {
-                    section.hidden = false;
-                }
-
-            });
-
-            if (workspaceHeading) {
-                workspaceHeading.hidden = false;
-            }
-
-            if (groupInformation) {
-                groupInformation.hidden = false;
-            }
-
-            if (membershipNotice) {
-                membershipNotice.hidden = false;
-            }
-
-        } else if (tabName === "chat") {
-
+        // Show the requested panel.
+        if (tabName === "chat") {
             chatSection.hidden = false;
-
-        } else if (tabName === "members") {
-
-            membersSection.hidden = false;
-
         }
 
+        if (tabName === "members") {
+            membersSection.hidden = false;
+        }
 
-        // ====================================
-        // 3. UPDATE ACTIVE SIDEBAR LINK
-        // ====================================
-
+        // Update the selected navigation link.
         tabs.forEach(function (tab) {
 
             const isActive = tab.dataset.workspaceTab === tabName;
@@ -134,98 +99,84 @@ document.addEventListener("DOMContentLoaded", function () {
             } else {
                 tab.removeAttribute("aria-current");
             }
-
         });
 
+        // Keep group information visible above the panels.
+        // Only the chat and members panels are switched.
 
-        // ====================================
-        // 4. SCROLL MAIN CONTENT TO TOP
-        // ====================================
-
-        if (workspaceContent) {
-            workspaceContent.scrollTop = 0;
+        // Return the main workspace to the top.
+        if (workspaceMain) {
+            workspaceMain.scrollTop = 0;
         }
-
     }
 
 
-    // ========================================
-    // FUNCTION: READ TAB FROM URL
-    // ========================================
-
-    function getTabFromURL() {
-
-        const hash = window.location.hash;
-
-        if (hash === "#group-chat") {
-            return "chat";
-        }
-
-        if (hash === "#group-members") {
-            return "members";
-        }
-
-        return "discussions";
-    }
-
-
-    // ========================================
-    // HANDLE SIDEBAR CLICKS
-    // ========================================
+    // ========================================================
+    // 2. HANDLE NAVIGATION CLICKS
+    // ========================================================
 
     tabs.forEach(function (tab) {
 
         tab.addEventListener("click", function (event) {
 
-            // Prevent normal anchor navigation.
-            event.preventDefault();
-
-            // Get the selected tab name.
             const tabName = tab.dataset.workspaceTab;
 
-           // Add the selected tab to browser history.
-        window.history.pushState(
-            null,
-            "",
-            tab.getAttribute("href")
-        );
-            // Display the selected section.
+            // Ignore links without a supported workspace tab.
+            if (!supportedTabs.includes(tabName)) {
+                return;
+            }
+
+            // Prevent normal anchor scrolling.
+            event.preventDefault();
+
+            // Update the browser URL.
+            const targetHash = tabName === "members"
+                ? "#group-members"
+                : "#group-chat";
+
+            window.history.pushState(
+                null,
+                "",
+                targetHash
+            );
+
+            // Display the selected workspace panel.
             switchTab(tabName);
-
         });
-
     });
 
 
-    // ========================================
-    // HANDLE BROWSER BACK/FORWARD HASH CHANGES
-    // ========================================
+    // ========================================================
+    // 3. HANDLE BROWSER NAVIGATION
+    // ========================================================
 
-    // Handle Back and Forward navigation.
-window.addEventListener("popstate", function () {
+    // Handle browser Back and Forward buttons.
+    window.addEventListener("popstate", function () {
+        switchTab(getTabFromURL());
+    });
+
+    // Handle URL hash changes.
+    window.addEventListener("hashchange", function () {
+        switchTab(getTabFromURL());
+    });
+
+
+    // ========================================================
+    // 4. DISPLAY THE INITIAL WORKSPACE
+    // ========================================================
+
+    // Members open Group Chat automatically unless
+    // the URL explicitly selects the Members section.
     switchTab(getTabFromURL());
-});
-
-// Handle hash changes from normal links.
-window.addEventListener("hashchange", function () {
-    switchTab(getTabFromURL());
-});
 
 
-    // ========================================
-    // DISPLAY INITIAL SECTION
-    // ========================================
+    // ========================================================
+    // 5. REMOVE MEMBER CONFIRMATION MODAL
+    // ========================================================
 
-    switchTab(getTabFromURL());
-
-
-
-    // ========================================
-    // REMOVE DEVELOPER CONFIRMATION MODAL
-    // ========================================
-
-    // Find the modal and its buttons.
-    const removeModal = document.getElementById("remove-member-modal");
+    const removeModal = document.getElementById(
+        "remove-member-modal"
+    );
 
     const cancelRemoveButton = document.getElementById(
         "cancel-remove-member"
@@ -235,109 +186,116 @@ window.addEventListener("hashchange", function () {
         "confirm-remove-member"
     );
 
-    // Store the form belonging to the selected developer.
+    // Remember which membership form should be submitted.
     let selectedRemoveForm = null;
-    // Remember the button that opened the modal.
+
+    // Remember which button opened the modal.
     let removeTriggerButton = null;
 
-    if (removeModal && cancelRemoveButton && confirmRemoveButton) {
+    if (
+        removeModal &&
+        cancelRemoveButton &&
+        confirmRemoveButton
+    ) {
 
-        // Find every Remove Member form.
         const removeForms = document.querySelectorAll(
             ".remove-member-form"
         );
 
-        // Open the modal when a Remove button is clicked.
+        // Open confirmation before submitting a removal form.
         removeForms.forEach(function (form) {
 
             form.addEventListener("submit", function (event) {
 
-                // Stop the form from submitting immediately.
                 event.preventDefault();
 
-                // Remember which developer should be removed.
                 selectedRemoveForm = form;
-                // Remember the button that opened the confirmation.
-removeTriggerButton = event.submitter || form.querySelector(
-    'button[type="submit"]'
-);
 
-                // Display the confirmation modal.
+                removeTriggerButton =
+                    event.submitter ||
+                    form.querySelector('button[type="submit"]');
+
                 removeModal.hidden = false;
 
-                // Move keyboard focus into the modal.
+                // Move keyboard focus into the dialog.
                 cancelRemoveButton.focus();
-
             });
-
         });
 
-        // Close the modal without removing the developer.
-function closeRemoveModal() {
 
-    // Hide the confirmation modal.
-    removeModal.hidden = true;
+        // Close the dialog without removing anyone.
+        function closeRemoveModal() {
 
-    // Return keyboard focus to the Remove button.
-    if (removeTriggerButton) {
-        removeTriggerButton.focus();
-    }
+            removeModal.hidden = true;
 
-    // Clear the selected form and button.
-    selectedRemoveForm = null;
-    removeTriggerButton = null;
-}
+            // Return focus to the original button.
+            if (removeTriggerButton) {
+                removeTriggerButton.focus();
+            }
+
+            selectedRemoveForm = null;
+            removeTriggerButton = null;
+        }
+
 
         // Cancel removal.
-        cancelRemoveButton.addEventListener("click", function () {
-            closeRemoveModal();
-        });
+        cancelRemoveButton.addEventListener(
+            "click",
+            closeRemoveModal
+        );
+
 
         // Confirm removal.
         confirmRemoveButton.addEventListener("click", function () {
 
-            if (selectedRemoveForm) {
-
-                // Submit the original Django form.
-                // This includes its CSRF token.
-                selectedRemoveForm.submit();
-
+            if (!selectedRemoveForm) {
+                return;
             }
 
+            // Submit the original Django form.
+            // Its CSRF token is preserved.
+            selectedRemoveForm.submit();
         });
 
-        // Close the modal when clicking outside its content.
-        const modalOverlay = removeModal.querySelector(
+
+        // Close when clicking the modal overlay.
+        const removeOverlay = removeModal.querySelector(
             ".codeview-modal-overlay"
         );
 
-        if (modalOverlay) {
+        if (removeOverlay) {
 
-            modalOverlay.addEventListener("click", function () {
-                closeRemoveModal();
-            });
-
+            removeOverlay.addEventListener(
+                "click",
+                closeRemoveModal
+            );
         }
 
-        // Close the modal when Escape is pressed.
+
+        // Close with Escape.
         document.addEventListener("keydown", function (event) {
 
-            if (event.key === "Escape" && !removeModal.hidden) {
+            if (
+                event.key === "Escape" &&
+                !removeModal.hidden
+            ) {
                 closeRemoveModal();
             }
-
         });
-
     }
 
-            // ========================================
-    // LEAVE GROUP CONFIRMATION MODAL
-    // ========================================
 
-    // Find the Leave Group form and modal.
-    const leaveForm = document.querySelector(".leave-group-form");
+    // ========================================================
+    // 6. LEAVE GROUP CONFIRMATION MODAL
+    // ========================================================
 
-    const leaveModal = document.getElementById("leave-group-modal");
+    const leaveForm = document.querySelector(
+        ".leave-group-form"
+    );
+
+    const leaveModal = document.getElementById(
+        "leave-group-modal"
+    );
 
     const cancelLeaveButton = document.getElementById(
         "cancel-leave-group"
@@ -347,63 +305,81 @@ function closeRemoveModal() {
         "confirm-leave-group"
     );
 
-    if (leaveForm && leaveModal && cancelLeaveButton && confirmLeaveButton) {
+    if (
+        leaveForm &&
+        leaveModal &&
+        cancelLeaveButton &&
+        confirmLeaveButton
+    ) {
 
-        // Open the modal when the developer clicks Leave Group.
+        // Remember the button used to open the dialog.
+        const leaveTriggerButton = leaveForm.querySelector(
+            'button[type="submit"]'
+        );
+
+
+        // Open confirmation instead of immediately leaving.
         leaveForm.addEventListener("submit", function (event) {
 
-            // Stop the form from submitting immediately.
             event.preventDefault();
 
-            // Display the custom modal.
             leaveModal.hidden = false;
 
-            // Move keyboard focus into the modal.
             cancelLeaveButton.focus();
         });
 
-       function closeLeaveModal() {
 
-    // Hide the confirmation modal.
-    leaveModal.hidden = true;
+        // Close the confirmation dialog.
+        function closeLeaveModal() {
 
-    // Return focus to the Leave Group button.
-    const leaveButton = leaveForm.querySelector(
-        'button[type="submit"]'
-    );
+            leaveModal.hidden = true;
 
-    if (leaveButton) {
-        leaveButton.focus();
-    }
-}
+            // Restore keyboard focus.
+            if (leaveTriggerButton) {
+                leaveTriggerButton.focus();
+            }
+        }
 
-        // Cancel leaving.
-        cancelLeaveButton.addEventListener("click", closeLeaveModal);
 
-        // Confirm leaving.
+        // Cancel leaving the group.
+        cancelLeaveButton.addEventListener(
+            "click",
+            closeLeaveModal
+        );
+
+
+        // Confirm leaving the group.
         confirmLeaveButton.addEventListener("click", function () {
 
             // Submit the original Django form with its CSRF token.
             leaveForm.submit();
         });
 
-        // Close the modal when clicking outside.
+
+        // Close when clicking outside the dialog.
         const leaveOverlay = leaveModal.querySelector(
             ".codeview-modal-overlay"
         );
 
         if (leaveOverlay) {
-            leaveOverlay.addEventListener("click", closeLeaveModal);
+
+            leaveOverlay.addEventListener(
+                "click",
+                closeLeaveModal
+            );
         }
-        // Close the modal when Escape is pressed.
+
+
+        // Close with Escape.
         document.addEventListener("keydown", function (event) {
 
-            if (event.key === "Escape" && !leaveModal.hidden) {
+            if (
+                event.key === "Escape" &&
+                !leaveModal.hidden
+            ) {
                 closeLeaveModal();
             }
-
         });
+    }
 
-    } // End of Leave Group confirmation modal.
-
-}); // End of DOMContentLoaded.
+});

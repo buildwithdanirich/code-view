@@ -1,15 +1,18 @@
 """
-Private development group invitation services.
+ColabVerse private development group invitation services.
 
 This file handles:
 1. Sending invitations.
 2. Accepting invitations.
 3. Declining invitations.
-4. Checking the 15-member limit.
+4. Enforcing the 10-member limit.
+5. Retrieving pending invitations.
 
-Only private development groups use invitations.
+Rules:
+- All development groups are private.
+- Membership is invitation-only.
+- Maximum 10 members, including the owner.
 """
-
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
@@ -60,10 +63,10 @@ def send_group_invitation(group, invited_by, invited_user):
             pk=group.pk
         )
 
-        # Normal chat groups do not use invitations.
+       # Invitations are only allowed for private development groups.
         if not group.is_private:
             raise ValidationError(
-                "Normal chat groups do not require invitations."
+                "Only private development groups support invitations."
             )
 
         # Only the owner can invite developers.
@@ -163,7 +166,7 @@ def accept_group_invitation(invitation_id, user):
 
         John clicks Accept.
 
-        CodeView adds John to the private group.
+        Colabverse adds John to the private group.
     """
 
     # Only logged-in developers can accept invitations.
@@ -180,7 +183,7 @@ def accept_group_invitation(invitation_id, user):
         )
 
         # Lock the group to prevent simultaneous acceptances
-        # from exceeding the 15-member limit.
+        # from exceeding the 10-member limit.
         group = ProjectGroup.objects.select_for_update().get(
             pk=invitation.group_id
         )
@@ -205,7 +208,7 @@ def accept_group_invitation(invitation_id, user):
         # Invitations are only valid for private groups.
         if not group.is_private:
             raise ValidationError(
-                "This group does not support invitations."
+                "Only private development groups support invitations."
             )
 
         # Check whether the developer is already a member.
@@ -301,9 +304,9 @@ def get_pending_invitations(user):
     Return invitations waiting for a developer's response.
 
     Example:
-        John logs into CodeView.
+        John logs into colabverse.
 
-        CodeView displays:
+        colabverse displays:
             Python Developers — Accept / Decline
             Backend Team — Accept / Decline
     """
