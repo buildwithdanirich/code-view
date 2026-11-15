@@ -1,36 +1,84 @@
-"""Main URL configuration for CodeView."""
+"""Main URL configuration for ColabVerse."""
 
 # Access Django project settings.
 from django.conf import settings
 
-from community import github_oauth
+from django.contrib.auth.decorators import login_required
 
-# Helper for serving uploaded files during development.
+# Serve uploaded media files during development.
 from django.conf.urls.static import static
 
+# Django admin panel.
 from django.contrib import admin
+
+# URL routing utilities.
 from django.urls import include, path
+
+# Redirect users to existing named routes.
 from django.views.generic import RedirectView
 
-from home.views import home
+# Existing GitHub authorization functionality.
+from community import github_oauth
 
 
-# Django looks for this exact variable name: urlpatterns.
+# Django reads this list to determine which view handles each URL.
 urlpatterns = [
 
-    # Django admin panel.
-    path("admin/", admin.site.urls),
+    # ============================================================
+    # DJANGO ADMIN
+    # ============================================================
 
-    # Homepage.
-    path("", home, name="home"),
+    path(
+        "admin/",
+        admin.site.urls,
+    ),
 
-    # Registration and login.
-    path("", include("users.urls")),
+    # ============================================================
+    # COLABVERSE HOMEPAGE
+    # ============================================================
 
-    # Project Groups.
-    path("groups/", include("community.urls")),
+    # Make the Questions feed the main homepage.
+    #
+    # Visiting:
+    # http://127.0.0.1:8000/
+    #
+    # Redirects to:
+    # http://127.0.0.1:8000/questions/
+    #
+    # Keep the "home" URL name for compatibility.
+    path(
+        "",
+        login_required(
+        RedirectView.as_view(
+            pattern_name="questions:feed",
+            permanent=False,
+         )
+        ),
+        name="home",
+    ),
 
-    # Redirect old Community URLs to Groups.
+    # ============================================================
+    # USER AUTHENTICATION
+    # ============================================================
+
+    # Preserve existing registration, login, logout,
+    # email verification, and password reset URLs.
+    path(
+        "",
+        include("users.urls"),
+    ),
+
+    # ============================================================
+    # PRIVATE DEVELOPMENT GROUPS
+    # ============================================================
+
+    # All private group functionality remains in Community.
+    path(
+        "groups/",
+        include("community.urls"),
+    ),
+
+    # Preserve the existing Community redirect.
     path(
         "community/",
         RedirectView.as_view(
@@ -39,34 +87,51 @@ urlpatterns = [
         ),
     ),
 
-        # ============================================================
+    # ============================================================
     # GITHUB OAUTH AUTHORIZATION
     # ============================================================
 
-    # Start GitHub authorization for a private development group.
+    # Start GitHub authorization for a private group.
     path(
         "github/authorize/<int:group_id>/",
         github_oauth.start_github_authorization,
         name="start_github_authorization",
     ),
 
-    # GitHub redirects developers here after authorization.
+    # GitHub authorization callback.
     path(
         "github/callback/",
         github_oauth.github_oauth_callback,
         name="github_oauth_callback",
     ),
-    path("accounts/", include("allauth.urls")),
-    path("questions/", include("questions.urls")),
+
+    # ============================================================
+    # THIRD-PARTY ACCOUNT AUTHENTICATION
+    # ============================================================
+
+    path(
+        "accounts/",
+        include("allauth.urls"),
+    ),
+
+    # ============================================================
+    # QUESTIONS APP
+    # ============================================================
+
+    # Public questions feed, likes, comments, and notifications.
+    path(
+        "questions/",
+        include("questions.urls"),
+    ),
 
 ]
 
 
-# ========================================
-# SERVE UPLOADED FILES DURING DEVELOPMENT
-# ========================================
+# ============================================================
+# DEVELOPMENT MEDIA FILES
+# ============================================================
 
-# Only serve uploaded files this way in development.
+# Django serves uploaded files directly only in development.
 if settings.DEBUG:
     urlpatterns += static(
         settings.MEDIA_URL,

@@ -1,1 +1,1096 @@
-:root{color-scheme:dark;--bg:#0b1020;--panel:#141b2f;--line:#29334d;--text:#eaf0ff;--muted:#9ca9c7;--accent:#8b5cf6;--blue:#4da3ff}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 system-ui,-apple-system,Segoe UI,sans-serif}a{color:inherit;text-decoration:none}a:hover{color:var(--blue)}button,input,textarea{font:inherit}button{cursor:pointer}.topbar{height:70px;display:flex;align-items:center;justify-content:space-between;padding:0 max(20px,calc((100vw - 1320px)/2));border-bottom:1px solid var(--line);position:sticky;top:0;background:#0d1325;z-index:10}.brand{font-size:23px;font-weight:800}.brand>span:first-child{color:var(--accent)}.blue{color:var(--blue)}.topbar nav{display:flex;gap:22px}.layout{display:grid;grid-template-columns:210px minmax(0,690px) 260px;gap:24px;max-width:1300px;margin:32px auto;padding:0 20px}.left,.right{align-self:start;position:sticky;top:100px}.left a{display:block;padding:12px 14px;border-radius:10px}.left a:hover{background:var(--panel)}.left h3{padding-left:14px}.muted,small{color:var(--muted)}.left .muted{padding:14px}.panel,.post,.sidecard{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px;margin-bottom:16px}.sidecard{padding:20px}.heading{display:flex;align-items:center;justify-content:space-between;gap:15px}h1{font-size:25px;line-height:1.3;margin:8px 0 12px}h2{font-size:20px;line-height:1.4}h3{font-size:16px}.button,.search button{display:inline-block;border:0;border-radius:10px;background:linear-gradient(120deg,#7c3aed,#2563eb);color:white;padding:11px 16px;font-weight:700}.search{display:flex;gap:10px;margin:20px 0}.search input,input[type=search],input[type=text],textarea{width:100%;border:1px solid var(--line);border-radius:10px;background:#0d1426;color:var(--text);padding:12px;outline:none}.search input:focus,textarea:focus{border-color:var(--accent)}.tabs{display:flex;gap:22px;border-bottom:1px solid var(--line)}.tabs a{padding:8px 0}.tabs .active{color:var(--blue);border-bottom:2px solid var(--blue)}.post-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.avatar{width:34px;height:34px;border-radius:50%;display:inline-grid;place-items:center;background:#50379c;color:white;font-weight:700}.excerpt{color:#cbd5e1;overflow-wrap:anywhere}.bodytext{overflow-wrap:anywhere;white-space:normal}.tags{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}.tags a{color:#b5a4ff;background:#2b244e;border-radius:7px;padding:4px 9px;font-size:13px}.actions{display:flex;flex-wrap:wrap;align-items:center;gap:20px;margin-top:20px;color:var(--muted);font-size:14px}.actions form{margin:0}.actions button,.heading button{border:0;background:transparent;color:var(--muted);padding:0}.actions button:hover{color:var(--blue)}.editor{display:flex;flex-direction:column;gap:12px;margin-top:18px}.editor label{font-weight:700}.editor .button{align-self:flex-start}.editor ul.errorlist{color:#ff9a9a}.comment{padding:20px}.nested{margin:18px 0 0 25px;padding:15px;border-left:2px solid var(--accent);background:#10182a;border-radius:6px}.accepted{color:#68e7a5;font-weight:700}.notice{background:#1d3151;border-radius:8px;padding:10px 15px;margin-bottom:16px}.notification{border-bottom:1px solid var(--line);padding:12px 0}.unread{border-left:3px solid var(--accent);padding-left:12px}.pagination{display:flex;justify-content:space-between;gap:12px;padding:15px;color:var(--muted)}[hidden]{display:none!important}@media(max-width:1050px){.layout{grid-template-columns:170px minmax(0,1fr)}.right{display:none}}@media(max-width:700px){.layout{display:block;padding:0 12px;margin:16px auto}.left{display:none}.topbar{padding:0 15px;height:auto;min-height:65px;flex-wrap:wrap;gap:5px}.topbar nav{gap:10px;font-size:12px}.panel,.post{padding:17px}.heading{align-items:flex-start}.brand{font-size:20px}}
+/* ============================================================
+   COLABVERSE — GLOBAL THEME
+   ============================================================ */
+
+:root {
+    color-scheme: dark;
+
+    --bg: #0b1020;
+    --panel: #141b2f;
+    --line: #29334d;
+    --text: #eaf0ff;
+    --muted: #9ca9c7;
+    --accent: #8b5cf6;
+    --blue: #4da3ff;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.6 system-ui, -apple-system, Segoe UI, sans-serif;
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+a:hover {
+    color: var(--blue);
+}
+
+button,
+input,
+textarea {
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+
+/* ============================================================
+   TOP NAVIGATION
+   ============================================================ */
+
+.topbar {
+    min-height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+
+    padding: 0 max(20px, calc((100vw - 1320px) / 2));
+
+    border-bottom: 1px solid var(--line);
+
+    position: sticky;
+    top: 0;
+    background: #0d1325;
+    z-index: 10;
+}
+
+/* Brand logo and name */
+
+.brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+
+    font-size: 23px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.brand > svg {
+    width: 25px;
+    height: 25px;
+    flex-shrink: 0;
+    color: var(--accent);
+}
+
+.brand > span:first-child {
+    color: var(--text);
+}
+
+.blue {
+    color: var(--blue);
+}
+
+/* Navigation links */
+
+.topbar nav {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 22px;
+}
+
+.topbar nav a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+
+    min-height: 42px;
+
+    color: var(--text);
+
+    transition:
+        color 0.2s ease,
+        background-color 0.2s ease;
+}
+
+.topbar nav a:hover {
+    color: var(--blue);
+}
+
+/* SVG icons inside navigation */
+
+.topbar nav a svg {
+    width: 18px;
+    height: 18px;
+
+    flex-shrink: 0;
+    color: inherit;
+}
+
+/* Notification navigation */
+
+.notification-link {
+    position: relative;
+}
+
+.notification-link svg {
+    width: 20px;
+    height: 20px;
+}
+
+
+/* ============================================================
+   MAIN PAGE LAYOUT
+   ============================================================ */
+
+.layout {
+    display: grid;
+
+    grid-template-columns:
+        210px
+        minmax(0, 690px)
+        260px;
+
+    gap: 24px;
+
+    max-width: 1300px;
+    margin: 32px auto;
+    padding: 0 20px;
+}
+
+
+/* ============================================================
+   LEFT AND RIGHT SIDEBARS
+   ============================================================ */
+
+.left,
+.right {
+    align-self: start;
+    position: sticky;
+    top: 100px;
+}
+
+/* Left sidebar links */
+
+.left a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    padding: 12px 14px;
+    border-radius: 10px;
+
+    transition:
+        color 0.2s ease,
+        background-color 0.2s ease;
+}
+
+.left a:hover {
+    background: var(--panel);
+    color: var(--blue);
+}
+
+/* Sidebar SVG icons */
+
+.left a svg {
+    width: 18px;
+    height: 18px;
+
+    flex-shrink: 0;
+    color: inherit;
+}
+
+.left a span {
+    min-width: 0;
+}
+
+/* Sidebar headings */
+
+.left h3 {
+    padding-left: 14px;
+}
+
+/* Muted text */
+
+.muted,
+small {
+    color: var(--muted);
+}
+
+.left .muted {
+    padding: 14px;
+}
+
+
+/* ============================================================
+   PANELS, POSTS AND CARDS
+   ============================================================ */
+
+.panel,
+.post,
+.sidecard {
+    background: var(--panel);
+    border: 1px solid var(--line);
+
+    border-radius: 16px;
+
+    padding: 24px;
+    margin-bottom: 16px;
+}
+
+.sidecard {
+    padding: 20px;
+}
+
+
+/* ============================================================
+   HEADINGS
+   ============================================================ */
+
+.heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+h1 {
+    font-size: 25px;
+    line-height: 1.3;
+    margin: 8px 0 12px;
+}
+
+h2 {
+    font-size: 20px;
+    line-height: 1.4;
+}
+
+h3 {
+    font-size: 16px;
+}
+
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+
+.button,
+.search button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+
+    border: 0;
+    border-radius: 10px;
+
+    background: linear-gradient(
+        120deg,
+        #7c3aed,
+        #2563eb
+    );
+
+    color: white;
+
+    padding: 11px 16px;
+    font-weight: 700;
+
+    transition:
+        opacity 0.2s ease,
+        transform 0.2s ease;
+}
+
+.button:hover,
+.search button:hover {
+    color: white;
+    opacity: 0.9;
+}
+
+/* SVG icons inside buttons */
+
+.button svg {
+    width: 18px;
+    height: 18px;
+
+    flex-shrink: 0;
+    color: inherit;
+}
+
+
+/* ============================================================
+   SEARCH
+   ============================================================ */
+
+.search {
+    display: flex;
+    gap: 10px;
+    margin: 20px 0;
+}
+
+.search input,
+input[type="search"],
+input[type="text"],
+textarea {
+    width: 100%;
+
+    border: 1px solid var(--line);
+    border-radius: 10px;
+
+    background: #0d1426;
+    color: var(--text);
+
+    padding: 12px;
+    outline: none;
+}
+
+.search input:focus,
+textarea:focus {
+    border-color: var(--accent);
+}
+
+
+/* ============================================================
+   TABS
+   ============================================================ */
+
+.tabs {
+    display: flex;
+    gap: 22px;
+
+    border-bottom: 1px solid var(--line);
+}
+
+.tabs a {
+    padding: 8px 0;
+}
+
+.tabs .active {
+    color: var(--blue);
+    border-bottom: 2px solid var(--blue);
+}
+
+
+/* ============================================================
+   POSTS
+   ============================================================ */
+
+.post-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.avatar {
+    width: 34px;
+    height: 34px;
+
+    border-radius: 50%;
+
+    display: inline-grid;
+    place-items: center;
+
+    background: #50379c;
+    color: white;
+
+    font-weight: 700;
+}
+
+.excerpt {
+    color: #cbd5e1;
+    overflow-wrap: anywhere;
+}
+
+.bodytext {
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+
+
+/* ============================================================
+   TAGS
+   ============================================================ */
+
+.tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    margin: 16px 0;
+}
+
+.tags a {
+    color: #b5a4ff;
+    background: #2b244e;
+
+    border-radius: 7px;
+
+    padding: 4px 9px;
+    font-size: 13px;
+}
+
+
+/* ============================================================
+   POST ACTIONS
+   ============================================================ */
+
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 20px;
+
+    margin-top: 20px;
+
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.actions form {
+    margin: 0;
+}
+
+.actions button,
+.heading button {
+    border: 0;
+    background: transparent;
+
+    color: var(--muted);
+    padding: 0;
+}
+
+.actions button:hover {
+    color: var(--blue);
+}
+
+
+/* ============================================================
+   QUESTION EDITOR
+   ============================================================ */
+
+.editor {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    margin-top: 18px;
+}
+
+.editor label {
+    font-weight: 700;
+}
+
+.editor .button {
+    align-self: flex-start;
+}
+
+.editor ul.errorlist {
+    color: #ff9a9a;
+}
+
+
+/* ============================================================
+   COMMENTS AND REPLIES
+   ============================================================ */
+
+.comment {
+    padding: 20px;
+}
+
+.nested {
+    margin: 18px 0 0 25px;
+    padding: 15px;
+
+    border-left: 2px solid var(--accent);
+    background: #10182a;
+
+    border-radius: 6px;
+}
+
+.accepted {
+    color: #68e7a5;
+    font-weight: 700;
+}
+
+
+/* ============================================================
+   MESSAGES AND NOTICES
+   ============================================================ */
+
+.notice {
+    background: #1d3151;
+
+    border-radius: 8px;
+
+    padding: 10px 15px;
+    margin-bottom: 16px;
+}
+
+
+/* ============================================================
+   NOTIFICATIONS
+   ============================================================ */
+
+.notification {
+    border-bottom: 1px solid var(--line);
+    padding: 12px 0;
+}
+
+.unread {
+    border-left: 3px solid var(--accent);
+    padding-left: 12px;
+}
+
+
+/* ============================================================
+   PAGINATION
+   ============================================================ */
+
+.pagination {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+
+    padding: 15px;
+
+    color: var(--muted);
+}
+
+
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+
+[hidden] {
+    display: none !important;
+}
+
+
+/* ============================================================
+   RESPONSIVE DESIGN — TABLETS
+   ============================================================ */
+
+@media (max-width: 1050px) {
+
+    .layout {
+        grid-template-columns:
+            170px
+            minmax(0, 1fr);
+    }
+
+    .right {
+        display: none;
+    }
+
+    .topbar nav {
+        gap: 14px;
+    }
+
+}
+
+
+/* ============================================================
+   RESPONSIVE DESIGN — MOBILE
+   ============================================================ */
+
+@media (max-width: 700px) {
+
+    .layout {
+        display: block;
+        padding: 0 12px;
+        margin: 16px auto;
+    }
+
+    .left {
+        display: none;
+    }
+
+    .topbar {
+        padding: 10px 15px;
+
+        min-height: 65px;
+        height: auto;
+
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .topbar nav {
+        width: 100%;
+
+        justify-content: space-between;
+        flex-wrap: wrap;
+
+        gap: 10px;
+
+        font-size: 12px;
+    }
+
+    .topbar nav a {
+        gap: 5px;
+        min-height: 36px;
+    }
+
+    .topbar nav a svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .panel,
+    .post {
+        padding: 17px;
+    }
+
+    .heading {
+        align-items: flex-start;
+    }
+
+    .brand {
+        font-size: 20px;
+    }
+
+    .brand svg {
+        width: 23px;
+        height: 23px;
+    }
+
+    .search {
+        flex-wrap: wrap;
+    }
+
+}
+
+/* ============================================================
+   COLABVERSE — PERMANENT SIDEBAR LAYOUT
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   TOP BAR
+   ------------------------------------------------------------ */
+
+.topbar {
+    min-height: 70px;
+    height: 70px;
+    padding: 0 max(24px, calc((100vw - 1360px) / 2));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+/* Brand */
+
+.brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
+}
+
+.brand svg {
+    width: 25px;
+    height: 25px;
+    flex-shrink: 0;
+    color: var(--accent);
+}
+
+/* Notification and profile */
+
+.topbar .topbar-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    gap: 12px;
+}
+
+.header-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 42px;
+    height: 42px;
+    min-height: 42px;
+
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 12px;
+
+    background: transparent;
+    color: var(--text);
+
+    transition:
+        background-color 0.2s ease,
+        color 0.2s ease,
+        border-color 0.2s ease;
+}
+
+.header-icon svg {
+    width: 21px;
+    height: 21px;
+    flex-shrink: 0;
+}
+
+.header-icon:not(:disabled):hover {
+    background: var(--panel);
+    border-color: var(--line);
+    color: var(--blue);
+}
+
+/* Profile placeholder */
+
+.profile-button {
+    border: 1px solid var(--line);
+    background: var(--panel);
+}
+
+.profile-button:disabled {
+    cursor: default;
+    opacity: 0.75;
+}
+
+/* Keyboard focus */
+
+.header-icon:focus-visible,
+.left a:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 3px;
+}
+
+
+/* ------------------------------------------------------------
+   TWO-COLUMN PAGE LAYOUT
+   ------------------------------------------------------------ */
+
+.layout {
+    display: grid;
+
+    grid-template-columns:
+        230px
+        minmax(0, 900px);
+
+    justify-content: center;
+    align-items: start;
+
+    gap: 32px;
+
+    max-width: 1360px;
+    margin: 32px auto;
+    padding: 0 24px;
+}
+
+.main-content {
+    min-width: 0;
+    width: 100%;
+}
+
+
+/* ------------------------------------------------------------
+   PERMANENT LEFT SIDEBAR
+   ------------------------------------------------------------ */
+
+.left,
+.left.is-open {
+    display: block;
+
+    position: sticky;
+
+    top: 100px;
+    left: auto;
+    bottom: auto;
+
+    width: 100%;
+    max-width: none;
+
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+
+    padding: 0;
+
+    background: transparent;
+    border: 0;
+
+    transform: none;
+    visibility: visible;
+
+    transition: none;
+
+    z-index: auto;
+}
+
+/* Navigation container */
+
+.left nav {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+/* Section headings */
+
+.left h3 {
+    margin: 0 0 12px;
+    padding: 0 14px;
+
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+
+    color: var(--muted);
+}
+
+.left .sidebar-section-title {
+    margin-top: 30px;
+}
+
+/* Navigation links */
+
+.left a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    width: 100%;
+
+    margin: 0 0 5px;
+    padding: 12px 14px;
+
+    border-radius: 10px;
+
+    color: var(--text);
+
+    font-size: 14px;
+    font-weight: 500;
+
+    transition:
+        background-color 0.2s ease,
+        color 0.2s ease;
+}
+
+.left a:hover {
+    background: var(--panel);
+    color: var(--blue);
+}
+
+/* SVG icons */
+
+.left a svg {
+    width: 19px;
+    height: 19px;
+
+    flex-shrink: 0;
+
+    color: inherit;
+}
+
+/* Navigation labels */
+
+.left a span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+
+/* ------------------------------------------------------------
+   REMOVE OLD NAVIGATION ELEMENTS
+   ------------------------------------------------------------ */
+
+.menu-toggle,
+.navigation-backdrop,
+.right {
+    display: none !important;
+}
+
+
+/* ------------------------------------------------------------
+   MAIN CONTENT
+   ------------------------------------------------------------ */
+
+.main-content .panel,
+.main-content .post {
+    width: 100%;
+}
+
+/* Prevent long code and text from breaking the layout */
+
+.main-content pre {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.main-content img {
+    max-width: 100%;
+    height: auto;
+}
+
+
+/* ------------------------------------------------------------
+   TABLET LAYOUT
+   ------------------------------------------------------------ */
+
+@media (max-width: 1050px) {
+
+    .layout {
+        grid-template-columns:
+            200px
+            minmax(0, 1fr);
+
+        gap: 20px;
+
+        max-width: 100%;
+    }
+
+    .left,
+    .left.is-open {
+        display: block;
+        position: sticky;
+        top: 100px;
+        transform: none;
+        visibility: visible;
+    }
+
+}
+
+
+/* ------------------------------------------------------------
+   MOBILE LAYOUT
+   ------------------------------------------------------------ */
+
+@media (max-width: 700px) {
+
+    .topbar {
+        min-height: 65px;
+        height: 65px;
+
+        padding: 0 15px;
+
+        flex-wrap: nowrap;
+    }
+
+    .brand {
+        font-size: 20px;
+    }
+
+    .brand svg {
+        width: 23px;
+        height: 23px;
+    }
+
+    .topbar .topbar-actions {
+        width: auto;
+        gap: 6px;
+    }
+
+    .header-icon {
+        width: 38px;
+        height: 38px;
+        min-height: 38px;
+    }
+
+    .header-icon svg {
+        width: 19px;
+        height: 19px;
+    }
+
+    .layout {
+        display: block;
+
+        margin: 16px auto;
+        padding: 0 12px;
+    }
+
+    /* Compact navigation above the content on small screens */
+
+    .left,
+    .left.is-open {
+        display: block;
+
+        position: static;
+
+        width: 100%;
+        max-width: none;
+        max-height: none;
+
+        margin-bottom: 18px;
+        padding: 12px;
+
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+
+        transform: none;
+        visibility: visible;
+    }
+
+    .left nav {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .left h3 {
+        flex-basis: 100%;
+
+        margin: 8px 0 4px;
+        padding: 0 8px;
+    }
+
+    .left .sidebar-section-title {
+        margin-top: 12px;
+    }
+
+    .left a {
+        width: auto;
+        max-width: 100%;
+
+        margin: 0;
+        padding: 9px 11px;
+
+        font-size: 12px;
+
+        background: #10182a;
+        border: 1px solid var(--line);
+    }
+
+    .left a svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .main-content {
+        width: 100%;
+    }
+
+}
+
+/* ============================================================
+   COLABVERSE — OFFICIAL LOGO
+   ============================================================ */
+
+.topbar .brand {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    text-decoration: none;
+}
+
+.topbar .colabverse-logo {
+    display: block;
+    width: 180px;
+    max-width: 100%;
+    height: auto;
+    object-fit: contain;
+}
+
+@media (max-width: 700px) {
+    .topbar .colabverse-logo {
+        width: 145px;
+    }
+}
