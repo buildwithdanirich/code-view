@@ -1,21 +1,15 @@
 from django.contrib import admin
-from .models import Tag, Question, Answer, QuestionVote, AnswerVote
-
-@admin.register(Tag)
-class TagAdmin(admin.ModelAdmin):
-    list_display = ("name", "slug")
-    prepopulated_fields = {"slug": ("name",)}
+from .models import Tag, Question, Comment, QuestionLike, CommentLike, Reputation, Notification
 
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
-    list_display = ("title", "author", "created_at", "view_count")
-    search_fields = ("title", "body")
-    list_filter = ("created_at",)
-    filter_horizontal = ("tags",)
+    list_display = ('title','author','created_at')
+    search_fields = ('title','body')
+    list_filter = ('created_at',)
 
-@admin.register(Answer)
-class AnswerAdmin(admin.ModelAdmin):
-    list_display = ("id", "question", "author", "created_at")
+@admin.register(Comment)
+class CommentAdmin(admin.ModelAdmin):
+    list_display = ('author','question','is_accepted','created_at')
+    list_filter = ('is_accepted',)
 
-admin.site.register(QuestionVote)
-admin.site.register(AnswerVote)
+admin.site.register([Tag, QuestionLike, CommentLike, Reputation, Notification])

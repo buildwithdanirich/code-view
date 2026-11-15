@@ -1,17 +1,17 @@
 from django.urls import path
 from . import views
-
-app_name = "questions"
+app_name = 'questions'
 urlpatterns = [
-    path("", views.question_list, name="list"),
-    path("ask/", views.question_create, name="create"),
-    path("<int:pk>/", views.question_detail, name="detail"),
-    path("<int:pk>/edit/", views.question_edit, name="edit"),
-    path("<int:pk>/delete/", views.question_delete, name="delete"),
-    path("<int:pk>/answer/", views.answer_create, name="answer_create"),
-    path("<int:pk>/vote/", views.vote_question, name="vote_question"),
-    path("answers/<int:pk>/edit/", views.answer_edit, name="answer_edit"),
-    path("answers/<int:pk>/delete/", views.answer_delete, name="answer_delete"),
-    path("answers/<int:pk>/accept/", views.accept_answer, name="accept_answer"),
-    path("answers/<int:pk>/vote/", views.vote_answer, name="vote_answer"),
+    path('', views.feed, name='feed'),
+    path('ask/', views.create, name='create'),
+    path('notifications/', views.notifications, name='notifications'),
+    path('notifications/read/', views.read_notifications, name='read_notifications'),
+    path('<int:pk>/', views.detail, name='detail'),
+    path('<int:pk>/edit/', views.edit, name='edit'),
+    path('<int:pk>/delete/', views.delete, name='delete'),
+    path('<int:pk>/like/', views.toggle_question_like, name='like'),
+    path('<int:pk>/comment/', views.comment, name='comment'),
+    path('comments/<int:pk>/like/', views.toggle_comment_like, name='comment_like'),
+    path('comments/<int:pk>/accept/', views.accept, name='accept'),
+    path('comments/<int:pk>/delete/', views.delete_comment, name='delete_comment'),
 ]

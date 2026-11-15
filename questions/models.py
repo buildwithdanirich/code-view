@@ -1,92 +1,68 @@
 from django.conf import settings
-from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import Q, Sum
+from django.db.models import Q
 from django.utils.text import slugify
 
+User = settings.AUTH_USER_MODEL
+
 class Tag(models.Model):
-    name = models.CharField(max_length=50, unique=True)
-    slug = models.SlugField(max_length=60, unique=True)
-    description = models.TextField(blank=True)
-
-    class Meta:
-        ordering = ["name"]
-
-    def save(self, *args, **kwargs):
-        if not self.slug:
-            self.slug = slugify(self.name)
-        if not self.slug:
-            raise ValidationError("Tag name must contain letters or numbers.")
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return self.name
+    name = models.CharField(max_length=40, unique=True)
+    slug = models.SlugField(max_length=50, unique=True)
+    def __str__(self): return self.name
 
 class Question(models.Model):
-    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="qa_questions")
-    title = models.CharField(max_length=200)
+    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='cv_questions')
+    title = models.CharField(max_length=220)
     body = models.TextField()
-    code = models.TextField(blank=True)
-    tags = models.ManyToManyField(Tag, related_name="questions", blank=True)
-    accepted_answer = models.OneToOneField("Answer", on_delete=models.SET_NULL, null=True, blank=True, related_name="accepted_for")
-    view_count = models.PositiveIntegerField(default=0)
+    tags = models.ManyToManyField(Tag, blank=True, related_name='questions')
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
+    def __str__(self): return self.title
 
-    class Meta:
-        ordering = ["-created_at"]
-
-    def __str__(self):
-        return self.title
-
-    @property
-    def score(self):
-        return self.votes.aggregate(total=Sum("value"))["total"] or 0
-
-    @property
-    def is_solved(self):
-        return self.accepted_answer_id is not None
-
-    def clean(self):
-        if self.accepted_answer_id and (not self.pk or self.accepted_answer.question_id != self.pk):
-            raise ValidationError({"accepted_answer": "The accepted answer must belong to this question."})
-
-class Answer(models.Model):
-    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name="answers")
-    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="qa_answers")
+class Comment(models.Model):
+    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='comments')
+    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='cv_comments')
+    parent = models.ForeignKey('self', on_delete=models.CASCADE, blank=True, null=True, related_name='replies')
     body = models.TextField()
-    code = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    is_accepted = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
-
     class Meta:
-        ordering = ["created_at"]
+        constraints = [models.UniqueConstraint(fields=['question'], condition=Q(is_accepted=True), name='one_accepted_comment_per_question')]
+    def __str__(self): return self.body[:80]
 
-    def __str__(self):
-        return f"Answer {self.pk} on question {self.question_id}"
+class QuestionLike(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='likes')
+    created_at = models.DateTimeField(auto_now_add=True)
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['user','question'], name='unique_question_like')]
 
+class CommentLike(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    comment = models.ForeignKey(Comment, on_delete=models.CASCADE, related_name='likes')
+    created_at = models.DateTimeField(auto_now_add=True)
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['user','comment'], name='unique_comment_like')]
+
+class Reputation(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='cv_reputation')
+    points = models.PositiveIntegerField(default=0)
     @property
-    def score(self):
-        return self.votes.aggregate(total=Sum("value"))["total"] or 0
+    def stars(self):
+        if self.points >= 1500: return 5
+        if self.points >= 700: return 4
+        if self.points >= 300: return 3
+        if self.points >= 100: return 2
+        return 1
+    def __str__(self): return f'{self.user}: {self.points} points'
 
-class QuestionVote(models.Model):
-    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name="votes")
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="qa_question_votes")
-    value = models.SmallIntegerField(choices=((1, "Upvote"), (-1, "Downvote")))
-
+class Notification(models.Model):
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='cv_question_notifications')
+    actor = models.ForeignKey(User, on_delete=models.CASCADE, related_name='cv_question_actions')
+    question = models.ForeignKey(Question, on_delete=models.CASCADE)
+    message = models.CharField(max_length=180)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
     class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=["question", "user"], name="qa_unique_question_vote"),
-            models.CheckConstraint(condition=Q(value__in=[-1, 1]), name="qa_valid_question_vote"),
-        ]
-
-class AnswerVote(models.Model):
-    answer = models.ForeignKey(Answer, on_delete=models.CASCADE, related_name="votes")
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="qa_answer_votes")
-    value = models.SmallIntegerField(choices=((1, "Upvote"), (-1, "Downvote")))
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=["answer", "user"], name="qa_unique_answer_vote"),
-            models.CheckConstraint(condition=Q(value__in=[-1, 1]), name="qa_valid_answer_vote"),
-        ]
+        ordering = ['-created_at']

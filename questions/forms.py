@@ -1,49 +1,25 @@
 from django import forms
-from .models import Question, Answer, Tag
+from .models import Question, Comment
 
 class QuestionForm(forms.ModelForm):
-    tag_names = forms.CharField(required=False, max_length=300, help_text="Separate tags with commas, e.g. python, django")
-
+    tags_text = forms.CharField(required=False, max_length=250, help_text='Comma-separated tags (up to five)')
     class Meta:
         model = Question
-        fields = ["title", "body", "code"]
-        widgets = {"body": forms.Textarea(attrs={"rows": 8}), "code": forms.Textarea(attrs={"rows": 5})}
+        fields = ['title', 'body']
+        widgets = {'body': forms.Textarea(attrs={'rows': 7, 'placeholder': 'Explain your problem and what you have tried…'})}
+    def clean_tags_text(self):
+        tags = [x.strip().lower() for x in self.cleaned_data['tags_text'].split(',') if x.strip()]
+        tags = list(dict.fromkeys(tags))
+        if len(tags) > 5 or any(len(x)>40 for x in tags):
+            raise forms.ValidationError('Use up to five tags, each at most 40 characters.')
+        return tags
 
-    def clean_title(self):
-        value = self.cleaned_data["title"].strip()
-        if len(value) < 10:
-            raise forms.ValidationError("Please use at least 10 characters in your title.")
-        return value
-
-    def clean_body(self):
-        value = self.cleaned_data["body"].strip()
-        if len(value) < 20:
-            raise forms.ValidationError("Please describe your problem in at least 20 characters.")
-        return value
-
-    def clean_tag_names(self):
-        names = [name.strip().lower() for name in self.cleaned_data["tag_names"].split(",") if name.strip()]
-        if len(names) > 5:
-            raise forms.ValidationError("Use at most five tags.")
-        if any(len(name) > 50 or not __import__('re').fullmatch(r"[a-z0-9][a-z0-9+.#-]*", name) for name in names):
-            raise forms.ValidationError("Tags may contain lowercase letters, digits, +, ., # and -.")
-        return list(dict.fromkeys(names))
-
-    def save_tags(self, question):
-        tags = []
-        for name in self.cleaned_data["tag_names"]:
-            tag, _ = Tag.objects.get_or_create(name=name, defaults={"slug": __import__('django.utils.text', fromlist=['slugify']).slugify(name)})
-            tags.append(tag)
-        question.tags.set(tags)
-
-class AnswerForm(forms.ModelForm):
+class CommentForm(forms.ModelForm):
     class Meta:
-        model = Answer
-        fields = ["body", "code"]
-        widgets = {"body": forms.Textarea(attrs={"rows": 6}), "code": forms.Textarea(attrs={"rows": 4})}
-
+        model = Comment
+        fields = ['body']
+        widgets = {'body': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Write a helpful answer or comment…'})}
     def clean_body(self):
-        value = self.cleaned_data["body"].strip()
-        if len(value) < 10:
-            raise forms.ValidationError("Please write at least 10 characters.")
-        return value
+        body = self.cleaned_data['body'].strip()
+        if len(body) < 2: raise forms.ValidationError('Please write a meaningful comment.')
+        return body

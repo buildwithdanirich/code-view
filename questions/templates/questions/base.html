@@ -1,19 +1,5 @@
-{% load static %}
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Questions{% endblock %} · ColabVerse</title>
-  <link rel="stylesheet" href="{% static 'questions/css/questions.css' %}">
-  <script defer src="{% static 'questions/js/questions.js' %}"></script>
-</head>
-<body>
-<header class="site-header"><a class="wordmark" href="{% url 'questions:list' %}">Colab<span>Verse</span> <small>Q&amp;A</small></a><nav><a href="{% url 'questions:list' %}">Questions</a><a href="{% url 'questions:create' %}">Ask question</a>{% if user.is_authenticated %}<span class="username">{{ user.username }}</span>{% else %}<a href="{% url 'login' %}">Sign in</a>{% endif %}</nav></header>
-<main class="container">
-{% if messages %}<div class="messages" role="status">{% for message in messages %}<p class="notice">{{ message }}</p>{% endfor %}</div>{% endif %}
-{% block content %}{% endblock %}
-</main>
-<footer>ColabVerse · Connect, Learn, Collaborate</footer>
-</body>
-</html>
+{% load static %}<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{% block title %}Questions{% endblock %} · ColabVerse</title><link rel="stylesheet" href="{% static 'questions/css/questions.css' %}"><script src="{% static 'questions/js/questions.js' %}" defer></script></head>
+<body><header class="topbar"><a class="brand" href="{% url 'questions:feed' %}"><span>❮❯</span> Colab<span class="blue">Verse</span></a><nav><a href="{% url 'questions:feed' %}">Questions</a><a href="{% url 'questions:create' %}">Ask a question</a>{% if user.is_authenticated %}<a href="{% url 'questions:notifications' %}">Notifications</a>{% endif %}</nav></header>
+<div class="layout"><aside class="left"><h3>Explore</h3><a href="{% url 'questions:feed' %}">⌂ &nbsp; Latest feed</a><a href="{% url 'questions:feed' %}?sort=popular">♥ &nbsp; Popular</a><a href="{% url 'questions:create' %}">✎ &nbsp; Ask question</a><p class="muted">A place for developers to help developers.</p></aside><main>{% if messages %}{% for message in messages %}<div class="notice">{{ message }}</div>{% endfor %}{% endif %}{% block content %}{% endblock %}</main><aside class="right"><div class="sidecard"><h3>ColabVerse Questions</h3><p>Ask, answer, and grow your reputation through helpful contributions.</p><p>★★★★★ is the maximum contributor rating.</p></div>{% block sidebar %}{% endblock %}</aside></div>
+</body></html>
