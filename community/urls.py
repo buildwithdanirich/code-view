@@ -1,9 +1,8 @@
 """
-URL routes for CodeView groups.
+URL routes for ColabVerse private development groups.
 
 Features:
-- Normal chat groups
-- Private development groups
+- Private invitation-only development groups
 - Owner-sent invitations
 - Group discussions
 - Group chat
@@ -17,15 +16,16 @@ Features:
 
 from django.urls import path
 
+# LiveKit webhook endpoint.
 from .livekit_webhooks import livekit_webhook_view
 
-# Existing group functionality.
+# Group dashboard, discussions, chat, and repositories.
 from . import views
 
-# Private-group invitation functionality.
+# Private-group invitations.
 from . import invitation_views
 
-# GitHub repository connection approval functionality.
+# GitHub repository connection approvals.
 from . import repository_request_views
 
 # LiveKit meeting actions.
@@ -45,7 +45,7 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # 2. CREATE GROUP
+    # 2. CREATE PRIVATE DEVELOPMENT GROUP
     # ========================================================
 
     path(
@@ -55,17 +55,7 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # 3. JOIN NORMAL CHAT GROUP
-    # ========================================================
-
-    path(
-        "<int:group_id>/join/",
-        views.join_group,
-        name="join_group",
-    ),
-
-    # ========================================================
-    # 4. GROUP DETAILS
+    # 3. GROUP DETAILS
     # ========================================================
 
     path(
@@ -75,7 +65,7 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # 5. PRIVATE-GROUP INVITATIONS
+    # 4. PRIVATE-GROUP INVITATIONS
     # ========================================================
 
     path(
@@ -103,7 +93,7 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # 6. GROUP MEMBERSHIP MANAGEMENT
+    # 5. GROUP MEMBERSHIP MANAGEMENT
     # ========================================================
 
     path(
@@ -125,7 +115,7 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # 7. GROUP DISCUSSIONS
+    # 6. GROUP DISCUSSIONS
     # ========================================================
 
     path(
@@ -159,7 +149,7 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # 8. GROUP CHAT
+    # 7. GROUP CHAT
     # ========================================================
 
     path(
@@ -187,7 +177,7 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # 9. GROUP CHAT MESSAGE REACTIONS
+    # 8. GROUP CHAT MESSAGE REACTIONS
     # ========================================================
 
     path(
@@ -197,7 +187,7 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # 10. SECURE GROUP CHAT ATTACHMENT DOWNLOAD
+    # 9. SECURE GROUP CHAT ATTACHMENT DOWNLOAD
     # ========================================================
 
     path(
@@ -207,7 +197,7 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # 11. GITHUB REPOSITORY INTEGRATION
+    # 10. GITHUB REPOSITORY INTEGRATION
     # ========================================================
 
     path(
@@ -250,7 +240,7 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # 12. PRIVATE-GROUP MEETING ROOM
+    # 11. PRIVATE-GROUP MEETING ROOM
     # ========================================================
 
     path(
@@ -260,7 +250,7 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # 13. LIVEKIT MEETING ACTIONS
+    # 12. LIVEKIT MEETING ACTIONS
     # ========================================================
 
     # Any accepted member can start a meeting.
@@ -285,7 +275,7 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # 14. CHECK ACTIVE MEETING STATUS
+    # 13. CHECK ACTIVE MEETING STATUS
     # ========================================================
 
     # Check whether a meeting is active and repository
@@ -297,7 +287,7 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # 15. SCREEN-SHARING PERMISSION REQUESTS
+    # 14. SCREEN-SHARING PERMISSION REQUESTS
     # ========================================================
 
     # A group member requests permission to share their screen.
@@ -329,7 +319,7 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # 16. RELEASE SCREEN-SHARING PERMISSION
+    # 15. RELEASE SCREEN-SHARING PERMISSION
     # ========================================================
 
     # An approved presenter releases their screen-sharing slot.
@@ -344,7 +334,7 @@ urlpatterns = [
     ),
 
     # ========================================================
-    # 17. SCREEN-SHARING PERMISSION STATE
+    # 16. SCREEN-SHARING PERMISSION STATE
     # ========================================================
 
     # Allow accepted group members to retrieve their current
@@ -358,7 +348,10 @@ urlpatterns = [
         name="group_screen_share_state",
     ),
 
-     # LiveKit webhook endpoint.
+    # ========================================================
+    # 17. LIVEKIT WEBHOOK
+    # ========================================================
+
     path(
         "webhooks/livekit/",
         livekit_webhook_view,

@@ -9,11 +9,17 @@
      COLABVERSE — MY GROUPS PAGE
 
      Features:
-     1. Search groups by name
+     1. Search private development groups by name
      2. Search using Enter or the Search button
      3. Clear search
-     4. Display development groups
-     5. Preserve existing group membership permissions
+     4. Display private development groups
+     5. Open groups the developer belongs to
+     6. Preserve existing group membership permissions
+
+     IMPORTANT:
+     - Private development groups are invitation-only.
+     - Public-group joining is no longer supported.
+     - JavaScript and CSS remain in separate static files.
 ============================================================ -->
 
 <link
@@ -51,8 +57,9 @@
     <!-- ========================================================
          2. GROUP SEARCH
 
-         The form will be handled by groups.js.
-         No backend request is needed for local filtering.
+         Search is handled by groups.js.
+
+         No backend request is required for local filtering.
     ======================================================== -->
 
     <section
@@ -92,6 +99,7 @@
                         stroke-linecap="round"
                         stroke-linejoin="round"
                     >
+
                         <circle
                             cx="11"
                             cy="11"
@@ -101,6 +109,7 @@
                         <path
                             d="m21 21-4.35-4.35"
                         ></path>
+
                     </svg>
 
                 </span>
@@ -144,7 +153,7 @@
 
 
     <!-- ========================================================
-         3. DEVELOPMENT GROUPS
+         3. PRIVATE DEVELOPMENT GROUPS
     ======================================================== -->
 
     <section
@@ -159,7 +168,8 @@
             </h2>
 
             <p>
-                Open your workspace or explore available groups.
+                Open your private development groups to
+                collaborate with your team.
             </p>
 
         </div>
@@ -188,55 +198,45 @@
 
                     <div class="group-card-top">
 
-                        <!-- Group initial -->
+                        <!-- Display the group's first letter -->
 
                         <div class="group-icon">
                             {{ group.name|first|upper }}
                         </div>
 
 
-                        {% if group.is_private %}
+                        <!-- Every displayed development group
+                             must be private. -->
 
-                            <!-- Private group -->
+                        <span class="privacy-badge private">
 
-                            <span class="privacy-badge private">
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                aria-hidden="true"
+                            >
 
-                                <svg
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    aria-hidden="true"
-                                >
-                                    <rect
-                                        x="5"
-                                        y="10"
-                                        width="14"
-                                        height="11"
-                                        rx="2"
-                                    ></rect>
+                                <rect
+                                    x="5"
+                                    y="10"
+                                    width="14"
+                                    height="11"
+                                    rx="2"
+                                ></rect>
 
-                                    <path
-                                        d="M8 10V7a4 4 0 0 1 8 0v3"
-                                    ></path>
-                                </svg>
+                                <path
+                                    d="M8 10V7a4 4 0 0 1 8 0v3"
+                                ></path>
 
-                                Private
+                            </svg>
 
-                            </span>
+                            Private
 
-                        {% else %}
-
-                            <!-- Existing public groups remain supported
-                                 until backend rules are updated. -->
-
-                            <span class="privacy-badge public">
-                                Public
-                            </span>
-
-                        {% endif %}
+                        </span>
 
                     </div>
 
@@ -251,22 +251,20 @@
                             {{ group.name }}
                         </h2>
 
+
+                        <!-- Display the developer who created
+                             and owns this group. -->
+
                         <p class="group-owner">
                             Created by @{{ group.owner.username }}
                         </p>
 
+
+                        <!-- All private development groups
+                             require an invitation. -->
+
                         <p class="cv-group-policy">
-
-                            {% if group.is_private %}
-
-                                Invitation Only
-
-                            {% else %}
-
-                                Anyone Can Join
-
-                            {% endif %}
-
+                            Invitation Only
                         </p>
 
                     </div>
@@ -278,6 +276,8 @@
 
                     <div class="group-card-footer">
 
+                        <!-- Group creation date -->
+
                         <span class="group-date">
                             {{ group.created_at|date:"M d, Y" }}
                         </span>
@@ -285,44 +285,27 @@
 
                         {% if group.is_member %}
 
-                            <!-- Members can open their workspace. -->
+                            <!-- Accepted members can open
+                                 their development group. -->
 
                             <a
                                 href="{% url 'group_detail' group.id %}"
                                 class="primary-button"
                             >
-                                Open Workspace
+                                Open Group
                             </a>
-
-
-                        {% elif group.is_private %}
-
-                            <!-- Private groups require an invitation. -->
-
-                            <span class="coming-soon">
-                                Invitation Only
-                            </span>
 
 
                         {% else %}
 
-                            <!-- Preserve existing public-group behavior. -->
+                            <!-- No direct joining is allowed.
 
-                            <form
-                                method="POST"
-                                action="{% url 'join_group' group.id %}"
-                            >
+                                 Membership must be granted
+                                 through an accepted invitation. -->
 
-                                {% csrf_token %}
-
-                                <button
-                                    type="submit"
-                                    class="primary-button"
-                                >
-                                    Join Group
-                                </button>
-
-                            </form>
+                            <span class="coming-soon">
+                                Invitation Only
+                            </span>
 
                         {% endif %}
 
@@ -333,7 +316,9 @@
 
             {% empty %}
 
-                <!-- No groups available -->
+                <!-- ============================================
+                     NO DEVELOPMENT GROUPS
+                ============================================ -->
 
                 <div class="empty-state">
 
@@ -362,6 +347,8 @@
 
         <!-- ====================================================
              NO SEARCH RESULTS
+
+             groups.js controls the visibility of this message.
         ==================================================== -->
 
         <p
@@ -383,7 +370,8 @@
      4. GROUP SEARCH JAVASCRIPT
 
      External JavaScript only.
-     The next step will update this file.
+
+     Existing search functionality is preserved.
 ============================================================ -->
 
 <script

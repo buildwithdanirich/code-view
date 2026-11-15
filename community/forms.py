@@ -23,34 +23,30 @@ from .models import (
     GroupChatMessage,
 )
 
-
 # ============================================================
-# 1. CREATE GROUP FORM
+# 1. CREATE PRIVATE DEVELOPMENT GROUP FORM
 # ============================================================
 
 class ProjectGroupForm(forms.ModelForm):
     """
-    Collect information when creating a CodeView group.
+    Collect information for a ColabVerse private development group.
 
-    Developers choose:
-        - Group name
-        - Group description
-        - Whether the group is private
-
-    Joining rules are assigned automatically:
-        Public group  -> open
-        Private group -> invite
+    Rules:
+        1. Developers provide a name and description.
+        2. Every newly created group is private.
+        3. Membership is invitation-only.
+        4. The view assigns the authenticated group owner.
+        5. The invitation service enforces the 10-member limit.
     """
 
     class Meta:
         model = ProjectGroup
 
-        # The owner is assigned in views.py.
-        # The joining policy is assigned automatically.
+        # Developers cannot select the privacy or joining policy.
+        # These settings are enforced by the form.
         fields = [
             "name",
             "description",
-            "is_private",
         ]
 
         widgets = {
@@ -66,15 +62,9 @@ class ProjectGroupForm(forms.ModelForm):
                 attrs={
                     "class": "group-textarea",
                     "placeholder": (
-                        "Describe your community or development project"
+                        "Describe your development project or team"
                     ),
                     "rows": 4,
-                }
-            ),
-
-            "is_private": forms.CheckboxInput(
-                attrs={
-                    "class": "group-checkbox",
                 }
             ),
         }
@@ -82,23 +72,13 @@ class ProjectGroupForm(forms.ModelForm):
         labels = {
             "name": "Group Name",
             "description": "Group Description",
-            "is_private": "Private Development Group",
-        }
-
-        help_texts = {
-            "is_private": (
-                "Leave unchecked to create a normal chat group "
-                "that registered developers can join freely. "
-                "Check to create a private development group "
-                "where the owner invites developers."
-            ),
         }
 
     def clean_name(self):
         """
-        Remove extra spaces from the group name.
+        Remove surrounding whitespace from the group name.
 
-        Reject names containing only whitespace.
+        Reject empty names.
         """
 
         name = self.cleaned_data["name"].strip()
@@ -112,46 +92,35 @@ class ProjectGroupForm(forms.ModelForm):
 
     def clean(self):
         """
-        Set the joining policy from the selected group type.
+        Enforce private-group settings during form validation.
 
-        The developer cannot submit a different joining policy
-        through the browser.
+        These values do not come from browser-submitted fields.
         """
 
         cleaned_data = super().clean()
 
-        is_private = cleaned_data.get("is_private", False)
+        # Every new ColabVerse development group is private.
+        self.instance.is_private = True
 
-        if is_private:
-
-            # Private development groups require invitations.
-            joining_policy = "invite"
-
-        else:
-
-            # Normal chat groups allow direct joining.
-            joining_policy = "open"
-
-        # The field is not shown in the form, but the model
-        # still needs its value for validation and saving.
-        self.instance.join_policy = joining_policy
+        # Developers must receive an invitation to join.
+        self.instance.join_policy = "invite"
 
         return cleaned_data
 
     def save(self, commit=True):
         """
-        Save the group with the correct joining policy.
+        Save a private, invitation-only development group.
 
-        This also works when views.py uses:
+        Also works when views.py calls:
             form.save(commit=False)
         """
 
+        # Create the model instance without saving it yet.
         group = super().save(commit=False)
 
-        if group.is_private:
-            group.join_policy = "invite"
-        else:
-            group.join_policy = "open"
+        # Enforce the rules again immediately before saving.
+        group.is_private = True
+        group.join_policy = "invite"
 
         if commit:
             group.save()

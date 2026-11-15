@@ -1,253 +1,428 @@
+{% extends "questions/base.html" %}
 {% load static %}
 
-<!DOCTYPE html>
-<html lang="en">
+{% block title %}Create Private Group | ColabVerse{% endblock %}
 
-<head>
-    <!-- ========================================
-         1. PAGE SETTINGS
-    ========================================= -->
+{% block content %}
 
-    <meta charset="UTF-8">
+<!-- ============================================================
+     COLABVERSE — CREATE PRIVATE DEVELOPMENT GROUP
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+     Purpose:
+     1. Create private development groups.
+     2. Collect group name and description.
+     3. Explain group membership limits.
+     4. Preserve Django form validation.
+     5. Use the shared ColabVerse layout.
 
-    <title>Create Group | CodeView</title>
+     Security:
+     The Django backend must independently enforce:
+     - Private groups only.
+     - Invitation-only membership.
+     - Maximum 10 members including the owner.
+============================================================ -->
 
-    <!-- Load the existing Groups stylesheet. -->
-   <!-- Shared CodeView styles -->
-<link rel="stylesheet" href="{% static 'community/sheared.css' %}">
 
-<!-- Create Group page styles -->
-<link rel="stylesheet" href="{% static 'community/create_group.css' %}">
+<!-- ============================================================
+     1. STYLESHEETS
 
-</head>
+     Shared Community styles and page-specific styles.
+============================================================ -->
 
-<body>
+<link
+    rel="stylesheet"
+    href="{% static 'community/sheared.css' %}"
+>
 
-    <!-- ========================================
-         2. TOP NAVIGATION
-    ========================================= -->
+<link
+    rel="stylesheet"
+    href="{% static 'community/create_group.css' %}"
+>
 
-    <header class="navbar">
 
-        <!-- CodeView logo. -->
-        <a href="{% url 'groups' %}" class="brand">
-            &lt;/&gt; CodeView
+<!-- ============================================================
+     2. PAGE CONTAINER
+============================================================ -->
+
+<div class="cv-create-group-page">
+
+    <!-- ========================================================
+         3. PAGE HEADING
+    ======================================================== -->
+
+    <section class="cv-create-heading">
+
+        <!-- Back navigation -->
+
+        <a
+            href="{% url 'groups' %}"
+            class="cv-back-link"
+        >
+
+            <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+            >
+                <path d="m15 18-6-6 6-6"></path>
+            </svg>
+
+            Back to My Groups
+
         </a>
 
-        <!-- Navigation links. -->
-        <nav class="top-links">
 
-            <a href="{% url 'groups' %}">
-                Groups
-            </a>
+        <h1>Create Private Group</h1>
 
-            <a
-                href="{% url 'create_group' %}"
-                class="active"
-                aria-current="page"
-            >
-                Create Group
-            </a>
+        <p>
+            Create a private development group where your team
+            can plan projects, share ideas, and collaborate.
+        </p>
 
-        </nav>
+    </section>
 
-        <!-- Logged-in developer profile. -->
-        <div class="profile">
 
-            <span class="avatar">
-                {{ request.user.username|first|upper }}
-            </span>
+    <!-- ========================================================
+         4. CREATE GROUP FORM CARD
+    ======================================================== -->
 
-            <span>
-                {{ request.user.username }}
-            </span>
+    <section
+        class="cv-create-card"
+        aria-labelledby="create-group-heading"
+    >
+
+        <div class="cv-create-card-header">
+
+            <div class="cv-create-icon">
+
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                >
+                    <path
+                        d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"
+                    ></path>
+
+                    <circle
+                        cx="9"
+                        cy="7"
+                        r="4"
+                    ></circle>
+
+                    <path
+                        d="M22 21v-2a4 4 0 0 0-3-3.87"
+                    ></path>
+
+                    <path
+                        d="M16 3.13a4 4 0 0 1 0 7.75"
+                    ></path>
+                </svg>
+
+            </div>
+
+            <div>
+
+                <h2 id="create-group-heading">
+                    Group Information
+                </h2>
+
+                <p>
+                    Enter the details for your private
+                    development group.
+                </p>
+
+            </div>
 
         </div>
 
-    </header>
+
+        <!-- ====================================================
+             5. DJANGO FORM
+        ==================================================== -->
+
+        <form
+            method="POST"
+            action="{% url 'create_group' %}"
+            class="cv-create-form"
+        >
+
+            <!-- CSRF protection -->
+
+            {% csrf_token %}
 
 
-    <!-- ========================================
-         3. CREATE GROUP FORM
-    ========================================= -->
+            <!-- ================================================
+                 6. GENERAL FORM ERRORS
+            ================================================ -->
 
-    <main class="form-page">
+            {% if form.non_field_errors %}
 
-        <section class="form-card">
+                <div
+                    class="cv-form-errors"
+                    role="alert"
+                >
 
-            <!-- Back navigation. -->
-            <a href="{% url 'groups' %}" class="back-link">
-                ← Back to Groups
-            </a>
-
-            <h1>Create a CodeView Group</h1>
-
-            <p class="form-intro">
-                Create a public community for discussions
-                or a private development group for team collaboration.
-            </p>
-
-
-            <!-- ========================================
-                 4. FORM
-            ========================================= -->
-
-            <form
-                method="POST"
-                action="{% url 'create_group' %}"
-            >
-
-                <!-- Protect against cross-site request forgery. -->
-                {% csrf_token %}
-
-                <!-- General validation errors. -->
-                {{ form.non_field_errors }}
-
-
-                <!-- ========================================
-                     5. GROUP NAME
-                ========================================= -->
-
-                <div class="form-field">
-
-                    <label for="{{ form.name.id_for_label }}">
-                        Group Name
-                    </label>
-
-                    {{ form.name }}
-
-                    {{ form.name.errors }}
+                    {{ form.non_field_errors }}
 
                 </div>
 
-
-                <!-- ========================================
-                     6. GROUP DESCRIPTION
-                ========================================= -->
-
-                <div class="form-field">
-
-                    <label for="{{ form.description.id_for_label }}">
-                        Description
-                    </label>
-
-                    {{ form.description }}
-
-                    {{ form.description.errors }}
-
-                </div>
+            {% endif %}
 
 
-                <!-- ========================================
-                     7. GROUP TYPE
-                ========================================= -->
+            <!-- ================================================
+                 7. GROUP NAME
+            ================================================ -->
 
-                <div class="privacy-option">
+            <div class="cv-form-field">
 
-                    {{ form.is_private }}
+                <label for="{{ form.name.id_for_label }}">
 
-                    <div>
+                    Group Name
 
-                        <label for="{{ form.is_private.id_for_label }}">
-                            Private Development Group
-                        </label>
+                    <span class="cv-required">*</span>
 
-                        <p>
-                            Leave unchecked to create a public community.
-                            Public communities can be discovered by developers.
-                        </p>
+                </label>
 
-                        <p>
-                            Check this option to create a private development
-                            group with GitHub collaboration,
-                            and meeting features.
-                        </p>
 
-                        <p>
-                            Private development groups support a maximum
-                            of 10 members, including the creator.
-                        </p>
+                <!-- Existing Django form field -->
+
+                {{ form.name }}
+
+
+                <p class="cv-field-help">
+                    Choose a clear name that represents
+                    your development team or project.
+                </p>
+
+
+                <!-- Group name validation errors -->
+
+                {% if form.name.errors %}
+
+                    <div
+                        class="cv-field-errors"
+                        role="alert"
+                    >
+
+                        {{ form.name.errors }}
 
                     </div>
 
+                {% endif %}
+
+            </div>
+
+
+            <!-- ================================================
+                 8. GROUP DESCRIPTION
+            ================================================ -->
+
+            <div class="cv-form-field">
+
+                <label for="{{ form.description.id_for_label }}">
+
+                    Description
+
+                </label>
+
+
+                <!-- Existing Django form field -->
+
+                {{ form.description }}
+
+
+                <p class="cv-field-help">
+                    Describe your project's purpose,
+                    goals, or what your team will build.
+                </p>
+
+
+                <!-- Description validation errors -->
+
+                {% if form.description.errors %}
+
+                    <div
+                        class="cv-field-errors"
+                        role="alert"
+                    >
+
+                        {{ form.description.errors }}
+
+                    </div>
+
+                {% endif %}
+
+            </div>
+
+
+            <!-- ================================================
+                 9. PRIVATE GROUP SETTINGS
+
+                 These values are submitted through the form.
+
+                 Backend validation must enforce them
+                 independently of the submitted values.
+            ================================================ -->
+
+            <input
+                type="hidden"
+                name="is_private"
+                value="on"
+            >
+
+            <input
+                type="hidden"
+                name="join_policy"
+                value="invite"
+            >
+
+
+            <!-- Preserve validation errors for hidden fields -->
+
+            {% if form.is_private.errors %}
+
+                <div
+                    class="cv-field-errors"
+                    role="alert"
+                >
+                    {{ form.is_private.errors }}
                 </div>
 
-                {{ form.is_private.errors }}
+            {% endif %}
 
 
-                <!-- ========================================
-                     8. JOINING POLICY
-                ========================================= -->
+            {% if form.join_policy.errors %}
 
-                <div class="form-field">
-
-                    <label for="{{ form.join_policy.id_for_label }}">
-                        Who Can Join?
-                    </label>
-
-                    <!-- Dropdown from ProjectGroupForm. -->
-                    {{ form.join_policy }}
-
-                    <!-- Show validation errors beside this field. -->
+                <div
+                    class="cv-field-errors"
+                    role="alert"
+                >
                     {{ form.join_policy.errors }}
+                </div>
 
-                    <p class="group-description">
-                        <strong>Anyone Can Join:</strong>
-                        Developers become members immediately.
-                    </p>
+            {% endif %}
 
-                    <p class="group-description">
-                        <strong>Admin Approval Required:</strong>
-                        Developers send a request, and an administrator
-                        must approve it before they can participate.
-                    </p>
 
-                    <p class="group-description">
-                        <strong>Invitation Only:</strong>
-                        Only invited developers can become members.
-                    </p>
+            <!-- ================================================
+                 10. PRIVATE GROUP INFORMATION
+            ================================================ -->
 
-                    <p class="group-description">
-                        Private development groups must use
-                        Admin Approval Required or Invitation Only.
-                    </p>
+            <div class="cv-private-info">
+
+                <div class="cv-private-info-header">
+
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                    >
+                        <rect
+                            x="5"
+                            y="10"
+                            width="14"
+                            height="11"
+                            rx="2"
+                        ></rect>
+
+                        <path
+                            d="M8 10V7a4 4 0 0 1 8 0v3"
+                        ></path>
+                    </svg>
+
+                    <h3>
+                        Private Development Group
+                    </h3>
 
                 </div>
 
 
-                <!-- ========================================
-                     9. FORM BUTTONS
-                ========================================= -->
+                <p>
+                    Your group will be private and accessible
+                    only to approved members.
+                </p>
 
-                <div class="form-actions">
 
-                    <a
-                        href="{% url 'groups' %}"
-                        class="secondary-button"
+                <ul>
+
+                    <li>
+                        Maximum of 10 members,
+                        including the group owner.
+                    </li>
+
+                    <li>
+                        New members join through invitations.
+                    </li>
+
+                    <li>
+                        Members can brainstorm, draw diagrams,
+                        and plan projects using a shared whiteboard.
+                    </li>
+
+                    <li>
+                        Group meetings support up to
+                        10 participants.
+                    </li>
+
+                </ul>
+
+            </div>
+
+
+            <!-- ================================================
+                 11. FORM ACTIONS
+            ================================================ -->
+
+            <div class="cv-form-actions">
+
+                <a
+                    href="{% url 'groups' %}"
+                    class="secondary-button cv-cancel-button"
+                >
+                    Cancel
+                </a>
+
+
+                <button
+                    type="submit"
+                    class="primary-button cv-create-button"
+                >
+
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
                     >
-                        Cancel
-                    </a>
+                        <path d="M12 5v14"></path>
+                        <path d="M5 12h14"></path>
+                    </svg>
 
-                    <button
-                        type="submit"
-                        class="primary-button"
-                    >
-                        Create Group
-                    </button>
+                    Create Private Group
 
-                </div>
+                </button>
 
-            </form>
+            </div>
 
-        </section>
+        </form>
 
-    </main>
+    </section>
 
-</body>
+</div>
 
-</html>
+{% endblock %}

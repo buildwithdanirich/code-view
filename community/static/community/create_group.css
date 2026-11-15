@@ -1,123 +1,918 @@
 /* ============================================================
-   CODEVIEW — CREATE GROUP PAGE
+   COLABVERSE — CREATE PRIVATE GROUP PAGE
 
-   This file controls only the Create Group form.
-   Shared colors, buttons and navigation come from sheared.css.
+   PURPOSE:
+   1. Style the Create Private Group page.
+   2. Match the ColabVerse dark theme.
+   3. Style group name and description fields.
+   4. Display private group information.
+   5. Style form validation errors.
+   6. Support desktop, tablet, and mobile screens.
+
+   IMPORTANT:
+   All selectors are scoped to .cv-create-group-page
+   to avoid affecting other ColabVerse pages.
 ============================================================ */
 
-/* Center the form on the page. */
-.form-page {
-    display: flex;
-    justify-content: center;
-    padding: 40px 20px;
+
+/* ============================================================
+   1. PAGE CONTAINER AND THEME
+============================================================ */
+
+.cv-create-group-page {
+
+    /* Background colors */
+    --cv-background: #0b1020;
+    --cv-surface: #141b2f;
+    --cv-surface-hover: #1b2540;
+
+    /* Border colors */
+    --cv-border: #29334d;
+
+    /* Brand colors */
+    --cv-purple: #8b5cf6;
+    --cv-purple-hover: #7c3aed;
+    --cv-blue: #4da3ff;
+
+    /* Text colors */
+    --cv-text: #eaf0ff;
+    --cv-muted: #9ca9c7;
+
+    /* Status colors */
+    --cv-error: #f87171;
+    --cv-error-background: rgba(248, 113, 113, 0.08);
+
+    /* Page dimensions */
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+
+    /* Page text */
+    color: var(--cv-text);
+
 }
 
-/* Main form container. */
-.form-card {
+
+/* Prevent padding and borders from increasing element widths */
+
+.cv-create-group-page *,
+.cv-create-group-page *::before,
+.cv-create-group-page *::after {
+    box-sizing: border-box;
+}
+
+
+/* ============================================================
+   2. PAGE HEADING
+============================================================ */
+
+.cv-create-group-page .cv-create-heading {
+
     width: 100%;
-    max-width: 600px;
+
+    margin: 0 0 28px;
+
+}
+
+
+/* Back to My Groups link */
+
+.cv-create-group-page .cv-back-link {
+
+    display: inline-flex;
+    align-items: center;
+
+    gap: 8px;
+
+    margin-bottom: 24px;
+
+    color: var(--cv-blue);
+
+    font-size: 13px;
+    font-weight: 600;
+
+    text-decoration: none;
+
+    transition: color 0.2s ease;
+
+}
+
+
+.cv-create-group-page .cv-back-link:hover {
+
+    color: #93c5fd;
+
+}
+
+
+/* Back arrow */
+
+.cv-create-group-page .cv-back-link svg {
+
+    display: block;
+
+    width: 17px;
+    height: 17px;
+
+    flex-shrink: 0;
+
+}
+
+
+/* Main page title */
+
+.cv-create-group-page .cv-create-heading h1 {
+
+    margin: 0 0 9px;
+
+    color: var(--cv-text);
+
+    font-size: 30px;
+    font-weight: 700;
+
+    line-height: 1.3;
+
+}
+
+
+/* Page description */
+
+.cv-create-group-page .cv-create-heading p {
+
+    margin: 0;
+
+    color: var(--cv-muted);
+
+    font-size: 14px;
+
+    line-height: 1.7;
+
+}
+
+
+/* ============================================================
+   3. CREATE GROUP FORM CARD
+============================================================ */
+
+.cv-create-group-page .cv-create-card {
+
+    width: 100%;
+    max-width: 760px;
+
     padding: 30px;
 
-    background: var(--surface);
-    border: 1px solid var(--border);
+    background: var(--cv-surface);
+
+    border: 1px solid var(--cv-border);
+
+    border-radius: 16px;
+
+}
+
+
+/* ============================================================
+   4. FORM CARD HEADER
+============================================================ */
+
+.cv-create-group-page .cv-create-card-header {
+
+    display: flex;
+    align-items: center;
+
+    gap: 16px;
+
+    padding-bottom: 24px;
+    margin-bottom: 28px;
+
+    border-bottom: 1px solid var(--cv-border);
+
+}
+
+
+/* Group icon container */
+
+.cv-create-group-page .cv-create-icon {
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    flex-shrink: 0;
+
+    width: 50px;
+    height: 50px;
+
+    background: rgba(139, 92, 246, 0.12);
+
+    color: #c4b5fd;
+
+    border: 1px solid rgba(139, 92, 246, 0.3);
+
     border-radius: 12px;
+
 }
 
-/* Form heading. */
-.form-card h1 {
-    margin-bottom: 8px;
-}
 
-/* Description below the heading. */
-.form-intro {
-    margin-bottom: 28px;
-    color: var(--muted);
-}
+/* Group icon SVG */
 
-/* Space between form fields. */
-.form-field {
-    margin-bottom: 22px;
-}
+.cv-create-group-page .cv-create-icon svg {
 
-/* Labels above inputs. */
-.form-field label {
     display: block;
-    margin-bottom: 8px;
-    font-weight: bold;
+
+    width: 25px;
+    height: 25px;
+
 }
 
-/* Text inputs and textareas. */
-.group-input,
-.group-textarea {
-    width: 100%;
-    padding: 13px;
 
-    background: var(--background);
-    color: var(--text);
+/* Card heading */
 
-    border: 1px solid var(--border);
-    border-radius: 8px;
+.cv-create-group-page .cv-create-card-header h2 {
+
+    margin: 0 0 6px;
+
+    color: var(--cv-text);
+
+    font-size: 20px;
+    font-weight: 700;
+
+    line-height: 1.4;
+
 }
 
-/* Allow the description field to resize vertically. */
-.group-textarea {
-    resize: vertical;
-}
 
-/* Highlight the selected input. */
-.group-input:focus,
-.group-textarea:focus {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-}
+/* Card description */
 
-/* Privacy selection area. */
-.privacy-option {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    margin-bottom: 28px;
-}
+.cv-create-group-page .cv-create-card-header p {
 
-/* Checkbox styling. */
-.group-checkbox {
-    width: 18px;
-    height: 18px;
-    margin-top: 5px;
-    accent-color: var(--accent);
-}
+    margin: 0;
 
-/* Privacy explanation. */
-.privacy-option p {
-    margin: 5px 0;
-    color: var(--muted);
+    color: var(--cv-muted);
+
     font-size: 13px;
+
+    line-height: 1.6;
+
 }
 
-/* Cancel and submit buttons. */
-.form-actions {
+
+/* ============================================================
+   5. FORM CONTAINER
+============================================================ */
+
+.cv-create-group-page .cv-create-form {
+
     display: flex;
-    justify-content: flex-end;
-    gap: 12px;
+    flex-direction: column;
+
+    gap: 25px;
+
+    width: 100%;
+
 }
 
-/* Mobile layout. */
-@media (max-width: 700px) {
 
-    .form-page {
-        padding: 20px 12px;
+/* ============================================================
+   6. FORM FIELDS
+============================================================ */
+
+.cv-create-group-page .cv-form-field {
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 10px;
+
+    width: 100%;
+
+}
+
+
+/* Field labels */
+
+.cv-create-group-page .cv-form-field label {
+
+    display: block;
+
+    color: var(--cv-text);
+
+    font-size: 13px;
+    font-weight: 600;
+
+}
+
+
+/* Required field indicator */
+
+.cv-create-group-page .cv-required {
+
+    color: var(--cv-error);
+
+    margin-left: 3px;
+
+}
+
+
+/* ============================================================
+   7. TEXT INPUTS AND TEXTAREA
+============================================================ */
+
+/*
+   Django renders the input elements using:
+   {{ form.name }}
+   {{ form.description }}
+
+   These rules style the generated HTML elements.
+*/
+
+.cv-create-group-page .cv-form-field input[type="text"],
+.cv-create-group-page .cv-form-field textarea {
+
+    display: block;
+
+    width: 100%;
+    min-width: 0;
+
+    padding: 13px 15px;
+
+    background: #0f172a;
+
+    color: var(--cv-text);
+
+    border: 1px solid var(--cv-border);
+
+    border-radius: 10px;
+
+    font-family: inherit;
+
+    font-size: 14px;
+
+    line-height: 1.6;
+
+    outline: none;
+
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+
+}
+
+
+/* Group name input */
+
+.cv-create-group-page .cv-form-field input[type="text"] {
+
+    min-height: 48px;
+
+}
+
+
+/* Group description textarea */
+
+.cv-create-group-page .cv-form-field textarea {
+
+    min-height: 135px;
+
+    resize: vertical;
+
+}
+
+
+/* Placeholder text */
+
+.cv-create-group-page .cv-form-field input::placeholder,
+.cv-create-group-page .cv-form-field textarea::placeholder {
+
+    color: #7f8ba8;
+
+}
+
+
+/* Input focus */
+
+.cv-create-group-page .cv-form-field input[type="text"]:focus,
+.cv-create-group-page .cv-form-field textarea:focus {
+
+    border-color: var(--cv-purple);
+
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.12);
+
+}
+
+
+/* Disabled inputs */
+
+.cv-create-group-page .cv-form-field input:disabled,
+.cv-create-group-page .cv-form-field textarea:disabled {
+
+    opacity: 0.6;
+
+    cursor: not-allowed;
+
+}
+
+
+/* ============================================================
+   8. FIELD HELP TEXT
+============================================================ */
+
+.cv-create-group-page .cv-field-help {
+
+    margin: 0;
+
+    color: var(--cv-muted);
+
+    font-size: 12px;
+
+    line-height: 1.6;
+
+}
+
+
+/* ============================================================
+   9. FORM VALIDATION ERRORS
+============================================================ */
+
+/* General form errors */
+
+.cv-create-group-page .cv-form-errors {
+
+    padding: 14px 16px;
+
+    background: var(--cv-error-background);
+
+    color: var(--cv-error);
+
+    border: 1px solid rgba(248, 113, 113, 0.35);
+
+    border-radius: 10px;
+
+    font-size: 13px;
+
+    line-height: 1.6;
+
+}
+
+
+/* Individual field errors */
+
+.cv-create-group-page .cv-field-errors {
+
+    padding: 10px 12px;
+
+    background: var(--cv-error-background);
+
+    color: var(--cv-error);
+
+    border: 1px solid rgba(248, 113, 113, 0.25);
+
+    border-radius: 8px;
+
+    font-size: 12px;
+
+    line-height: 1.6;
+
+}
+
+
+/* Django error lists */
+
+.cv-create-group-page .cv-form-errors ul,
+.cv-create-group-page .cv-field-errors ul {
+
+    margin: 0;
+
+    padding-left: 18px;
+
+}
+
+
+/* Error list items */
+
+.cv-create-group-page .cv-form-errors li,
+.cv-create-group-page .cv-field-errors li {
+
+    margin-bottom: 4px;
+
+}
+
+
+.cv-create-group-page .cv-form-errors li:last-child,
+.cv-create-group-page .cv-field-errors li:last-child {
+
+    margin-bottom: 0;
+
+}
+
+
+/* ============================================================
+   10. PRIVATE GROUP INFORMATION BOX
+============================================================ */
+
+.cv-create-group-page .cv-private-info {
+
+    width: 100%;
+
+    padding: 20px;
+
+    background: rgba(139, 92, 246, 0.07);
+
+    border: 1px solid rgba(139, 92, 246, 0.28);
+
+    border-radius: 12px;
+
+}
+
+
+/* Information box heading */
+
+.cv-create-group-page .cv-private-info-header {
+
+    display: flex;
+    align-items: center;
+
+    gap: 10px;
+
+    margin-bottom: 12px;
+
+}
+
+
+/* Lock icon */
+
+.cv-create-group-page .cv-private-info-header svg {
+
+    display: block;
+
+    width: 19px;
+    height: 19px;
+
+    flex-shrink: 0;
+
+    color: #c4b5fd;
+
+}
+
+
+/* Private group title */
+
+.cv-create-group-page .cv-private-info-header h3 {
+
+    margin: 0;
+
+    color: #ddd6fe;
+
+    font-size: 15px;
+    font-weight: 700;
+
+}
+
+
+/* Information description */
+
+.cv-create-group-page .cv-private-info > p {
+
+    margin: 0 0 14px;
+
+    color: var(--cv-muted);
+
+    font-size: 13px;
+
+    line-height: 1.7;
+
+}
+
+
+/* Private group feature list */
+
+.cv-create-group-page .cv-private-info ul {
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 10px;
+
+    margin: 0;
+
+    padding-left: 20px;
+
+}
+
+
+/* Feature list items */
+
+.cv-create-group-page .cv-private-info li {
+
+    padding-left: 2px;
+
+    color: var(--cv-text);
+
+    font-size: 12px;
+
+    line-height: 1.7;
+
+}
+
+
+/* List bullet colors */
+
+.cv-create-group-page .cv-private-info li::marker {
+
+    color: var(--cv-purple);
+
+}
+
+
+/* ============================================================
+   11. FORM ACTIONS
+============================================================ */
+
+.cv-create-group-page .cv-form-actions {
+
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+
+    gap: 12px;
+
+    padding-top: 24px;
+
+    border-top: 1px solid var(--cv-border);
+
+}
+
+
+/* Shared button styling */
+
+.cv-create-group-page .cv-form-actions .primary-button,
+.cv-create-group-page .cv-form-actions .secondary-button {
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    gap: 8px;
+
+    min-height: 46px;
+
+    padding: 11px 20px;
+
+    border-radius: 10px;
+
+    font-family: inherit;
+
+    font-size: 13px;
+    font-weight: 700;
+
+    line-height: 1.4;
+
+    text-align: center;
+
+    text-decoration: none;
+
+    cursor: pointer;
+
+    transition:
+        background-color 0.2s ease,
+        border-color 0.2s ease,
+        color 0.2s ease;
+
+}
+
+
+/* ============================================================
+   12. CANCEL BUTTON
+============================================================ */
+
+.cv-create-group-page .cv-cancel-button {
+
+    background: #252c46;
+
+    color: var(--cv-text);
+
+    border: 1px solid var(--cv-border);
+
+}
+
+
+.cv-create-group-page .cv-cancel-button:hover {
+
+    background: #323b5c;
+
+    color: #ffffff;
+
+}
+
+
+/* ============================================================
+   13. CREATE PRIVATE GROUP BUTTON
+============================================================ */
+
+.cv-create-group-page .cv-create-button {
+
+    background: var(--cv-purple);
+
+    color: #ffffff;
+
+    border: 1px solid var(--cv-purple);
+
+}
+
+
+.cv-create-group-page .cv-create-button:hover {
+
+    background: var(--cv-purple-hover);
+
+    border-color: var(--cv-purple-hover);
+
+    color: #ffffff;
+
+}
+
+
+/* Button SVG icon */
+
+.cv-create-group-page .cv-create-button svg {
+
+    display: block;
+
+    width: 17px;
+    height: 17px;
+
+    flex-shrink: 0;
+
+}
+
+
+/* Keyboard navigation */
+
+.cv-create-group-page .cv-form-actions a:focus-visible,
+.cv-create-group-page .cv-form-actions button:focus-visible,
+.cv-create-group-page .cv-back-link:focus-visible {
+
+    outline: 2px solid var(--cv-blue);
+
+    outline-offset: 3px;
+
+}
+
+
+/* ============================================================
+   14. RESPONSIVE DESIGN — TABLETS
+============================================================ */
+
+@media (max-width: 900px) {
+
+    .cv-create-group-page .cv-create-card {
+
+        max-width: 100%;
+
+        padding: 24px;
+
     }
 
-    .form-card {
-        padding: 20px;
+}
+
+
+/* ============================================================
+   15. RESPONSIVE DESIGN — MOBILE
+============================================================ */
+
+@media (max-width: 600px) {
+
+    /* Page heading */
+
+    .cv-create-group-page .cv-create-heading {
+
+        margin-bottom: 24px;
+
     }
 
-    .form-actions {
-        flex-direction: column;
+
+    .cv-create-group-page .cv-create-heading h1 {
+
+        font-size: 25px;
+
     }
 
-    .form-actions a,
-    .form-actions button {
+
+    .cv-create-group-page .cv-create-heading p {
+
+        font-size: 13px;
+
+    }
+
+
+    /* Form card */
+
+    .cv-create-group-page .cv-create-card {
+
+        padding: 20px 16px;
+
+        border-radius: 12px;
+
+    }
+
+
+    /* Card heading */
+
+    .cv-create-group-page .cv-create-card-header {
+
+        gap: 12px;
+
+        padding-bottom: 20px;
+
+        margin-bottom: 22px;
+
+    }
+
+
+    .cv-create-group-page .cv-create-icon {
+
+        width: 44px;
+        height: 44px;
+
+    }
+
+
+    .cv-create-group-page .cv-create-icon svg {
+
+        width: 22px;
+        height: 22px;
+
+    }
+
+
+    .cv-create-group-page .cv-create-card-header h2 {
+
+        font-size: 17px;
+
+    }
+
+
+    /* Form spacing */
+
+    .cv-create-group-page .cv-create-form {
+
+        gap: 22px;
+
+    }
+
+
+    /* Private group information */
+
+    .cv-create-group-page .cv-private-info {
+
+        padding: 16px;
+
+    }
+
+
+    /* Form buttons */
+
+    .cv-create-group-page .cv-form-actions {
+
+        flex-direction: column-reverse;
+
+        align-items: stretch;
+
+    }
+
+
+    .cv-create-group-page .cv-form-actions .primary-button,
+    .cv-create-group-page .cv-form-actions .secondary-button {
+
         width: 100%;
+
     }
+
+}
+
+
+/* ============================================================
+   16. VERY SMALL MOBILE SCREENS
+============================================================ */
+
+@media (max-width: 380px) {
+
+    .cv-create-group-page .cv-create-heading h1 {
+
+        font-size: 23px;
+
+    }
+
+
+    .cv-create-group-page .cv-create-card {
+
+        padding: 16px 12px;
+
+    }
+
+
+    .cv-create-group-page .cv-private-info li {
+
+        font-size: 11px;
+
+    }
+
 }

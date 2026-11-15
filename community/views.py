@@ -1,21 +1,17 @@
 """
-CodeView community views.
+ColabVerse private development group views.
 
 Features:
-- Public chat groups
 - Private invitation-only development groups
 - Group dashboard and membership management
 - Discussions, comments, replies, likes, and hiding
 - Group chat with text, code, voice notes, and files
 - Message editing and deletion
-- Private development meeting room
+- Private development meeting rooms
 - GitHub repository connection and read-only file browsing
 
 Private group membership is managed by invitation_views.py
 and invitations.py.
-
-The old membership-request approval and direct-add-member
-workflows have been removed.
 """
 
 import httpx
@@ -23,13 +19,6 @@ import httpx
 import json
 import logging
 
-# Convert asynchronous Channels calls for synchronous Django views.
-from asgiref.sync import async_to_sync
-
-# Access the configured Django Channels layer.
-from channels.layers import get_channel_layer
-
-from .github_oauth import has_repository_connection_permission
 
 from community.github_auth import (
     GitHubAuthError,
@@ -227,34 +216,29 @@ def github_request_json(url):
 # ============================================================
 # 1. GROUP DASHBOARD
 # ============================================================
-
-# ============================================================
-# 1. GROUP DASHBOARD
-# ============================================================
-
 @login_required
 def groups(request):
     """
-    Display the CodeView groups dashboard.
+    Display the ColabVerse private development groups dashboard.
 
-    Features:
-    1. Show public groups.
-    2. Show private groups the developer belongs to.
+    Rules:
+    1. Show only private development groups.
+    2. Show groups the developer belongs to.
     3. Show groups owned by the developer.
-    4. Count pending private group invitations.
+    4. Count pending invitations.
     """
 
-    # Find groups where the logged-in developer is a member.
+    # Find groups where the developer is a member.
     member_group_ids = GroupMember.objects.filter(
         user=request.user,
     ).values_list("group_id", flat=True)
 
-    # Display public groups and private groups the user can access.
+    # Show only private groups the developer owns or belongs to.
     project_groups = (
         ProjectGroup.objects
+        .filter(is_private=True)
         .filter(
-            Q(is_private=False)
-            | Q(id__in=member_group_ids)
+            Q(id__in=member_group_ids)
             | Q(owner=request.user)
         )
         .select_related("owner")
@@ -269,84 +253,107 @@ def groups(request):
             request.user,
         )
 
-        # Temporary compatibility with older templates.
+        # Keep compatibility with older templates.
         group.has_pending_request = False
 
-    # ========================================================
-    # COUNT PENDING INVITATIONS
-    # ========================================================
-
-    # Count only invitations received by the logged-in user.
-    # Accepted and declined invitations are excluded.
+    # Count invitations awaiting the developer's response.
     pending_invitation_count = GroupInvitation.objects.filter(
         invited_user=request.user,
         status="pending",
     ).count()
 
-    # ========================================================
-    # RENDER GROUP DASHBOARD
-    # ========================================================
-
+    # Display the My Groups page.
     return render(
         request,
         "community/groups.html",
         {
             "groups": project_groups,
-
-            # Used by the My Invitations notification badge.
             "pending_invitation_count": pending_invitation_count,
         },
     )
 
-
 # ============================================================
-# 2. CREATE GROUP
+# 2. CREATE PRIVATE DEVELOPMENT GROUP
 # ============================================================
 
 @login_required
 def create_group(request):
     """
-    Create either a public chat group or private development group.
+    Create a private development group in ColabVerse.
 
-    Public groups use open joining.
-    Private groups use invitations.
+    Rules:
+        1. Only authenticated developers can create groups.
+        2. Every newly created group is private.
+        3. Membership is invitation-only.
+        4. The creator becomes the group owner.
+        5. The creator is automatically added as an admin.
+        6. Group creation and owner membership are atomic.
     """
 
+    # ========================================================
+    # 1. HANDLE FORM SUBMISSION
+    # ========================================================
+
     if request.method == "POST":
+
+        # Validate the submitted group information.
         form = ProjectGroupForm(request.POST)
 
         if form.is_valid():
 
+            # =================================================
+            # 2. DATABASE TRANSACTION
+            # =================================================
+
+            # Both database operations must succeed together.
             with transaction.atomic():
 
+                # Prepare the group without saving it yet.
                 group = form.save(commit=False)
 
-                # The logged-in developer owns the group.
+                # The authenticated developer owns the group.
                 group.owner = request.user
 
-                # Never trust the browser to choose joining rules.
-                group.join_policy = (
-                    "invite" if group.is_private else "open"
-                )
+                # Enforce private-only group creation.
+                group.is_private = True
 
+                # Private groups require invitations.
+                group.join_policy = "invite"
+
+                # Save the group to PostgreSQL.
                 group.save()
 
-                # The owner is the first group member.
+                # =============================================
+                # 3. CREATE OWNER MEMBERSHIP
+                # =============================================
+
+                # The group owner becomes its first member.
                 GroupMember.objects.create(
                     group=group,
                     user=request.user,
                     role="admin",
                 )
 
+            # =================================================
+            # 4. SUCCESS MESSAGE
+            # =================================================
+
             messages.success(
                 request,
-                "Your group was created successfully!",
+                "Your private development group was created successfully!",
             )
 
+            # Return to the My Groups page.
             return redirect("groups")
 
     else:
+
+        # Display an empty form for GET requests.
         form = ProjectGroupForm()
+
+    # ========================================================
+    # 5. DISPLAY CREATE GROUP PAGE
+    # ========================================================
 
     return render(
         request,
@@ -354,69 +361,6 @@ def create_group(request):
         {
             "form": form,
         },
-    )
-
-
-# ============================================================
-# 3. JOIN PUBLIC GROUP
-# ============================================================
-
-@login_required
-@require_POST
-def join_group(request, group_id):
-    """
-    Allow registered developers to join public chat groups.
-
-    Private groups require invitations and cannot be joined here.
-    """
-
-    with transaction.atomic():
-
-        group = get_object_or_404(
-            ProjectGroup.objects.select_for_update(),
-            id=group_id,
-        )
-
-        if is_group_member(group, request.user):
-
-            messages.info(
-                request,
-                "You are already a member of this group.",
-            )
-
-            return redirect(
-                "group_detail",
-                group_id=group.id,
-            )
-
-        # Private groups must use the invitation service.
-        if group.is_private:
-            return HttpResponseForbidden(
-                "Private development groups require an invitation."
-            )
-
-        # Public groups allow direct joining.
-        if group.join_policy != "open":
-            return HttpResponseForbidden(
-                "This group does not allow direct joining."
-            )
-
-        GroupMember.objects.get_or_create(
-            group=group,
-            user=request.user,
-            defaults={
-                "role": "member",
-            },
-        )
-
-    messages.success(
-        request,
-        "You joined the community successfully!",
-    )
-
-    return redirect(
-        "group_detail",
-        group_id=group.id,
     )
 
 

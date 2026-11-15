@@ -11,12 +11,9 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>{{ group.name }} | CodeView</title>
+    <title>{{ group.name }} | ColabVerse</title>
 
-    {% load static %}
-
-
-    <!-- Keep the existing CodeView styles. -->
+    <!-- Existing ColabVerse styles. -->
     <link rel="stylesheet" href="{% static 'community/sheared.css' %}">
     <link rel="stylesheet" href="{% static 'community/group_detail/group_detail.css' %}">
     <link rel="stylesheet" href="{% static 'community/group_detail/group_discussions.css' %}">
@@ -40,7 +37,7 @@
     <header class="navbar">
 
         <a href="{% url 'groups' %}" class="brand">
-            &lt;/&gt; CodeView
+            &lt;/&gt; ColabVerse
         </a>
 
         <nav class="top-links">
@@ -71,7 +68,7 @@
 
 
     <!-- =====================================================
-         2. WORKSPACE LAYOUT
+         2. GROUP LAYOUT
     ====================================================== -->
 
     <div class="workspace-layout">
@@ -81,7 +78,7 @@
         <aside class="workspace-sidebar">
 
             <div class="sidebar-title">
-                GROUP WORKSPACE
+                PRIVATE DEVELOPMENT GROUP
             </div>
 
             <div class="sidebar-group-name">
@@ -206,7 +203,7 @@
 
 
         <!-- =================================================
-             3. MAIN WORKSPACE
+             3. MAIN GROUP PAGE
         ================================================== -->
 
         <main class="workspace-main">
@@ -274,7 +271,7 @@
                 {% endif %}
 
                 <!-- =================================================
-                     4. WORKSPACE HEADING
+                     4. GROUP HEADING
                 ================================================== -->
 
                 <div class="workspace-heading">
@@ -305,19 +302,10 @@
                         {{ group.name }}
                     </h2>
 
-                    {% if group.is_private %}
-
-                        <span class="privacy-badge private">
-                            Private Development Group
-                        </span>
-
-                    {% else %}
-
-                        <span class="privacy-badge public">
-                            Public Community
-                        </span>
-
-                    {% endif %}
+                    <!-- Private development groups require invitations. -->
+                    <span class="privacy-badge private">
+                        Private Development Group
+                    </span>
 
                     <p>
                         {{ group.description|linebreaksbr }}
@@ -330,17 +318,7 @@
                         </span>
 
                         <span>
-
-                            {% if group.is_private %}
-
-                                Invitation Only
-
-                            {% else %}
-
-                                Open Community
-
-                            {% endif %}
-
+                            Invitation Only
                         </span>
 
                     </div>
@@ -354,63 +332,29 @@
 
                 {% if not is_member %}
 
+                    <!-- Direct joining is not allowed. -->
                     <section class="membership-notice">
 
-                        {% if group.is_private %}
+                        <h2>
+                            Private Development Group
+                        </h2>
 
-                            <!-- Private groups do not accept join requests. -->
+                        <p>
+                            Only developers invited by the group owner
+                            can join this development group.
+                        </p>
 
-                            <h2>
-                                Private Development Group
-                            </h2>
+                        <p>
+                            If you received an invitation, visit
+                            My Invitations to accept or decline it.
+                        </p>
 
-                            <p>
-                                Only developers invited by the group owner
-                                can join this development group.
-                            </p>
-
-                            <p>
-                                If you received an invitation, visit
-                                My Invitations to accept or decline it.
-                            </p>
-
-                            <a
-                                href="{% url 'received_group_invitations' %}"
-                                class="group-action"
-                            >
-                                View My Invitations
-                            </a>
-
-                        {% else %}
-
-                            <!-- Public groups allow direct joining. -->
-
-                            <h2>
-                                Join This Community
-                            </h2>
-
-                            <p>
-                                This community is open to registered
-                                developers.
-                            </p>
-
-                            <form
-                                method="POST"
-                                action="{% url 'join_group' group.id %}"
-                            >
-
-                                {% csrf_token %}
-
-                                <button
-                                    type="submit"
-                                    class="group-action"
-                                >
-                                    Join Community
-                                </button>
-
-                            </form>
-
-                        {% endif %}
+                        <a
+                            href="{% url 'received_group_invitations' %}"
+                            class="group-action"
+                        >
+                            View My Invitations
+                        </a>
 
                     </section>
 
@@ -1193,20 +1137,10 @@
                         </h2>
 
 
-                        {% if group.is_private %}
-
-                            <p class="workspace-section-description">
-                                Private development groups support
-                                a maximum of 10 members, including the owner.
-                            </p>
-
-                        {% else %}
-
-                            <p class="workspace-section-description">
-                                Public communities have no membership limit.
-                            </p>
-
-                        {% endif %}
+                        <p class="workspace-section-description">
+                            Private development groups support
+                            a maximum of 10 members, including the owner.
+                        </p>
 
 
                         <!-- Member list. -->
