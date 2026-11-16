@@ -1,0 +1,1242 @@
+/* ==========================================================
+   COLABVERSE — COSMIC DEVELOPER LANDING PAGE
+   ========================================================== */
+
+/* Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+
+/* ==========================================================
+   1. GLOBAL VARIABLES
+   ========================================================== */
+
+:root {
+    --accent: #7658ff;
+    --accent2: #24d6fa;
+    --bg: #080c20;
+    --text: #f9faff;
+    --muted: #b2b9d2;
+    --card: #121932;
+    --stroke: rgba(255, 255, 255, 0.12);
+}
+
+
+/* ==========================================================
+   2. GLOBAL RESET
+   ========================================================== */
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    overflow-x: hidden;
+}
+
+button,
+a {
+    font: inherit;
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+
+/* ==========================================================
+   3. ANIMATED BACKGROUND
+   ========================================================== */
+
+.background {
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    overflow: hidden;
+
+    background:
+        radial-gradient(
+            ellipse at 80% 0%,
+            color-mix(in srgb, var(--accent) 28%, transparent),
+            transparent 45%
+        ),
+        radial-gradient(
+            ellipse at 8% 65%,
+            color-mix(in srgb, var(--accent2) 12%, transparent),
+            transparent 48%
+        ),
+        var(--bg);
+}
+
+.background::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+
+    background-image:
+        radial-gradient(
+            #ffffff50 1px,
+            transparent 1px
+        );
+
+    background-size: 52px 52px;
+    opacity: 0.23;
+
+    animation: drift 28s linear infinite;
+}
+
+.glow {
+    position: absolute;
+    width: 500px;
+    height: 500px;
+
+    border-radius: 50%;
+    filter: blur(90px);
+    opacity: 0.13;
+
+    background: var(--accent);
+
+    left: -180px;
+    top: 40vh;
+
+    animation: float 11s ease-in-out infinite alternate;
+}
+
+
+/* ==========================================================
+   4. NAVIGATION BAR
+   ========================================================== */
+
+.nav {
+    max-width: 1230px;
+    margin: auto;
+    padding: 27px 32px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 23px;
+    font-weight: 700;
+    letter-spacing: -1.2px;
+}
+
+.brand-mark {
+    width: 37px;
+    height: 37px;
+
+    border-radius: 12px;
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--accent),
+            var(--accent2)
+        );
+
+    display: grid;
+    place-items: center;
+
+    font-size: 22px;
+    color: white;
+
+    box-shadow:
+        0 0 35px
+        color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+
+    font-size: 14px;
+    color: #d4d8e9;
+}
+
+.nav-links a:hover {
+    color: white;
+}
+
+.nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+
+/* ==========================================================
+   5. BUTTONS
+   ========================================================== */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+
+    border-radius: 13px;
+    padding: 14px 21px;
+
+    font-weight: 700;
+    font-size: 14px;
+
+    border: 1px solid transparent;
+
+    transition:
+        transform 0.2s,
+        box-shadow 0.2s,
+        background 0.2s;
+}
+
+.btn:hover {
+    transform: translateY(-3px);
+}
+
+.btn-primary {
+    background:
+        linear-gradient(
+            120deg,
+            var(--accent),
+            var(--accent2)
+        );
+
+    color: #fff;
+
+    box-shadow:
+        0 12px 36px
+        color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.btn-ghost {
+    background: #ffffff0c;
+    border-color: var(--stroke);
+}
+
+
+/* ==========================================================
+   6. HERO SECTION
+   ========================================================== */
+
+.hero {
+    max-width: 1230px;
+    margin: auto;
+
+    padding: 85px 32px 90px;
+    min-height: 690px;
+
+    display: grid;
+    grid-template-columns: 1fr 1.06fr;
+    align-items: center;
+    gap: 48px;
+}
+
+.eyebrow {
+    display: inline-flex;
+    gap: 9px;
+    align-items: center;
+
+    color: #e3dfff;
+
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+
+    padding: 10px 14px;
+
+    border: 1px solid var(--stroke);
+    background: #ffffff0b;
+    border-radius: 50px;
+}
+
+.dot {
+    height: 8px;
+    width: 8px;
+
+    border-radius: 50%;
+    background: var(--accent2);
+
+    box-shadow: 0 0 15px var(--accent2);
+}
+
+h1,
+h2,
+h3 {
+    font-family: 'Space Grotesk', sans-serif;
+}
+
+h1 {
+    font-size: clamp(51px, 5.5vw, 83px);
+    line-height: 1.03;
+    letter-spacing: -5px;
+    margin: 25px 0;
+}
+
+.gradient-text {
+    background:
+        linear-gradient(
+            100deg,
+            var(--accent2),
+            #fff 45%,
+            var(--accent)
+        );
+
+    background-clip: text;
+    color: transparent;
+}
+
+.hero p {
+    color: var(--muted);
+
+    font-size: 19px;
+    line-height: 1.75;
+
+    max-width: 530px;
+}
+
+.hero-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+
+    margin-top: 30px;
+}
+
+
+/* ==========================================================
+   7. DEVELOPER COMMUNITY PROOF
+   ========================================================== */
+
+.proof {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+
+    margin-top: 36px;
+
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.avatars {
+    display: flex;
+    padding-left: 10px;
+}
+
+.avatars span {
+    width: 32px;
+    height: 32px;
+
+    margin-left: -9px;
+    border-radius: 50%;
+
+    display: grid;
+    place-items: center;
+
+    border: 2px solid var(--bg);
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--accent),
+            #223a7e
+        );
+
+    font-size: 12px;
+}
+
+
+/* ==========================================================
+   8. ANIMATED APPLICATION PREVIEW
+   ========================================================== */
+
+.visual-wrap {
+    position: relative;
+    perspective: 1100px;
+    min-height: 440px;
+}
+
+.app-preview {
+    position: relative;
+
+    border: 1px solid #ffffff33;
+    background: #0c1025e8;
+
+    box-shadow:
+        0 45px 100px #0009,
+        0 0 65px
+        color-mix(in srgb, var(--accent) 13%, transparent);
+
+    border-radius: 20px;
+    overflow: hidden;
+
+    transform: rotateY(-8deg) rotateX(4deg);
+
+    animation: float 8s ease-in-out infinite alternate;
+}
+
+
+/* Application Top Bar */
+
+.app-top {
+    height: 48px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 0 17px;
+
+    background: #ffffff09;
+    border-bottom: 1px solid var(--stroke);
+
+    font-size: 12px;
+    color: #c6cbe1;
+}
+
+.traffic {
+    display: flex;
+    gap: 6px;
+}
+
+.traffic i {
+    height: 9px;
+    width: 9px;
+
+    background: #fa7587;
+    border-radius: 50%;
+}
+
+.traffic i:nth-child(2) {
+    background: #ffc868;
+}
+
+.traffic i:nth-child(3) {
+    background: #61d6a5;
+}
+
+
+/* Application Body */
+
+.app-body {
+    display: grid;
+    grid-template-columns: 125px 1fr;
+
+    min-height: 350px;
+}
+
+
+/* Application Sidebar */
+
+.app-sidebar {
+    border-right: 1px solid var(--stroke);
+
+    padding: 20px 12px;
+    background: #090e20;
+}
+
+.side-item {
+    font-size: 10px;
+    padding: 12px 9px;
+
+    color: #a7b2d0;
+    border-radius: 8px;
+}
+
+.side-item.active {
+    background:
+        color-mix(
+            in srgb,
+            var(--accent) 22%,
+            transparent
+        );
+
+    color: #fff;
+}
+
+
+/* Application Feed */
+
+.app-main {
+    padding: 20px;
+}
+
+.mini-title {
+    font-size: 14px;
+    font-weight: 700;
+
+    margin: 0 0 16px;
+}
+
+
+/* Feed Posts */
+
+.post {
+    border: 1px solid var(--stroke);
+    background: #ffffff06;
+
+    border-radius: 12px;
+    padding: 14px;
+
+    margin-bottom: 11px;
+
+    animation: appear 0.7s both;
+}
+
+.post:nth-child(2) {
+    animation-delay: 0.25s;
+}
+
+.post:nth-child(3) {
+    animation-delay: 0.5s;
+}
+
+.post-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.mini-avatar {
+    width: 23px;
+    height: 23px;
+
+    border-radius: 50%;
+
+    display: grid;
+    place-items: center;
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--accent),
+            var(--accent2)
+        );
+}
+
+.post p {
+    font-size: 11px;
+    line-height: 1.5;
+
+    color: #d1d8ec;
+    margin: 8px 0;
+}
+
+.post-foot {
+    font-size: 10px;
+    color: #a8b2d3;
+}
+
+
+/* ==========================================================
+   9. FLOATING ANIMATED LABELS
+   ========================================================== */
+
+.floating {
+    position: absolute;
+
+    padding: 12px 15px;
+
+    border: 1px solid #ffffff35;
+    background: #161d3bee;
+
+    backdrop-filter: blur(12px);
+    border-radius: 12px;
+
+    font-size: 12px;
+
+    box-shadow: 0 16px 45px #0006;
+
+    animation: bob 5s ease-in-out infinite;
+}
+
+.floating.one {
+    top: 7%;
+    right: -6%;
+}
+
+.floating.two {
+    bottom: 0;
+    left: -8%;
+
+    animation-delay: -2.5s;
+}
+
+.pill {
+    color: var(--accent2);
+    font-weight: 700;
+}
+
+
+/* ==========================================================
+   10. GENERAL PAGE SECTIONS
+   ========================================================== */
+
+.section {
+    max-width: 1230px;
+    margin: 0 auto;
+
+    padding: 90px 32px;
+}
+
+.section-head {
+    text-align: center;
+
+    max-width: 720px;
+    margin: 0 auto 45px;
+}
+
+.kicker {
+    font-size: 12px;
+    font-weight: 800;
+
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+
+    color: var(--accent2);
+}
+
+h2 {
+    font-size: clamp(34px, 4vw, 54px);
+    letter-spacing: -2px;
+
+    margin: 13px 0;
+}
+
+.section-head p,
+.feature p,
+.step p {
+    color: var(--muted);
+    line-height: 1.7;
+}
+
+
+/* ==========================================================
+   11. FEATURES SECTION
+   ========================================================== */
+
+.features {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+.feature {
+    background:
+        linear-gradient(
+            140deg,
+            #ffffff0e,
+            #ffffff04
+        );
+
+    border: 1px solid var(--stroke);
+    border-radius: 21px;
+
+    padding: 28px;
+
+    transition:
+        transform 0.25s,
+        border-color 0.25s;
+}
+
+.feature:hover {
+    transform: translateY(-7px);
+    border-color: var(--accent);
+}
+
+.feature-number {
+    display: inline-grid;
+    place-items: center;
+
+    width: 43px;
+    height: 43px;
+
+    background:
+        color-mix(
+            in srgb,
+            var(--accent) 22%,
+            transparent
+        );
+
+    border-radius: 12px;
+
+    color: #fff;
+    font-weight: 800;
+}
+
+.feature h3 {
+    font-size: 20px;
+    margin: 24px 0 9px;
+}
+
+.feature p {
+    font-size: 14px;
+    margin: 0;
+}
+
+
+/* ==========================================================
+   12. HOW IT WORKS SECTION
+   ========================================================== */
+
+.steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+}
+
+.step {
+    padding: 25px 12px;
+}
+
+.step b {
+    font-size: 48px;
+    color: var(--accent2);
+    opacity: 0.75;
+}
+
+.step h3 {
+    font-size: 21px;
+}
+
+
+/* ==========================================================
+   13. COMMUNITY CALL TO ACTION
+   ========================================================== */
+
+.cta {
+    border-radius: 28px;
+
+    background:
+        radial-gradient(
+            circle at 85% 15%,
+            color-mix(in srgb, var(--accent2) 32%, transparent),
+            transparent 38%
+        ),
+        linear-gradient(
+            120deg,
+            color-mix(in srgb, var(--accent) 35%, #101633),
+            #101633
+        );
+
+    padding: 65px;
+
+    text-align: center;
+    border: 1px solid #ffffff2a;
+}
+
+.cta h2 {
+    margin-top: 0;
+}
+
+.cta p {
+    color: #d6d9ee;
+}
+
+
+/* ==========================================================
+   14. FOOTER
+   ========================================================== */
+
+.footer {
+    max-width: 1230px;
+    margin: auto;
+
+    padding: 35px 32px 55px;
+
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+
+    border-top: 1px solid var(--stroke);
+
+    color: var(--muted);
+    font-size: 13px;
+}
+
+
+/* ==========================================================
+   15. SCROLL REVEAL ANIMATIONS
+   ========================================================== */
+
+.reveal {
+    opacity: 0;
+    transform: translateY(25px);
+
+    transition:
+        opacity 0.8s,
+        transform 0.8s;
+}
+
+.reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.menu-button {
+    display: none;
+}
+
+
+/* ==========================================================
+   16. OPTIONAL DESIGN THEMES
+   ========================================================== */
+
+/* Discord Theme */
+
+.theme-discord .hero {
+    grid-template-columns: 0.9fr 1.1fr;
+}
+
+.theme-discord h1 {
+    text-transform: uppercase;
+    font-weight: 700;
+}
+
+
+/* Terminal Theme */
+
+.theme-terminal h1,
+.theme-neon h1 {
+    font-size: clamp(48px, 5.2vw, 76px);
+}
+
+.theme-terminal .app-preview {
+    border-radius: 7px;
+}
+
+.theme-terminal .app-top {
+    background: #111b1d;
+}
+
+
+/* Blueprint and Neon Themes */
+
+.theme-blueprint .background::before,
+.theme-neon .background::before {
+    background-image:
+        linear-gradient(
+            #ffffff0e 1px,
+            transparent 1px
+        ),
+        linear-gradient(
+            90deg,
+            #ffffff0e 1px,
+            transparent 1px
+        );
+
+    background-size: 46px 46px;
+    opacity: 0.7;
+}
+
+
+/* Electric Theme */
+
+.theme-electric {
+    --text: #fff;
+}
+
+.theme-electric .btn-primary {
+    color: #101020;
+}
+
+
+/* Midnight and Aurora Themes */
+
+.theme-midnight .app-preview,
+.theme-aurora .app-preview {
+    transform: rotateY(5deg) rotateX(3deg);
+}
+
+
+/* Orbit Theme */
+
+.theme-orbit .visual-wrap::before {
+    content: '';
+
+    position: absolute;
+    inset: -40px;
+
+    border: 1px solid #ffffff25;
+    border-radius: 50%;
+
+    transform: rotate(-20deg);
+
+    animation: spin 35s linear infinite;
+}
+
+
+/* Launch Theme */
+
+.theme-launch .eyebrow {
+    border-color: var(--accent);
+}
+
+
+/* ==========================================================
+   17. ANIMATION KEYFRAMES
+   ========================================================== */
+
+/* Floating application preview */
+
+@keyframes float {
+    from {
+        transform:
+            translateY(-10px)
+            rotateY(-8deg)
+            rotateX(4deg);
+    }
+
+    to {
+        transform:
+            translateY(12px)
+            rotateY(-5deg)
+            rotateX(2deg);
+    }
+}
+
+
+/* Floating labels */
+
+@keyframes bob {
+    50% {
+        transform: translateY(-16px);
+    }
+}
+
+
+/* Background movement */
+
+@keyframes drift {
+    to {
+        background-position: 52px 52px;
+    }
+}
+
+
+/* Orbit rotation */
+
+@keyframes spin {
+    to {
+        transform: rotate(340deg);
+    }
+}
+
+
+/* Feed post entrance */
+
+@keyframes appear {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+/* ==========================================================
+   18. TABLET RESPONSIVENESS
+   ========================================================== */
+
+@media (max-width: 900px) {
+
+    .hero {
+        grid-template-columns: 1fr;
+        padding-top: 55px;
+    }
+
+    .hero h1 {
+        max-width: 650px;
+    }
+
+    .visual-wrap {
+        max-width: 650px;
+        width: 100%;
+        margin: auto;
+    }
+
+    .features {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .nav-links {
+        display: none;
+    }
+
+}
+
+
+/* ==========================================================
+   19. MOBILE RESPONSIVENESS
+   ========================================================== */
+
+@media (max-width: 600px) {
+
+    .nav {
+        padding: 20px;
+    }
+
+    .brand {
+        font-size: 20px;
+    }
+
+    .nav-actions .btn-ghost {
+        display: none;
+    }
+
+    .hero {
+        padding: 45px 20px 65px;
+        min-height: 0;
+        gap: 40px;
+    }
+
+    h1 {
+        font-size: 52px;
+        letter-spacing: -3px;
+    }
+
+    .hero p {
+        font-size: 16px;
+    }
+
+    .visual-wrap {
+        min-height: 330px;
+    }
+
+    .app-body {
+        grid-template-columns: 85px 1fr;
+        min-height: 290px;
+    }
+
+    .app-sidebar {
+        padding: 10px 5px;
+    }
+
+    .side-item {
+        font-size: 8px;
+    }
+
+    .app-main {
+        padding: 12px;
+    }
+
+    .floating.one {
+        right: 0;
+    }
+
+    .floating.two {
+        left: 0;
+    }
+
+    .section {
+        padding: 65px 20px;
+    }
+
+    .features,
+    .steps {
+        grid-template-columns: 1fr;
+    }
+
+    .cta {
+        padding: 45px 23px;
+    }
+
+    .footer {
+        flex-direction: column;
+    }
+
+    .btn {
+        padding: 12px 14px;
+    }
+
+}
+
+
+/* ==========================================================
+   20. DESIGN COLOR VARIANTS
+   ========================================================== */
+
+.theme-cosmic {
+    --accent: #7155ff;
+    --accent2: #19d6ef;
+}
+
+.theme-discord {
+    --accent: #8b5cf6;
+    --accent2: #ff4ec9;
+}
+
+.theme-terminal {
+    --accent: #22e5a1;
+    --accent2: #3a9cff;
+}
+
+.theme-neon {
+    --accent: #a855f7;
+    --accent2: #00e0ff;
+}
+
+.theme-midnight {
+    --accent: #6d70ff;
+    --accent2: #f39acb;
+}
+
+.theme-orbit {
+    --accent: #e879f9;
+    --accent2: #60a5fa;
+}
+
+.theme-blueprint {
+    --accent: #36bffa;
+    --accent2: #7c5cff;
+}
+
+.theme-electric {
+    --accent: #eaff5a;
+    --accent2: #8b5cf6;
+}
+
+.theme-aurora {
+    --accent: #56e4c8;
+    --accent2: #b58cff;
+}
+
+.theme-launch {
+    --accent: #ff7a90;
+    --accent2: #8075ff;
+}
+
+
+/* ==========================================================
+   21. ADDITIONAL PREVIEW ELEMENTS
+   ========================================================== */
+
+.preview-sort {
+    float: right;
+
+    color: var(--accent2);
+    font-size: 10px;
+}
+
+.demo-like {
+    background: none;
+    border: 0;
+
+    color: #c8baff;
+    padding: 0;
+
+    cursor: pointer;
+}
+
+
+/* ==========================================================
+   22. COLABVERSE LOGO
+   ========================================================== */
+
+/* Use the existing ColabVerse brand asset. */
+
+.landing-logo {
+    width: 176px;
+    max-width: 100%;
+    height: auto;
+
+    display: block;
+    object-fit: contain;
+}
+
+.preview-logo {
+    width: 125px;
+    max-width: 100%;
+    height: 25px;
+
+    object-fit: contain;
+    vertical-align: middle;
+}
+
+
+/* ==========================================================
+   23. APPLICATION PREVIEW REFINEMENTS
+   ========================================================== */
+
+.app-sidebar .side-item {
+    font-size: 0.77rem;
+    white-space: normal;
+    line-height: 1.35;
+}
+
+.app-preview .app-main .post {
+    min-height: unset;
+}
+
+
+/* ==========================================================
+   24. MOBILE LOGO SIZES
+   ========================================================== */
+
+@media (max-width: 600px) {
+
+    .landing-logo {
+        width: 145px;
+    }
+
+    .preview-logo {
+        width: 100px;
+    }
+
+}
+
+
+/* ==========================================================
+   25. ACCESSIBILITY — REDUCED MOTION
+   ========================================================== */
+
+/*
+   Respect the user's system animation preferences.
+   This disables long animations for people who prefer
+   reduced motion.
+*/
+
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    .reveal {
+        opacity: 1;
+        transform: none;
+    }
+
+}

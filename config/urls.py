@@ -14,6 +14,7 @@ from django.contrib import admin
 # URL routing utilities.
 from django.urls import include, path
 
+from home import views as home_views
 # Redirect users to existing named routes.
 from django.views.generic import RedirectView
 
@@ -32,30 +33,17 @@ urlpatterns = [
         "admin/",
         admin.site.urls,
     ),
+# ============================================================
+# COLABVERSE HOMEPAGE
+# ============================================================
 
-    # ============================================================
-    # COLABVERSE HOMEPAGE
-    # ============================================================
-
-    # Make the Questions feed the main homepage.
-    #
-    # Visiting:
-    # http://127.0.0.1:8000/
-    #
-    # Redirects to:
-    # http://127.0.0.1:8000/questions/
-    #
-    # Keep the "home" URL name for compatibility.
-    path(
-        "",
-        login_required(
-        RedirectView.as_view(
-            pattern_name="questions:feed",
-            permanent=False,
-         )
-        ),
-        name="home",
-    ),
+# Public landing page for visitors.
+# Logged-in developers are redirected to the questions feed.
+path(
+    "",
+    home_views.home,
+    name="home",
+),
 
     # ============================================================
     # USER AUTHENTICATION

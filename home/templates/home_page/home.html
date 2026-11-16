@@ -1,20 +1,630 @@
+{% load static %}
+
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CodeView</title>
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta
+        name="description"
+        content="ColabVerse — developer community and collaboration"
+    >
+
+    <title>ColabVerse | Cosmic Developer</title>
+
+    <!-- Landing page stylesheet -->
+    <link
+        rel="stylesheet"
+        href="{% static 'home/css/landing.css' %}"
+    >
+
+    <!-- Landing page animations -->
+    <script
+        src="{% static 'home/js/landing.js' %}"
+        defer
+    ></script>
 </head>
-<body>
-    <!-- Website heading -->
-    <h1>Welcome to CodeView</h1>
 
-    <!-- Description -->
-    <p>A community where programmers connect,
-       share code, and build projects together.</p>
+<body class="theme-cosmic">
 
-    <!-- Open the registration page when clicked. -->
-<a href="{% url 'register' %}">Sign Up</a>
-    <a href="{% url 'login' %}">Login</a>
+    <!-- ======================================================
+         ANIMATED BACKGROUND
+    ======================================================= -->
+
+    <div class="background">
+        <div class="glow"></div>
+    </div>
+
+
+    <!-- ======================================================
+         NAVIGATION BAR
+    ======================================================= -->
+
+    <header class="nav">
+
+        <!-- ColabVerse Logo -->
+        <a
+            class="brand"
+            href="{% url 'home' %}"
+        >
+            <img
+                class="landing-logo"
+                src="{% static 'users/images/colabverse-logo.png' %}"
+                alt="ColabVerse"
+            >
+        </a>
+
+        <!-- Navigation Links -->
+        <nav
+            class="nav-links"
+            aria-label="Main navigation"
+        >
+            <a href="#features">
+                Features
+            </a>
+
+            <a href="#how">
+                How it works
+            </a>
+
+            <a href="#community">
+                Community
+            </a>
+        </nav>
+
+        <!-- Authentication Buttons -->
+        <div class="nav-actions">
+
+            <a
+                class="btn btn-ghost"
+                href="{% url 'login' %}"
+            >
+                Log in
+            </a>
+
+            <a
+                class="btn btn-primary"
+                href="{% url 'register' %}"
+            >
+                Get started ↗
+            </a>
+
+        </div>
+
+    </header>
+
+
+    <!-- ======================================================
+         MAIN CONTENT
+    ======================================================= -->
+
+    <main>
+
+        <!-- ==================================================
+             HERO SECTION
+        =================================================== -->
+
+        <section class="hero">
+
+            <!-- Hero Text -->
+            <div class="hero-copy">
+
+                <span class="eyebrow">
+
+                    <span class="dot"></span>
+
+                    A new home for developers
+
+                </span>
+
+                <h1>
+                    A
+                    <span class="gradient-text">
+                        universe for developers.
+                    </span>
+                </h1>
+
+                <p>
+                    Connect with builders.
+                    Solve real problems.
+                    Find your people.
+                </p>
+
+                <!-- Hero Buttons -->
+                <div class="hero-actions">
+
+                    <a
+                        class="btn btn-primary"
+                        href="{% url 'register' %}"
+                    >
+                        Join ColabVerse →
+                    </a>
+
+                    <a
+                        class="btn btn-ghost"
+                        href="#features"
+                    >
+                        Explore the platform ↓
+                    </a>
+
+                </div>
+
+                <!-- Developer Community Preview -->
+                <div class="proof">
+
+                    <div class="avatars">
+
+                        <span>DA</span>
+                        <span>MK</span>
+                        <span>JO</span>
+                        <span>SK</span>
+
+                    </div>
+
+                    <span>
+                        Made for developers at every stage
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <!-- ==============================================
+                 ANIMATED APPLICATION PREVIEW
+            =============================================== -->
+
+            <div
+                class="visual-wrap"
+                aria-label="Animated illustration of the ColabVerse developer community"
+            >
+
+                <div
+                    class="app-preview"
+                    aria-label="Illustrative preview of the current ColabVerse main navigation"
+                >
+
+                    <!-- Application Top Bar -->
+                    <div class="app-top">
+
+                        <span class="traffic">
+                            <i></i>
+                            <i></i>
+                            <i></i>
+                        </span>
+
+                        <strong>
+
+                            <img
+                                class="preview-logo"
+                                src="{% static 'users/images/colabverse-logo.png' %}"
+                                alt="ColabVerse"
+                            >
+
+                        </strong>
+
+                        <span>
+                            ● Community
+                        </span>
+
+                    </div>
+
+
+                    <!-- Application Body -->
+                    <div class="app-body">
+
+                        <!-- Sidebar Preview -->
+                        <aside class="app-sidebar">
+
+                            <div class="side-item active">
+                                ⌂ Home
+                            </div>
+
+                            <div class="side-item">
+                                ϟ Popular Questions
+                            </div>
+
+                            <div class="side-item">
+                                ✎ Ask a Question
+                            </div>
+
+                            <div class="side-item">
+                                ♧ My Groups
+                            </div>
+
+                            <div class="side-item">
+                                ⊕ Create Private Group
+                            </div>
+
+                            <div class="side-item">
+                                ✉ Group Invitations
+                            </div>
+
+                        </aside>
+
+
+                        <!-- Feed Preview -->
+                        <div class="app-main">
+
+                            <div class="mini-title">
+                                Developer feed
+                            </div>
+
+                            <!-- Latest Questions -->
+                            <div class="post">
+
+                                <div class="post-head">
+                                    Latest questions
+                                </div>
+
+                                <p>
+                                    Ask the community,
+                                    share solutions,
+                                    and learn from developers.
+                                </p>
+
+                            </div>
+
+
+                            <!-- Popular Questions -->
+                            <div class="post">
+
+                                <div class="post-head">
+                                    Popular Questions
+                                </div>
+
+                                <p>
+                                    Discover discussions
+                                    and accepted answers.
+                                </p>
+
+                            </div>
+
+
+                            <!-- Private Groups -->
+                            <div class="post">
+
+                                <div class="post-head">
+                                    Private development groups
+                                </div>
+
+                                <p>
+                                    Create a team,
+                                    invite developers,
+                                    and coordinate projects.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- Floating Animated Labels -->
+                <div class="floating one">
+                    ✦ Community reputation
+                </div>
+
+                <div class="floating two">
+                    ♧ Private groups &amp; invitations
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ==================================================
+             FEATURES SECTION
+        =================================================== -->
+
+        <section
+            class="section"
+            id="features"
+        >
+
+            <div class="section-head reveal">
+
+                <span class="kicker">
+                    Built for builders
+                </span>
+
+                <h2>
+                    Everything starts with a connection.
+                </h2>
+
+                <p>
+                    Questions, conversations, and teams —
+                    in one community designed around developers.
+                </p>
+
+            </div>
+
+
+            <!-- Features Grid -->
+            <div class="features">
+
+                <!-- Feature 1 -->
+                <article class="feature reveal">
+
+                    <span class="feature-number">
+                        01
+                    </span>
+
+                    <h3>
+                        Developer discussions
+                    </h3>
+
+                    <p>
+                        Ask questions, share answers,
+                        like useful posts,
+                        and learn in public.
+                    </p>
+
+                </article>
+
+
+                <!-- Feature 2 -->
+                <article class="feature reveal">
+
+                    <span class="feature-number">
+                        02
+                    </span>
+
+                    <h3>
+                        Private development groups
+                    </h3>
+
+                    <p>
+                        Create focused teams,
+                        invite developers,
+                        and manage group membership.
+                    </p>
+
+                </article>
+
+
+                <!-- Feature 3 -->
+                <article class="feature reveal">
+
+                    <span class="feature-number">
+                        03
+                    </span>
+
+                    <h3>
+                        Developer profiles
+                    </h3>
+
+                    <p>
+                        Show who you are,
+                        connect with other builders,
+                        and discover talent.
+                    </p>
+
+                </article>
+
+
+                <!-- Feature 4 -->
+                <article class="feature reveal">
+
+                    <span class="feature-number">
+                        04
+                    </span>
+
+                    <h3>
+                        GitHub connections
+                    </h3>
+
+                    <p>
+                        Bring your repositories
+                        into your development workflow.
+                    </p>
+
+                </article>
+
+
+                <!-- Feature 5 -->
+                <article class="feature reveal">
+
+                    <span class="feature-number">
+                        05
+                    </span>
+
+                    <h3>
+                        Community recognition
+                    </h3>
+
+                    <p>
+                        Highlight helpful answers,
+                        accepted solutions,
+                        and contributions.
+                    </p>
+
+                </article>
+
+
+                <!-- Feature 6 -->
+                <article class="feature reveal">
+
+                    <span class="feature-number">
+                        06
+                    </span>
+
+                    <h3>
+                        Team collaboration
+                    </h3>
+
+                    <p>
+                        Keep conversations
+                        and project coordination
+                        in one place.
+                    </p>
+
+                </article>
+
+            </div>
+
+        </section>
+
+
+        <!-- ==================================================
+             HOW IT WORKS SECTION
+        =================================================== -->
+
+        <section
+            class="section"
+            id="how"
+        >
+
+            <div class="section-head reveal">
+
+                <span class="kicker">
+                    Simple by design
+                </span>
+
+                <h2>
+                    From hello to shipped.
+                </h2>
+
+                <p>
+                    Find your place and make progress
+                    with developers who care about building.
+                </p>
+
+            </div>
+
+
+            <!-- Steps -->
+            <div class="steps">
+
+                <!-- Step 1 -->
+                <div class="step reveal">
+
+                    <b>01</b>
+
+                    <h3>
+                        Create your profile
+                    </h3>
+
+                    <p>
+                        Introduce yourself
+                        to the developer community.
+                    </p>
+
+                </div>
+
+
+                <!-- Step 2 -->
+                <div class="step reveal">
+
+                    <b>02</b>
+
+                    <h3>
+                        Ask and contribute
+                    </h3>
+
+                    <p>
+                        Start discussions
+                        and help others solve problems.
+                    </p>
+
+                </div>
+
+
+                <!-- Step 3 -->
+                <div class="step reveal">
+
+                    <b>03</b>
+
+                    <h3>
+                        Build together
+                    </h3>
+
+                    <p>
+                        Create a private group,
+                        invite teammates,
+                        and collaborate.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ==================================================
+             COMMUNITY / CALL TO ACTION
+        =================================================== -->
+
+        <section
+            class="section"
+            id="community"
+        >
+
+            <div class="cta reveal">
+
+                <span class="kicker">
+                    Your next chapter
+                </span>
+
+                <h2>
+                    Great things are built together.
+                </h2>
+
+                <p>
+                    Join the community where developers
+                    connect and keep moving forward.
+                </p>
+
+                <a
+                    class="btn btn-primary"
+                    href="{% url 'register' %}"
+                >
+                    Create your account ↗
+                </a>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- ======================================================
+         FOOTER
+    ======================================================= -->
+
+    <footer class="footer">
+
+        <!-- ColabVerse Logo -->
+        <a
+            class="brand"
+            href="{% url 'home' %}"
+        >
+
+            <img
+                class="landing-logo"
+                src="{% static 'users/images/colabverse-logo.png' %}"
+                alt="ColabVerse"
+            >
+
+        </a>
+
+        <span>
+            © 2026 ColabVerse. Built for developers.
+        </span>
+
+    </footer>
+
 </body>
 </html>

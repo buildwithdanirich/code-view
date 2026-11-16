@@ -1,16 +1,28 @@
-"""Homepage routing for CodeView."""
+"""
+Public landing page for ColabVerse.
 
-from django.shortcuts import redirect
+Visitors see the landing page before registering or logging in.
+Authenticated developers go directly to the community feed.
+"""
+
+from django.shortcuts import redirect, render
 
 
 def home(request):
     """
-    Control what developers see when they visit CodeView.
+    Handle the ColabVerse homepage.
+
+    - Logged-in developers: redirect to the developer feed.
+    - Visitors: display the public landing page.
     """
 
-    # Already logged in? Go to Groups.
+    # Developers who are already logged in
+    # can continue using ColabVerse.
     if request.user.is_authenticated:
-        return redirect("groups")
+        return redirect("questions:feed")
 
-    # Not logged in? Show the new Signup page.
-    return redirect("register")
+    # Visitors can explore ColabVerse before creating an account.
+    return render(
+        request,
+        "home_page/home.html",
+    )
