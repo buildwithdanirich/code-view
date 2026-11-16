@@ -2048,3 +2048,41 @@ body.colabverse-meeting-page .codeview-sidebar {
     }
 
 }
+
+/* ============================================================
+   COLABVERSE — DEVELOPMENT ROOM LOGO FIX
+   ============================================================ */
+
+/* Keep the official logo at navigation-bar size. */
+.cv-layout .colabverse-brand {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    width: auto;
+    max-width: 220px;
+    height: auto;
+    text-decoration: none;
+}
+
+/* Prevent the image from expanding to its original size. */
+.cv-layout .colabverse-brand .colabverse-logo {
+    display: block;
+    width: auto;
+    height: 36px;
+    max-width: 200px;
+    object-fit: contain;
+}
+
+/* ============================================================
+   COLABVERSE — OFFICIAL LOGO SIZE
+   Development Room only
+============================================================ */
+
+/* ColabVerse Development Room logo */
+a.colabverse-brand > img.colabverse-logo {
+    display: block;
+    width: auto;
+    height: 52px;
+    max-width: 240px;
+    object-fit: contain;
+}

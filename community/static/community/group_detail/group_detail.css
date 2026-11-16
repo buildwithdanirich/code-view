@@ -1,329 +1,1163 @@
 /* ============================================================
    COLABVERSE — PRIVATE GROUP WORKSPACE
    File: community/static/community/group_detail/group_detail.css
-   Group-specific overrides. The global questions.css is unchanged.
-   The group page inherits the logo and Explorer from questions/base.html.
+
+   Design:
+   - Full-width group workspace
+   - No Explorer sidebar on this page
+   - Compact group information
+   - Navigation beside group information
+   - Back to Groups button
+   - Large chat message area
+   - WhatsApp-style compact composer
+
+   Other platform pages remain unchanged.
 ============================================================ */
 
-/* 1. Give the group page its own wide two-column layout.
-   :has() scopes the layout to pages containing the group workspace.
-   Other pages, including the Developer Feed, are not affected. */
-@media (min-width: 701px) {
-    body .layout:has(.workspace-layout) {
-        display: grid;
-        grid-template-columns: 190px minmax(0, 1fr);
-        gap: 14px;
-        justify-content: stretch;
-        width: 100%;
-        max-width: none;
-        margin: 0;
-        padding: 12px 18px;
-        box-sizing: border-box;
-    }
-    body .layout:has(.workspace-layout) > .left {
-        width: auto;
-        min-width: 0;
-        max-width: none;
-        margin: 0;
-        padding: 16px 8px;
-    }
-    body .layout:has(.workspace-layout) > .main-content {
-        width: 100%;
-        min-width: 0;
-        max-width: none;
-        margin: 0;
-        padding: 0;
-    }
-}
-
-/* 2. Remove the old nested workspace grid/sidebar. */
-.workspace-layout,
-.workspace-main,
-.workspace-content {
-    display: block;
-    width: 100%;
-    min-width: 0;
-    max-width: none;
-    min-height: 0;
-    margin: 0;
-    padding: 0;
-    background: transparent;
-    box-sizing: border-box;
-}
-.workspace-sidebar { display: none; }
-
-/* 3. Top navigation, if present in group_detail.html. */
-.group-top-navigation {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-    width: 100%;
-    margin: 0 0 12px;
-    padding: 0 0 10px;
-    border-bottom: 1px solid #28334d;
-}
-.group-top-tab {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 40px;
-    padding: 9px 14px;
-    border: 1px solid transparent;
-    border-radius: 8px;
-    background: transparent;
-    color: #aab8d4;
-    font: 600 13px/1.4 inherit;
-    text-decoration: none;
-    cursor: pointer;
-}
-.group-top-tab:hover { background: #1b2640; color: #f4f7ff; }
-.group-top-tab.active,
-.group-top-tab[aria-current="page"] {
-    background: #192b52;
-    color: #7db5ff;
-    border-color: #324b80;
-}
-.group-top-tab:focus-visible { outline: 2px solid #7db5ff; outline-offset: 2px; }
-
-/* 4. Compact group information in the ColabVerse navy palette. */
-.workspace-group-info {
-    margin: 0 0 12px;
-    padding: 12px 16px;
-    border: 1px solid #28334d;
-    border-radius: 12px;
-    background: #151d32;
-    color: #f3f6ff;
-}
-.workspace-group-info h1,
-.workspace-group-info h2 {
-    margin: 0 0 6px;
-    font-size: 20px;
-    font-weight: 700;
-    line-height: 1.3;
-    overflow-wrap: anywhere;
-}
-.privacy-badge.private {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 3px 9px;
-    border: 1px solid #285d4c;
-    border-radius: 20px;
-    background: #10352e;
-    color: #6ee7b7;
-    font-size: 11px;
-    font-weight: 700;
-}
-.privacy-badge.private svg { width: 13px; height: 13px; }
-.workspace-group-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px 14px;
-    margin-top: 7px;
-    color: #a4b2cf;
-    font-size: 12px;
-}
-.group-description { margin-top: 6px; }
-.group-description strong { display: block; margin-bottom: 2px; font-size: 12px; }
-.group-description p,
-.workspace-group-info > p {
-    margin: 0;
-    color: #a4b2cf;
-    font-size: 12px;
-    line-height: 1.45;
-    overflow-wrap: anywhere;
-}
-
-/* 5. Make the chat fill the workspace without moving the entire page.
-   Only the message-history region should scroll. */
-.workspace-section,
-.workspace-panel { min-width: 0; width: 100%; }
-#group-chat {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    min-width: 0;
-    max-width: none;
-    height: max(420px, calc(100dvh - 310px));
-    max-height: 1000px;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    border: 1px solid #28334d;
-    border-radius: 12px;
-    background: #10182b;
-    box-sizing: border-box;
-}
-#group-chat .chat-messages {
-    flex: 1 1 auto;
-    min-width: 0;
-    min-height: 0;
-    margin: 0;
-    padding: 16px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    overscroll-behavior: contain;
-    scrollbar-width: thin;
-    scrollbar-color: #344566 transparent;
-}
-#group-chat .chat-composer {
-    flex: 0 0 auto;
-    width: 100%;
-    min-width: 0;
-    margin: 0;
-    padding: 12px 16px;
-    border-top: 1px solid #28334d;
-    background: #151d32;
-    box-sizing: border-box;
-}
-#group-chat .chat-composer form,
-#group-chat .composer-box { width: 100%; min-width: 0; }
-#group-chat .composer-box { background: #111a30; border-color: #344260; }
-#group-chat .composer-textarea { min-width: 0; color: #f3f6ff; }
-#group-chat .chat-header { display: none; }
-
-/* 6. Members and invitation management. */
-#group-members {
-    width: 100%;
-    min-width: 0;
-    padding: 18px;
-    border: 1px solid #28334d;
-    border-radius: 12px;
-    background: #151d32;
-    box-sizing: border-box;
-}
-.workspace-members { margin-top: 16px; }
-.workspace-member {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 12px;
-    padding: 12px 0;
-    border-bottom: 1px solid #28334d;
-}
-.workspace-member:last-child { border-bottom: none; }
-.workspace-member small { display: block; margin-top: 4px; color: #a4b2cf; }
-.member-actions { margin-left: auto; }
-.add-member-section,
-.leave-group-section { margin-top: 22px; padding-top: 18px; border-top: 1px solid #28334d; }
-.developer-search-container { position: relative; width: 100%; max-width: 480px; }
-.developer-search-container label { display: block; margin-bottom: 7px; }
-.developer-search-container input[type="text"] {
-    width: 100%;
-    max-width: 100%;
-    padding: 10px 12px;
-    border: 1px solid #344260;
-    border-radius: 8px;
-    background: #10182b;
-    color: #f3f6ff;
-    box-sizing: border-box;
-}
-.developer-search-container input[type="text"]:focus { outline: 2px solid #486ee8; }
-.developer-search-results { width: 100%; max-width: 480px; }
-#send-invitation-button { margin-top: 12px; }
-.membership-notice {
-    margin: 14px 0;
-    padding: 16px;
-    border: 1px solid #344260;
-    border-radius: 10px;
-    background: #151d32;
-}
-.membership-notice h2 { margin: 0 0 8px; }
-.membership-notice p { color: #a4b2cf; }
-.membership-pending { color: #fbbf24; }
-
-/* 7. Responsive group layout only. */
-@media (min-width: 701px) and (max-width: 1050px) {
-    body .layout:has(.workspace-layout) {
-        grid-template-columns: 175px minmax(0, 1fr);
-        gap: 10px;
-        padding: 12px;
-    }
-}
-@media (max-width: 700px) {
-    body .layout:has(.workspace-layout) {
-        display: block;
-        width: 100%;
-        max-width: none;
-        padding: 10px 12px;
-    }
-    body .layout:has(.workspace-layout) > .left { width: 100%; max-width: none; }
-    body .layout:has(.workspace-layout) > .main-content {
-        width: 100%; max-width: none; min-width: 0; padding: 0;
-    }
-    .group-top-navigation { gap: 5px; }
-    .group-top-tab { flex: 1 1 auto; padding: 8px 10px; font-size: 12px; }
-    .workspace-group-info { padding: 12px; }
-    #group-chat { height: max(420px, calc(100dvh - 300px)); }
-    #group-chat .chat-messages { padding: 10px; }
-    #group-chat .chat-composer { padding: 10px; }
-    #group-members { padding: 12px; }
-    .member-actions { margin-left: 0; }
-}
-
-/* Respect hidden tabs, dialogs, and controls. */
-[hidden] { display: none !important; }
 
 /* ============================================================
-   GROUP DETAILS — FIXED PAGE LAYOUT
+   1. DESIGN VARIABLES
 ============================================================ */
 
-/* Prevent the whole group page from scrolling. */
-body.group-workspace-page {
-    height: 100dvh;
+.cv-group-detail-modern {
+    --cv-bg: #0b1020;
+    --cv-surface: #111a2e;
+    --cv-surface-light: #18243d;
+    --cv-input: #1a2742;
+
+    --cv-border: #293650;
+    --cv-border-light: #3a4c70;
+
+    --cv-text: #f4f7ff;
+    --cv-muted: #a4b2cf;
+
+    --cv-purple: #7048f5;
+    --cv-purple-hover: #825eff;
+    --cv-blue: #2379f5;
+
+    --cv-green: #34d399;
+    --cv-red: #ef4444;
+
+    color: var(--cv-text);
+}
+
+
+/* ============================================================
+   2. FULL-WIDTH PAGE LAYOUT
+
+   :has(.cv-group-detail-modern) ensures these changes
+   affect only this group detail page.
+============================================================ */
+
+body .layout:has(.cv-group-detail-modern) {
+    display: block;
+
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+
+    margin: 0;
+    padding: 12px 20px;
+
+    background: #0b1020;
+
+    box-sizing: border-box;
+}
+
+/* Remove the shared Explorer sidebar on this page. */
+
+body .layout:has(.cv-group-detail-modern) > .left {
+    display: none !important;
+}
+
+/* Give all available width to the group workspace. */
+
+body .layout:has(.cv-group-detail-modern) > .main-content {
+    display: flex;
+    flex-direction: column;
+
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+
+    margin: 0;
+    padding: 0;
+
     overflow: hidden;
 }
 
-/* Keep the shared layout within the available screen. */
-body.group-workspace-page .layout {
+/* Main group container. */
+
+.cv-group-detail-modern {
+    display: flex;
+    flex-direction: column;
+
+    flex: 1 1 auto;
+
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+
+    margin: 0;
+    padding: 0;
+
+    background: transparent;
+    box-sizing: border-box;
+}
+
+.cv-group-detail-modern .workspace-content {
+    display: flex;
+    flex-direction: column;
+
+    flex: 1 1 auto;
+
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+
+    margin: 0;
+    padding: 0;
+
+    background: transparent;
+}
+
+
+/* ============================================================
+   3. FIXED PAGE HEIGHT
+
+   The page stays stationary.
+   Only the chat message history scrolls.
+============================================================ */
+
+body:has(.cv-group-detail-modern) {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+
+    background: #0b1020;
+}
+
+body .layout:has(.cv-group-detail-modern) {
     height: calc(100dvh - 72px);
     min-height: 0;
     overflow: hidden;
 }
 
-/* Keep the Explorer stationary. */
-body.group-workspace-page .left {
+
+/* ============================================================
+   4. COMPACT GROUP HEADER
+============================================================ */
+
+.cv-group-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    flex-wrap: wrap;
+    gap: 12px;
+
+    flex: 0 0 auto;
+
+    width: 100%;
+    min-width: 0;
+
+    margin: 0 0 12px;
+    padding: 10px 14px;
+
+    background: #131c31;
+
+    border: 1px solid #293650;
+    border-radius: 12px;
+
+    box-sizing: border-box;
+}
+
+
+/* ============================================================
+   5. BACK TO GROUPS BUTTON
+============================================================ */
+
+.cv-back-to-groups {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    gap: 7px;
+
+    flex: 0 0 auto;
+
+    min-height: 38px;
+    padding: 8px 12px;
+
+    color: #d8d0ff;
+    background: #241d49;
+
+    border: 1px solid #51428d;
+    border-radius: 8px;
+
+    font-size: 12px;
+    font-weight: 700;
+
+    text-decoration: none;
+
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease;
+}
+
+.cv-back-to-groups:hover {
+    color: #ffffff;
+    background: #35286b;
+    border-color: #7965d4;
+}
+
+.cv-back-to-groups svg {
+    width: 17px;
+    height: 17px;
+    flex-shrink: 0;
+}
+
+
+/* ============================================================
+   6. GROUP INFORMATION — ONE ROW
+============================================================ */
+
+.cv-group-detail-modern .workspace-group-info {
+    display: flex;
+    align-items: center;
+
+    flex: 1 1 300px;
+
+    gap: 12px;
+
+    min-width: 0;
+
+    margin: 0;
+    padding: 0;
+
+    background: transparent;
+    border: none;
+    border-radius: 0;
+}
+
+.cv-group-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    flex: 0 0 42px;
+
+    width: 42px;
+    height: 42px;
+
+    color: #ffffff;
+    background: linear-gradient(
+        135deg,
+        #7048f5,
+        #2379f5
+    );
+
+    border-radius: 12px;
+
+    font-size: 18px;
+    font-weight: 800;
+}
+
+.cv-group-identity-content {
+    display: flex;
+    flex-direction: column;
+
+    min-width: 0;
+    gap: 5px;
+}
+
+.cv-group-detail-modern .group-identity-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+
+    gap: 9px;
+}
+
+.cv-group-detail-modern .group-identity-row h1 {
+    margin: 0;
+
+    color: #ffffff;
+
+    font-size: 18px;
+    font-weight: 750;
+    line-height: 1.3;
+
+    overflow-wrap: anywhere;
+}
+
+.cv-group-detail-modern .privacy-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+
+    padding: 4px 9px;
+
+    color: #93c5fd;
+    background: #142d4f;
+
+    border: 1px solid #28548a;
+    border-radius: 999px;
+
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.cv-group-detail-modern .privacy-badge.private {
+    color: #6ee7b7;
+    background: #10352e;
+    border-color: #285d4c;
+}
+
+.cv-group-detail-modern .privacy-badge svg {
+    width: 12px;
+    height: 12px;
+}
+
+.cv-group-detail-modern .workspace-group-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+
+    gap: 5px 12px;
+
+    margin: 0;
+
+    color: #a4b2cf;
+    font-size: 11px;
+}
+
+.cv-group-detail-modern .group-description {
+    margin: 0;
+}
+
+.cv-group-detail-modern .group-description p {
+    margin: 0;
+
+    color: #8f9fbe;
+    font-size: 11px;
+    line-height: 1.4;
+
+    overflow-wrap: anywhere;
+}
+
+
+/* ============================================================
+   7. TOP NAVIGATION
+
+   Navigation stays beside the group information
+   on larger screens.
+============================================================ */
+
+.cv-group-detail-modern .group-top-navigation {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+
+    gap: 7px;
+
+    width: auto;
+    min-width: 0;
+
+    margin: 0;
+    padding: 0;
+
+    border: none;
+}
+
+.cv-group-detail-modern .group-top-tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    gap: 7px;
+
+    min-height: 38px;
+    padding: 8px 12px;
+
+    color: #aab8d4;
+    background: transparent;
+
+    border: 1px solid transparent;
+    border-radius: 8px;
+
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.4;
+
+    text-decoration: none;
+    white-space: nowrap;
+
+    transition:
+        background 0.15s ease,
+        color 0.15s ease;
+}
+
+.cv-group-detail-modern .group-top-tab svg {
+    width: 16px;
+    height: 16px;
+
+    flex-shrink: 0;
+}
+
+.cv-group-detail-modern .group-top-tab:hover {
+    color: #ffffff;
+    background: #23314e;
+}
+
+.cv-group-detail-modern .group-top-tab.active,
+.cv-group-detail-modern .group-top-tab[aria-current="page"] {
+    color: #b9a8ff;
+    background: #28204e;
+
+    border-color: #5746a0;
+}
+
+.cv-group-detail-modern .group-top-tab:focus-visible,
+.cv-back-to-groups:focus-visible {
+    outline: 2px solid #a78bfa;
+    outline-offset: 3px;
+}
+
+
+/* ============================================================
+   8. GROUP CHAT PANEL
+
+   The chat occupies all remaining vertical space.
+============================================================ */
+
+.cv-group-detail-modern #group-chat {
+    display: flex;
+    flex-direction: column;
+
+    flex: 1 1 auto;
+
+    width: 100%;
+    min-width: 0;
     min-height: 0;
+    max-width: none;
+
+    height: auto;
+    max-height: none;
+
+    margin: 0;
+    padding: 0;
+
+    background: #10182b;
+
+    border: 1px solid #293650;
+    border-radius: 12px;
+
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+/* Only the message history scrolls. */
+
+.cv-group-detail-modern #group-chat .chat-messages {
+    display: block;
+
+    flex: 1 1 auto;
+
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+
+    margin: 0;
+    padding: 18px 22px;
+
+    overflow-x: hidden;
+    overflow-y: auto;
+
+    overscroll-behavior: contain;
+
+    scrollbar-width: thin;
+    scrollbar-color: #344566 transparent;
+}
+
+
+/* ============================================================
+   9. COMPACT WHATSAPP-STYLE COMPOSER
+
+   The message box stays at the bottom.
+============================================================ */
+
+.cv-group-detail-modern #group-chat .chat-composer {
+    display: block;
+
+    flex: 0 0 auto;
+
+    width: 100%;
+    min-width: 0;
+
+    margin: 0;
+    padding: 10px 14px;
+
+    background: #151d32;
+
+    border-top: 1px solid #293650;
+
+    box-sizing: border-box;
+}
+
+.cv-group-detail-modern #chat-form {
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+}
+
+.cv-group-detail-modern .cv-compact-composer {
+    display: flex;
+    align-items: center;
+
+    gap: 8px;
+
+    width: 100%;
+    min-width: 0;
+
+    min-height: 48px;
+    padding: 5px 7px;
+
+    background: #1a2742;
+
+    border: 1px solid #3a4c70;
+    border-radius: 13px;
+
+    box-sizing: border-box;
+}
+
+/* Keep attachment, textarea and microphone in one row. */
+
+.cv-group-detail-modern .composer-normal {
+    display: flex;
+    align-items: center;
+
+    flex: 1 1 auto;
+
+    gap: 8px;
+
+    min-width: 0;
+}
+
+/* Small message input. */
+
+.cv-group-detail-modern .cv-compact-textarea {
+    display: block;
+
+    flex: 1 1 auto;
+
+    width: 100%;
+    min-width: 0;
+
+    min-height: 28px;
+    max-height: 110px;
+
+    height: 28px;
+
+    margin: 0;
+    padding: 4px 6px;
+
+    color: #f4f7ff;
+    background: transparent;
+
+    border: none;
+    border-radius: 0;
+
+    outline: none;
+    box-shadow: none;
+
+    font-size: 13px;
+    line-height: 20px;
+
+    resize: none;
+
     overflow-y: auto;
 }
 
-/* Prevent the main content from scrolling the page. */
-body.group-workspace-page .main-content {
+.cv-group-detail-modern .cv-compact-textarea::placeholder {
+    color: #94a3bf;
+}
+
+.cv-group-detail-modern .cv-compact-textarea:focus {
+    outline: none;
+    border: none;
+    box-shadow: none;
+}
+
+
+/* ============================================================
+   10. COMPOSER ICON BUTTONS
+============================================================ */
+
+.cv-group-detail-modern .composer-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    flex: 0 0 auto;
+
+    width: 36px;
+    height: 36px;
+
+    padding: 0;
+
+    color: #b9c6df;
+    background: transparent;
+
+    border: none;
+    border-radius: 9px;
+
+    cursor: pointer;
+
+    font-size: 18px;
+}
+
+.cv-group-detail-modern .composer-button:hover {
+    color: #ffffff;
+    background: #30405f;
+}
+
+.cv-group-detail-modern .composer-button svg {
+    width: 19px;
+    height: 19px;
+}
+
+/* Purple send button. */
+
+.cv-group-detail-modern .cv-send-button {
+    width: 38px;
+    height: 38px;
+
+    color: #ffffff;
+    background: #7048f5;
+
+    border-radius: 10px;
+}
+
+.cv-group-detail-modern .cv-send-button:hover {
+    background: #825eff;
+}
+
+.cv-group-detail-modern .composer-button:focus-visible {
+    outline: 2px solid #a78bfa;
+    outline-offset: 2px;
+}
+
+
+/* ============================================================
+   11. VOICE RECORDING
+
+   Preserve the existing voice-recording interface.
+============================================================ */
+
+.cv-group-detail-modern .composer-voice {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+
+    flex: 1 1 auto;
+
+    gap: 10px;
+    min-width: 0;
+}
+
+.cv-group-detail-modern .voice-recording-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    flex: 1 1 auto;
+
+    color: #e2e8f0;
+    font-size: 12px;
+}
+
+.cv-group-detail-modern .voice-preview {
+    max-width: 220px;
+    height: 36px;
+}
+
+.cv-group-detail-modern .selected-file-name {
+    margin: 7px 4px 0;
+
+    color: #93c5fd;
+    font-size: 11px;
+
+    overflow-wrap: anywhere;
+}
+
+.cv-group-detail-modern .composer-error {
+    margin-bottom: 8px;
+    padding: 10px;
+
+    color: #fecaca;
+    background: #450a0a;
+
+    border: 1px solid #991b1b;
+    border-radius: 8px;
+
+    font-size: 12px;
+}
+
+
+/* ============================================================
+   12. REPLY PREVIEW
+============================================================ */
+
+.cv-group-detail-modern .chat-reply-preview {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 12px;
+
+    margin-bottom: 9px;
+    padding: 10px 12px;
+
+    background: #202c47;
+
+    border-left: 3px solid #7048f5;
+    border-radius: 8px;
+}
+
+.cv-group-detail-modern .reply-preview-details {
+    min-width: 0;
+}
+
+.cv-group-detail-modern .reply-preview-details strong {
+    color: #b9a8ff;
+    font-size: 12px;
+}
+
+.cv-group-detail-modern .reply-preview-details p {
+    margin: 4px 0 0;
+
+    color: #cbd5e1;
+    font-size: 12px;
+
+    overflow-wrap: anywhere;
+}
+
+.cv-group-detail-modern #cancel-reply-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 28px;
+    height: 28px;
+
+    color: #ffffff;
+    background: #334155;
+
+    border: none;
+    border-radius: 7px;
+
+    cursor: pointer;
+}
+
+
+/* ============================================================
+   13. MEMBERS PANEL
+============================================================ */
+
+.cv-group-detail-modern #group-members {
+    flex: 1 1 auto;
+
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+
+    margin: 0;
+    padding: 20px;
+
+    color: #f4f7ff;
+    background: #151d32;
+
+    border: 1px solid #293650;
+    border-radius: 12px;
+
+    overflow-y: auto;
+
+    box-sizing: border-box;
+}
+
+.cv-group-detail-modern #group-members h2 {
+    margin: 0 0 12px;
+
+    color: #ffffff;
+    font-size: 20px;
+}
+
+.cv-group-detail-modern .workspace-section-description {
+    color: #a4b2cf;
+    font-size: 12px;
+    line-height: 1.7;
+}
+
+.cv-group-detail-modern .workspace-members {
+    margin-top: 16px;
+}
+
+.cv-group-detail-modern .workspace-member {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+
+    gap: 12px;
+
+    padding: 13px 0;
+
+    border-bottom: 1px solid #293650;
+}
+
+.cv-group-detail-modern .workspace-member:last-child {
+    border-bottom: none;
+}
+
+.cv-group-detail-modern .workspace-member small {
+    display: block;
+
+    margin-top: 4px;
+
+    color: #a4b2cf;
+    font-size: 11px;
+}
+
+.cv-group-detail-modern .member-actions {
+    margin-left: auto;
+}
+
+
+/* ============================================================
+   14. INVITE DEVELOPERS
+============================================================ */
+
+.cv-group-detail-modern .add-member-section,
+.cv-group-detail-modern .leave-group-section {
+    margin-top: 22px;
+    padding-top: 18px;
+
+    border-top: 1px solid #293650;
+}
+
+.cv-group-detail-modern .developer-search-container {
+    position: relative;
+
+    width: 100%;
+    max-width: 480px;
+}
+
+.cv-group-detail-modern .developer-search-container label {
+    display: block;
+
+    margin-bottom: 7px;
+
+    color: #cbd5e1;
+    font-size: 12px;
+}
+
+.cv-group-detail-modern .developer-search-container input[type="text"] {
+    width: 100%;
+    max-width: 100%;
+
+    padding: 10px 12px;
+
+    color: #f4f7ff;
+    background: #10182b;
+
+    border: 1px solid #344260;
+    border-radius: 8px;
+
+    box-sizing: border-box;
+}
+
+.cv-group-detail-modern .developer-search-container input[type="text"]:focus {
+    outline: 2px solid #7048f5;
+}
+
+.cv-group-detail-modern .developer-search-results {
+    width: 100%;
+    max-width: 480px;
+}
+
+.cv-group-detail-modern #send-invitation-button {
+    margin-top: 12px;
+}
+
+
+/* ============================================================
+   15. MEMBERSHIP NOTICE
+============================================================ */
+
+.cv-group-detail-modern .membership-notice {
+    margin: 14px 0;
+    padding: 18px;
+
+    color: #f4f7ff;
+    background: #151d32;
+
+    border: 1px solid #344260;
+    border-radius: 10px;
+}
+
+.cv-group-detail-modern .membership-notice h2 {
+    margin: 0 0 8px;
+}
+
+.cv-group-detail-modern .membership-notice p {
+    color: #a4b2cf;
+    line-height: 1.7;
+}
+
+
+/* ============================================================
+   16. RESPONSIVE LAYOUT
+============================================================ */
+
+@media (max-width: 1150px) {
+
+    .cv-group-header {
+        justify-content: flex-start;
+    }
+
+    .cv-group-detail-modern .group-top-navigation {
+        flex: 1 1 100%;
+        justify-content: flex-start;
+    }
+
+}
+
+
+@media (max-width: 700px) {
+
+    body .layout:has(.cv-group-detail-modern) {
+        padding: 10px;
+    }
+
+    .cv-group-header {
+        gap: 10px;
+        padding: 11px;
+    }
+
+    .cv-back-to-groups {
+        min-height: 34px;
+        padding: 7px 10px;
+        font-size: 11px;
+    }
+
+    .cv-group-detail-modern .workspace-group-info {
+        flex: 1 1 100%;
+    }
+
+    .cv-group-avatar {
+        flex-basis: 38px;
+
+        width: 38px;
+        height: 38px;
+
+        font-size: 16px;
+    }
+
+    .cv-group-detail-modern .group-identity-row h1 {
+        font-size: 16px;
+    }
+
+    .cv-group-detail-modern .group-top-navigation {
+        display: flex;
+        flex-wrap: nowrap;
+
+        width: 100%;
+        gap: 5px;
+
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .cv-group-detail-modern .group-top-navigation::-webkit-scrollbar {
+        display: none;
+    }
+
+    .cv-group-detail-modern .group-top-tab {
+        flex: 0 0 auto;
+
+        min-height: 34px;
+        padding: 7px 10px;
+
+        font-size: 11px;
+    }
+
+    .cv-group-detail-modern .group-top-tab svg {
+        width: 14px;
+        height: 14px;
+    }
+
+    .cv-group-detail-modern #group-chat .chat-messages {
+        padding: 12px;
+    }
+
+    .cv-group-detail-modern #group-chat .chat-composer {
+        padding: 8px;
+    }
+
+    .cv-group-detail-modern .cv-compact-composer {
+        gap: 4px;
+        padding: 4px;
+    }
+
+    .cv-group-detail-modern .composer-normal {
+        gap: 3px;
+    }
+
+    .cv-group-detail-modern .composer-button {
+        width: 32px;
+        height: 32px;
+    }
+
+    .cv-group-detail-modern .cv-send-button {
+        width: 35px;
+        height: 35px;
+    }
+
+    .cv-group-detail-modern .cv-compact-textarea {
+        font-size: 12px;
+    }
+
+    .cv-group-detail-modern #group-members {
+        padding: 14px;
+    }
+
+    .cv-group-detail-modern .member-actions {
+        margin-left: 0;
+    }
+
+}
+
+
+/* ============================================================
+   17. VERY SMALL SCREENS
+============================================================ */
+
+@media (max-width: 420px) {
+
+    .cv-group-detail-modern .workspace-group-meta {
+        gap: 4px 9px;
+        font-size: 10px;
+    }
+
+    .cv-group-detail-modern .group-description {
+        display: none;
+    }
+
+    .cv-group-detail-modern .group-top-tab {
+        padding: 7px 8px;
+    }
+
+    .cv-group-detail-modern .composer-button {
+        width: 30px;
+        height: 30px;
+    }
+
+    .cv-group-detail-modern .cv-send-button {
+        width: 34px;
+        height: 34px;
+    }
+
+}
+
+
+/* ============================================================
+   18. ACCESSIBILITY AND VISIBILITY
+============================================================ */
+
+.cv-group-detail-modern [hidden] {
+    display: none !important;
+}
+
+.cv-group-detail-modern button:focus-visible,
+.cv-group-detail-modern input:focus-visible,
+.cv-group-detail-modern textarea:focus-visible,
+.cv-group-detail-modern a:focus-visible {
+    outline: 2px solid #a78bfa;
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .cv-group-detail-modern *,
+    .cv-group-detail-modern *::before,
+    .cv-group-detail-modern *::after {
+        transition: none !important;
+        animation: none !important;
+    }
+
+}
+
+/* ============================================================
+   COLABVERSE — FULL-HEIGHT GROUP CHAT
+   Keep the message composer at the bottom.
+   Only the message history scrolls.
+============================================================ */
+
+/* Make the group workspace occupy the available viewport height. */
+body:has(.cv-group-detail-modern) .layout {
+    height: calc(100dvh - 72px);
     min-height: 0;
     overflow: hidden;
 }
 
-/* Allow the workspace to fill the available height. */
-body.group-workspace-page .workspace-layout,
-body.group-workspace-page .workspace-main,
-body.group-workspace-page .workspace-content {
+/* Allow the main content to stretch vertically. */
+body:has(.cv-group-detail-modern) .main-content {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
+/* Make the group workspace fill its parent. */
+.cv-group-detail-modern,
+.cv-group-detail-modern .workspace-content {
     display: flex;
     flex-direction: column;
     flex: 1 1 auto;
     min-height: 0;
-    overflow: hidden;
+    height: 100%;
 }
 
-/* Give the chat the remaining available space. */
-body.group-workspace-page #group-chat {
+/* Keep the group information and navigation at the top. */
+.cv-group-detail-modern .cv-group-header {
+    flex: 0 0 auto;
+}
+
+/* Stretch the chat panel into the remaining space. */
+.cv-group-detail-modern #group-chat {
+    display: flex;
+    flex-direction: column;
     flex: 1 1 auto;
-    height: auto;
+
+    height: 100%;
     min-height: 0;
+    max-height: none;
+
     overflow: hidden;
 }
 
-/* Only the message history should scroll. */
-body.group-workspace-page #group-chat .chat-messages {
+/* Let only the message history scroll. */
+.cv-group-detail-modern #group-chat .chat-messages {
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
 }
 
-/* Keep the message composer stationary. */
-body.group-workspace-page #group-chat .chat-composer {
+/* Keep the WhatsApp-style composer at the bottom. */
+.cv-group-detail-modern #group-chat .chat-composer {
     flex: 0 0 auto;
 }

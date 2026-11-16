@@ -55,50 +55,18 @@
 
     <header class="navbar cv-topbar colabverse-topbar">
 
-        <!-- Platform branding -->
-        <a
-            href="{% url 'groups' %}"
-            class="brand colabverse-brand"
-            aria-label="ColabVerse home"
-        >
-
-            <svg
-                class="colabverse-brand-icon"
-                viewBox="0 0 48 48"
-                width="38"
-                height="38"
-                fill="none"
-                aria-hidden="true"
-            >
-                <path
-                    d="M18 8L5 24L18 40"
-                    stroke="#8B35FF"
-                    stroke-width="6"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                ></path>
-
-                <path
-                    d="M30 8L43 24L30 40"
-                    stroke="#1479FF"
-                    stroke-width="6"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                ></path>
-
-                <path
-                    d="M27 6L21 42"
-                    stroke="#6B46FF"
-                    stroke-width="5"
-                    stroke-linecap="round"
-                ></path>
-            </svg>
-
-            <span class="colabverse-brand-name">
-                Colab<span>Verse</span>
-            </span>
-
-        </a>
+<!-- COLABVERSE OFFICIAL LOGO -->
+<a
+    href="{% url 'groups' %}"
+    class="brand colabverse-brand"
+    aria-label="ColabVerse home"
+>
+    <img
+        src="{% static 'users/images/colabverse-logo.png' %}"
+        alt="ColabVerse"
+        class="colabverse-logo"
+    >
+</a>
 
 
         <!-- Right-side navigation -->

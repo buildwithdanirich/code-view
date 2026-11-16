@@ -1,964 +1,1310 @@
 {% extends "questions/base.html" %}
 {% load static %}
 
-{% block title %}{{ group.name }}{% endblock %}
+{% block title %}{{ group.name }} | ColabVerse{% endblock %}
+
+{% block extra_css %}
+
+    <!-- Shared community styles -->
+    <link
+        rel="stylesheet"
+        href="{% static 'community/sheared.css' %}"
+    >
+
+    <!-- Group workspace layout -->
+    <link
+        rel="stylesheet"
+        href="{% static 'community/group_detail/group_detail.css' %}"
+    >
+
+    <!-- Chat messages and composer -->
+    <link
+        rel="stylesheet"
+        href="{% static 'community/group_detail/group_chat.css' %}"
+    >
+
+    <!-- Members and invitations -->
+    <link
+        rel="stylesheet"
+        href="{% static 'community/group_detail/group_members.css' %}"
+    >
+
+    <!-- Meeting notifications -->
+    <link
+        rel="stylesheet"
+        href="{% static 'community/group_detail/group_meeting_notifications.css' %}"
+    >
+
+{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'community/sheared.css' %}">
-<link rel="stylesheet" href="{% static 'community/group_detail/group_detail.css' %}">
-<link rel="stylesheet" href="{% static 'community/group_detail/group_chat.css' %}">
-<link rel="stylesheet" href="{% static 'community/group_detail/group_members.css' %}">
-<link rel="stylesheet" href="{% static 'community/group_detail/group_meeting_notifications.css' %}">
 
-<div class="cv-group-detail" data-current-user-id="{{ request.user.id }}"
+<!-- =========================================================
+     COLABVERSE GROUP DETAIL
+     All styling and JavaScript remain in separate static files.
+========================================================= -->
+
+<div
+    class="cv-group-detail cv-group-detail-modern"
+    data-current-user-id="{{ request.user.id }}"
     {% if group.is_private and is_member %}
     data-meeting-notification-socket-url="{% if request.is_secure %}wss{% else %}ws{% endif %}://{{ request.get_host }}/ws/groups/{{ group.id }}/meetings/notifications/"
-    {% endif %}>
-    <div class="workspace-content">
-                {% if group.is_private and is_member %}
-                    <!-- Real-time meeting alert; populated by external JavaScript. -->
-                    <section
-                        id="group-meeting-notification"
-                        class="group-meeting-notification"
-                        aria-label="Private group meeting notification"
-                        aria-live="polite"
-                        hidden
+    {% endif %}
+>
+
+    <main class="workspace-content">
+
+        <!-- =================================================
+             1. DJANGO NOTIFICATIONS
+        ================================================= -->
+
+        {% if messages %}
+
+            <section
+                class="notifications"
+                aria-live="polite"
+            >
+
+                {% for message in messages %}
+
+                    <div
+                        class="notification notification-{{ message.tags }}"
+                        role="status"
                     >
-                        <div class="group-meeting-notification-content">
-                            <strong id="group-meeting-notification-title">
-                                Meeting started
-                            </strong>
-                            <p id="group-meeting-notification-message">
-                                A developer started a group meeting.
+                        {{ message }}
+                    </div>
+
+                {% endfor %}
+
+            </section>
+
+        {% endif %}
+
+
+        <!-- =================================================
+             2. LIVE MEETING NOTIFICATIONS
+        ================================================= -->
+
+        {% if group.is_private and is_member %}
+
+            <section
+                id="group-meeting-notification"
+                class="group-meeting-notification"
+                aria-label="Private group meeting notification"
+                aria-live="polite"
+                hidden
+            >
+
+                <div class="group-meeting-notification-content">
+
+                    <strong id="group-meeting-notification-title">
+                        Meeting started
+                    </strong>
+
+                    <p id="group-meeting-notification-message">
+                        A developer started a group meeting.
+                    </p>
+
+                </div>
+
+                <a
+                    id="group-meeting-notification-join"
+                    class="group-meeting-notification-join"
+                    href="{% url 'meeting_room' group.id %}"
+                >
+                    Join Meeting
+                </a>
+
+                <button
+                    id="group-meeting-notification-dismiss"
+                    class="group-meeting-notification-dismiss"
+                    type="button"
+                    aria-label="Dismiss meeting notification"
+                >
+                    &times;
+                </button>
+
+            </section>
+
+        {% endif %}
+
+
+        <!-- =================================================
+             3. COMPACT GROUP HEADER
+        ================================================= -->
+
+        <header class="cv-group-header">
+
+            <!-- Back to Groups -->
+
+            <a
+                href="{% url 'groups' %}"
+                class="cv-back-to-groups"
+                aria-label="Back to Groups"
+            >
+
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                >
+                    <path d="M19 12H5"></path>
+                    <path d="m12 19-7-7 7-7"></path>
+                </svg>
+
+                <span>Back to Groups</span>
+
+            </a>
+
+
+            <!-- Group identity -->
+
+            <section
+                class="workspace-group-info cv-group-identity"
+                aria-labelledby="group-title"
+            >
+
+                <div class="cv-group-avatar" aria-hidden="true">
+                    {{ group.name|first|upper }}
+                </div>
+
+                <div class="cv-group-identity-content">
+
+                    <div class="group-identity-row">
+
+                        <h1 id="group-title">
+                            {{ group.name }}
+                        </h1>
+
+                        {% if group.is_private %}
+
+                            <span class="privacy-badge private">
+
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    aria-hidden="true"
+                                >
+                                    <rect
+                                        x="5"
+                                        y="10"
+                                        width="14"
+                                        height="11"
+                                        rx="2"
+                                    ></rect>
+
+                                    <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
+                                </svg>
+
+                                Private
+
+                            </span>
+
+                        {% else %}
+
+                            <span class="privacy-badge">
+                                Public
+                            </span>
+
+                        {% endif %}
+
+                    </div>
+
+                    <div class="workspace-group-meta">
+
+                        <span>
+                            Owner: {{ group.owner.username }}
+                        </span>
+
+                        {% if is_member %}
+
+                            <span>
+                                Members: {{ members|length }}/10
+                            </span>
+
+                        {% endif %}
+
+                        {% if group.is_private %}
+
+                            <span>
+                                Invitation Only
+                            </span>
+
+                        {% endif %}
+
+                    </div>
+
+                    {% if group.description %}
+
+                        <div class="group-description">
+                            <p>
+                                {{ group.description|linebreaksbr }}
                             </p>
                         </div>
-                        <a
-                            id="group-meeting-notification-join"
-                            class="group-meeting-notification-join"
-                            href="{% url 'meeting_room' group.id %}"
-                        >
-                            Join Meeting
-                        </a>
-                        <button
-                            id="group-meeting-notification-dismiss"
-                            class="group-meeting-notification-dismiss"
-                            type="button"
-                            aria-label="Dismiss meeting notification"
-                        >
-                            ×
-                        </button>
-                    </section>
-                {% endif %}
 
-                {% if is_member %}
-                    <!-- Workspace navigation above the group name. -->
-                    <nav class="group-top-navigation" aria-label="Group workspace sections">
-                        <a href="#group-chat" class="group-top-tab active" data-workspace-tab="chat" aria-current="page">Group Chat</a>
-                        <a href="{% url 'meeting_room' group.id %}" class="group-top-tab">Development Room</a>
-                        <a href="#group-members" class="group-top-tab" data-workspace-tab="members">Members</a>
-                    </nav>
-                {% endif %}
+                    {% endif %}
 
-                <!-- Compact group information. -->
-                <section class="workspace-group-info" aria-labelledby="group-title">
-                    <div class="group-identity-row">
-                        <h1 id="group-title">{{ group.name }}</h1>
-                        <span class="privacy-badge private">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <rect x="5" y="10" width="14" height="11" rx="2"></rect>
-                                <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
-                            </svg>
-                            Private
-                        </span>
-                    </div>
-                    <div class="workspace-group-meta">
-                        <span>Owner: {{ group.owner.username }}</span>
-                        {% if is_member %}<span>Members: {{ members|length }}/10</span>{% endif %}
-                        <span>Invitation Only</span>
-                    </div>
-                    <div class="group-description">
-                        <p>{{ group.description|linebreaksbr }}</p>
-                    </div>
-                </section>
+                </div>
 
-                <!-- =================================================
-                     6. MEMBERSHIP ACTIONS
-                ================================================== -->
-
-                {% if not is_member %}
-
-                    <!-- Direct joining is not allowed. -->
-                    <section class="membership-notice">
-
-                        <h2>
-                            Private Development Group
-                        </h2>
-
-                        <p>
-                            Only developers invited by the group owner
-                            can join this development group.
-                        </p>
-
-                        <p>
-                            If you received an invitation, visit
-                            My Invitations to accept or decline it.
-                        </p>
-
-                        <a
-                            href="{% url 'received_group_invitations' %}"
-                            class="group-action"
-                        >
-                            View My Invitations
-                        </a>
-
-                    </section>
-
-                {% endif %}
+            </section>
 
 
-                <!-- =================================================
-                     9. GROUP CHAT
-                     Only members can access the chat.
-                ================================================== -->
+            <!-- Workspace navigation -->
 
-                {% if is_member %}
+            {% if is_member %}
 
-                    <section
-                        class="workspace-section workspace-panel"
-                        id="group-chat"
-                        data-workspace-panel="chat"
+                <nav
+                    class="group-top-navigation"
+                    aria-label="Group workspace sections"
+                >
+
+                    <a
+                        href="#group-chat"
+                        class="group-top-tab active"
+                        data-workspace-tab="chat"
+                        aria-current="page"
                     >
 
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                        >
+                            <path
+                                d="M21 11.5a8.38 8.38 0 0 1-.9 3.8
+                                   8.5 8.5 0 0 1-7.6 4.7
+                                   8.38 8.38 0 0 1-3.8-.9L3 21
+                                   l1.9-5.7a8.38 8.38 0 0 1-.9-3.8
+                                   8.5 8.5 0 0 1 4.7-7.6
+                                   8.38 8.38 0 0 1 3.8-.9h.5
+                                   a8.48 8.48 0 0 1 8 8v.5z"
+                            ></path>
+                        </svg>
+
+                        <span>Group Chat</span>
+
+                    </a>
 
 
+                    {% if group.is_private %}
 
-                        <!-- Chat message history. -->
-
-                        <div
-                            id="chat-messages"
-                            class="chat-messages"
-                            data-group-id="{{ group.id }}"
-                            aria-label="Group chat messages"
+                        <a
+                            href="{% url 'meeting_room' group.id %}"
+                            class="group-top-tab"
                         >
 
-                            {% for chat_message in chat_messages %}
-
-                                <article
-                                    class="chat-message"
-                                    id="message-{{ chat_message.id }}"
-                                    data-message-id="{{ chat_message.id }}"
-                                >
-
-                                    <div class="message-avatar">
-                                        {{ chat_message.sender.username|first|upper }}
-                                    </div>
-
-                                    <div class="message-body">
-
-                                        <div class="message-header">
-
-                                            <strong class="message-author">
-                                                {{ chat_message.sender.username }}
-                                            </strong>
-
-                                            <time class="message-time">
-                                                {{ chat_message.created_at|date:"M d, Y - H:i" }}
-                                            </time>
-
-                                        </div>
-
-
-                                        <!-- Show the original message when replying. -->
-
-                                        {% if chat_message.reply_to %}
-
-                                            <div class="message-reply">
-
-                                                ↳ Replying to
-
-                                                <strong>
-                                                    {{ chat_message.reply_to.sender.username }}
-                                                </strong>
-
-                                                {% if chat_message.reply_to.content %}
-
-                                                    <p>
-                                                        {{ chat_message.reply_to.content|truncatechars:100 }}
-                                                    </p>
-
-                                                {% endif %}
-
-                                            </div>
-
-                                        {% endif %}
-
-
-                                        <!-- Text messages. -->
-
-                                        {% if chat_message.message_type == "text" %}
-
-                                            <div class="message-content chat-message-content">
-                                                {{ chat_message.content|linebreaksbr }}
-                                            </div>
-
-                                        {% endif %}
-
-
-                                        <!-- Existing code messages. -->
-
-                                        {% if chat_message.message_type == "code" %}
-
-                                            <pre class="message-code"><code>{{ chat_message.content }}</code></pre>
-
-                                        {% endif %}
-
-
-                                        <!-- Voice messages. -->
-
-                                        {% if chat_message.message_type == "voice" %}
-
-                                            {% if chat_message.attachment %}
-
-                                                <audio
-                                                    controls
-                                                    preload="none"
-                                                    class="message-audio"
-                                                    src="{% url 'download_group_attachment' group.id chat_message.id %}"
-                                                ></audio>
-
-                                            {% endif %}
-
-                                            {% if chat_message.content %}
-
-                                                <p class="message-content">
-                                                    {{ chat_message.content|linebreaksbr }}
-                                                </p>
-
-                                            {% endif %}
-
-                                        {% endif %}
-
-
-                                        <!-- File attachments. -->
-
-                                        {% if chat_message.message_type == "file" %}
-
-                                            {% if chat_message.content %}
-
-                                                <p class="message-content">
-                                                    {{ chat_message.content|linebreaksbr }}
-                                                </p>
-
-                                            {% endif %}
-
-                                            {% if chat_message.attachment %}
-
-                                                <a
-                                                    href="{% url 'download_group_attachment' group.id chat_message.id %}"
-                                                    class="message-attachment"
-                                                    download
-                                                >
-                                                    📎 Download Attachment
-                                                </a>
-
-                                            {% endif %}
-
-                                        {% endif %}
-
-
-                                        <!-- Reply, edit, and delete controls. -->
-
-                                        <div class="message-actions">
-
-                                            <button
-                                                type="button"
-                                                class="reply-button"
-                                                data-message-id="{{ chat_message.id }}"
-                                                data-sender="{{ chat_message.sender.username }}"
-                                            >
-                                                ↩ Reply
-                                            </button>
-
-
-                                            {% if chat_message.sender_id == request.user.id %}
-
-                                                {% if chat_message.message_type == "text" %}
-
-                                                    <button
-                                                        type="button"
-                                                        class="edit-button"
-                                                        data-message-id="{{ chat_message.id }}"
-                                                    >
-                                                        ✏️ Edit
-                                                    </button>
-
-                                                {% endif %}
-
-                                                <button
-                                                    type="button"
-                                                    class="delete-button"
-                                                    data-message-id="{{ chat_message.id }}"
-                                                >
-                                                    🗑 Delete
-                                                </button>
-
-                                            {% endif %}
-
-                                        </div>
-
-
-                                        {% if chat_message.sender_id == request.user.id %}
-
-                                            <!-- Edit form for text messages. -->
-
-                                            {% if chat_message.message_type == "text" %}
-
-                                                <form
-                                                    method="POST"
-                                                    action="{% url 'edit_group_message' group.id chat_message.id %}"
-                                                    class="message-edit-form"
-                                                    id="edit-form-{{ chat_message.id }}"
-                                                    hidden
-                                                >
-
-                                                    {% csrf_token %}
-
-                                                    <textarea
-                                                        name="content"
-                                                        class="message-edit-input"
-                                                        rows="3"
-                                                        required
-                                                    >{{ chat_message.content }}</textarea>
-
-                                                    <div class="message-edit-actions">
-
-                                                        <button
-                                                            type="submit"
-                                                            class="edit-save-button"
-                                                        >
-                                                            Save
-                                                        </button>
-
-                                                        <button
-                                                            type="button"
-                                                            class="edit-cancel-button"
-                                                        >
-                                                            Cancel
-                                                        </button>
-
-                                                    </div>
-
-                                                </form>
-
-                                            {% endif %}
-
-
-                                            <!-- Delete confirmation form. -->
-
-                                            <form
-                                                method="POST"
-                                                action="{% url 'delete_group_message' group.id chat_message.id %}"
-                                                class="message-delete-form"
-                                                id="delete-form-{{ chat_message.id }}"
-                                                hidden
-                                            >
-
-                                                {% csrf_token %}
-
-                                                <p>
-                                                    Are you sure you want to delete this message?
-                                                </p>
-
-                                                <div class="message-edit-actions">
-
-                                                    <button
-                                                        type="submit"
-                                                        class="delete-confirm-button"
-                                                    >
-                                                        Yes, Delete
-                                                    </button>
-
-                                                    <button
-                                                        type="button"
-                                                        class="delete-cancel-button"
-                                                    >
-                                                        Cancel
-                                                    </button>
-
-                                                </div>
-
-                                            </form>
-
-                                        {% endif %}
-
-                                    </div>
-
-                                </article>
-
-                            {% empty %}
-
-                                <p class="chat-empty">
-                                    No messages yet. Start the conversation!
-                                </p>
-
-                            {% endfor %}
-
-                        </div>
-
-
-                        <!-- =================================================
-                             10. CHAT COMPOSER
-                        ================================================== -->
-
-                        <div class="chat-composer">
-
-                            <!-- Reply preview. -->
-
-                            <div
-                                class="chat-reply-preview"
-                                id="chat-reply-preview"
-                                hidden
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                aria-hidden="true"
                             >
+                                <path d="m8 17-5-5 5-5"></path>
+                                <path d="m16 7 5 5-5 5"></path>
+                                <path d="m14 4-4 16"></path>
+                            </svg>
 
-                                <div class="reply-preview-details">
+                            <span>Development Room</span>
 
-                                    <strong id="reply-preview-sender"></strong>
+                        </a>
 
-                                    <p id="reply-preview-content"></p>
+                    {% endif %}
+
+
+                    <a
+                        href="#group-members"
+                        class="group-top-tab"
+                        data-workspace-tab="members"
+                    >
+
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                        >
+                            <path
+                                d="M16 21v-2a4 4 0 0 0-4-4H6
+                                   a4 4 0 0 0-4 4v2"
+                            ></path>
+
+                            <circle cx="9" cy="7" r="4"></circle>
+
+                            <path
+                                d="M22 21v-2a4 4 0 0 0-3-3.87"
+                            ></path>
+
+                            <path
+                                d="M16 3.13a4 4 0 0 1 0 7.75"
+                            ></path>
+                        </svg>
+
+                        <span>Members</span>
+
+                    </a>
+
+                </nav>
+
+            {% endif %}
+
+        </header>
+
+
+        <!-- =================================================
+             4. MEMBERSHIP NOTICE
+        ================================================= -->
+
+        {% if not is_member %}
+
+            <section class="membership-notice">
+
+                <h2>
+                    Private Development Group
+                </h2>
+
+                <p>
+                    Only developers invited by the group owner
+                    can join this development group.
+                </p>
+
+                <p>
+                    If you received an invitation, visit
+                    My Invitations to accept or decline it.
+                </p>
+
+                <a
+                    href="{% url 'received_group_invitations' %}"
+                    class="group-action"
+                >
+                    View My Invitations
+                </a>
+
+            </section>
+
+        {% endif %}
+
+
+        <!-- =================================================
+             5. GROUP CHAT
+        ================================================= -->
+
+        {% if is_member %}
+
+            <section
+                class="workspace-section workspace-panel cv-chat-panel"
+                id="group-chat"
+                data-workspace-panel="chat"
+                aria-label="{{ group.name }} group chat"
+            >
+
+                <!-- Chat messages -->
+
+                <div
+                    id="chat-messages"
+                    class="chat-messages cv-chat-messages"
+                    data-group-id="{{ group.id }}"
+                    aria-label="Group chat messages"
+                    aria-live="polite"
+                >
+
+                    {% for chat_message in chat_messages %}
+
+                        <article
+                            class="chat-message"
+                            id="message-{{ chat_message.id }}"
+                            data-message-id="{{ chat_message.id }}"
+                        >
+
+                            <div class="message-avatar">
+                                {{ chat_message.sender.username|first|upper }}
+                            </div>
+
+                            <div class="message-body">
+
+                                <!-- Message sender -->
+
+                                <div class="message-header">
+
+                                    <strong class="message-author">
+                                        {{ chat_message.sender.username }}
+                                    </strong>
+
+                                    <time class="message-time">
+                                        {{ chat_message.created_at|date:"M d, Y - H:i" }}
+                                    </time>
 
                                 </div>
 
-                                <button
-                                    type="button"
-                                    id="cancel-reply-button"
-                                    aria-label="Cancel reply"
-                                >
-                                    ✕
-                                </button>
 
-                            </div>
+                                <!-- Reply context -->
 
+                                {% if chat_message.reply_to %}
 
-                            <!-- Message submission form. -->
+                                    <div class="message-reply">
 
-                            <form
-                                method="POST"
-                                action="{% url 'send_group_message' group.id %}"
-                                enctype="multipart/form-data"
-                                id="chat-form"
-                            >
+                                        ↳ Replying to
 
-                                {% csrf_token %}
+                                        <strong>
+                                            {{ chat_message.reply_to.sender.username }}
+                                        </strong>
 
-                                <input
-                                    type="hidden"
-                                    name="message_type"
-                                    value="text"
-                                >
+                                        {% if chat_message.reply_to.content %}
 
-                                <input
-                                    type="hidden"
-                                    name="reply_to_id"
-                                    id="reply-to-id"
-                                    value=""
-                                >
+                                            <p>
+                                                {{ chat_message.reply_to.content|truncatechars:100 }}
+                                            </p>
 
+                                        {% endif %}
 
-                                {% if chat_form.errors %}
-
-                                    <div class="composer-error">
-                                        {{ chat_form.errors }}
                                     </div>
 
                                 {% endif %}
 
 
-<!-- Message composer -->
-<div class="composer-box">
+                                <!-- Text message -->
 
-    <!-- Normal message input -->
-    <div class="composer-normal" id="composer-normal">
+                                {% if chat_message.message_type == "text" %}
 
-        <!-- File attachment -->
-        <button
-            type="button"
-            class="composer-button"
-            id="attach-file-button"
-            title="Attach a file"
-        >
-            📎
-        </button>
-
-        <div class="composer-file-input" hidden>
-            {{ chat_form.attachment }}
-        </div>
-
-        <!-- Text input -->
-        <textarea
-            name="content"
-            id="id_content"
-            class="composer-textarea"
-            rows="2"
-            placeholder="Message #{{ group.name }}"
-        >{{ chat_form.content.value|default_if_none:"" }}</textarea>
-
-        <!-- Microphone -->
-        <button
-            type="button"
-            class="composer-button"
-            id="record-voice-button"
-            title="Record voice note"
-        >
-            🎤
-        </button>
-
-    </div>
-
-    <!-- Voice recording interface -->
-    <div
-        class="composer-voice"
-        id="composer-voice"
-        hidden
-    >
-
-        <!-- Cancel recording -->
-        <button
-            type="button"
-            class="composer-button"
-            id="cancel-voice-button"
-            title="Discard recording"
-        >
-            🗑️
-        </button>
-
-        <!-- Recording information -->
-        <div
-            class="voice-recording-status"
-            id="voice-recording-status"
-        >
-            <span id="voice-recording-indicator">🔴</span>
-
-            <span id="voice-recording-timer">00:00</span>
-
-            <span id="voice-recording-label">
-                Recording...
-            </span>
-        </div>
-
-        <!-- Audio preview -->
-        <audio
-            id="voice-preview"
-            class="voice-preview"
-            controls
-            preload="metadata"
-            hidden
-        ></audio>
-
-        <!-- Stop recording -->
-        <button
-            type="button"
-            class="composer-button"
-            id="stop-voice-button"
-            title="Stop recording"
-        >
-            ⏹
-        </button>
-
-    </div>
-
-    <!-- Send button -->
-    <button
-        type="submit"
-        class="composer-button composer-send"
-        id="composer-send-button"
-        title="Send message"
-    >
-        ➤
-    </button>
-
-</div>
-
-
-                                <p
-                                    class="selected-file-name"
-                                    id="selected-file-name"
-                                    hidden
-                                ></p>
-
-                            </form>
-
-                        </div>
-
-                    </section>
-
-                {% endif %}
-
-
-                <!-- =================================================
-                     11. GROUP MEMBERS
-                ================================================== -->
-
-                {% if is_member %}
-
-                    <section
-                        class="workspace-section workspace-panel"
-                        id="group-members"
-                        data-workspace-panel="members"
-                        hidden
-                    >
-
-                        <h2>
-                            Group Members ({{ members|length }})
-                        </h2>
-
-
-                        <p class="workspace-section-description">
-                            Private development groups support
-                            a maximum of 10 members, including the owner.
-                        </p>
-
-
-                        <!-- Member list. -->
-
-                        <div class="workspace-members">
-
-                            {% for membership in members %}
-
-                                <div class="workspace-member">
-
-                                    <span class="member-avatar">
-                                        {{ membership.user.username|first|upper }}
-                                    </span>
-
-                                    <div>
-
-                                        <strong>
-                                            {{ membership.user.username }}
-                                        </strong>
-
-                                        <small>
-
-                                            {% if membership.user_id == group.owner_id %}
-
-                                                Owner
-
-                                            {% else %}
-
-                                                Member
-
-                                            {% endif %}
-
-                                        </small>
-
+                                    <div class="message-content chat-message-content">
+                                        {{ chat_message.content|linebreaksbr }}
                                     </div>
 
+                                {% endif %}
 
-                                    <!-- Only the group owner can remove members.
-                                         There are no secondary administrators. -->
 
-                                    {% if is_owner and membership.user_id != group.owner_id %}
+                                <!-- Code message -->
 
-                                        <div class="member-actions">
+                                {% if chat_message.message_type == "code" %}
 
-                                            <form
-                                                method="POST"
-                                                action="{% url 'remove_group_member' group.id membership.id %}"
-                                                class="remove-member-form"
+                                    <pre class="message-code"><code>{{ chat_message.content }}</code></pre>
+
+                                {% endif %}
+
+
+                                <!-- Voice message -->
+
+                                {% if chat_message.message_type == "voice" %}
+
+                                    {% if chat_message.attachment %}
+
+                                        <audio
+                                            controls
+                                            preload="none"
+                                            class="message-audio"
+                                            src="{% url 'download_group_attachment' group.id chat_message.id %}"
+                                        ></audio>
+
+                                    {% endif %}
+
+                                    {% if chat_message.content %}
+
+                                        <p class="message-content">
+                                            {{ chat_message.content|linebreaksbr }}
+                                        </p>
+
+                                    {% endif %}
+
+                                {% endif %}
+
+
+                                <!-- File message -->
+
+                                {% if chat_message.message_type == "file" %}
+
+                                    {% if chat_message.content %}
+
+                                        <p class="message-content">
+                                            {{ chat_message.content|linebreaksbr }}
+                                        </p>
+
+                                    {% endif %}
+
+                                    {% if chat_message.attachment %}
+
+                                        <a
+                                            href="{% url 'download_group_attachment' group.id chat_message.id %}"
+                                            class="message-attachment"
+                                            download
+                                        >
+                                            📎 Download Attachment
+                                        </a>
+
+                                    {% endif %}
+
+                                {% endif %}
+
+
+                                <!-- Message actions -->
+
+                                <div class="message-actions">
+
+                                    <button
+                                        type="button"
+                                        class="reply-button"
+                                        data-message-id="{{ chat_message.id }}"
+                                        data-sender="{{ chat_message.sender.username }}"
+                                    >
+                                        ↩ Reply
+                                    </button>
+
+                                    {% if chat_message.sender_id == request.user.id %}
+
+                                        {% if chat_message.message_type == "text" %}
+
+                                            <button
+                                                type="button"
+                                                class="edit-button"
+                                                data-message-id="{{ chat_message.id }}"
                                             >
+                                                ✏️ Edit
+                                            </button>
 
-                                                {% csrf_token %}
+                                        {% endif %}
 
-                                                <button
-                                                    type="submit"
-                                                    class="member-remove-btn"
-                                                >
-                                                    Remove
-                                                </button>
-
-                                            </form>
-
-                                        </div>
+                                        <button
+                                            type="button"
+                                            class="delete-button"
+                                            data-message-id="{{ chat_message.id }}"
+                                        >
+                                            🗑 Delete
+                                        </button>
 
                                     {% endif %}
 
                                 </div>
 
-                            {% empty %}
 
-                                <p>
-                                    No members yet.
-                                </p>
+                                <!-- Edit and delete forms -->
 
-                            {% endfor %}
+                                {% if chat_message.sender_id == request.user.id %}
+
+                                    {% if chat_message.message_type == "text" %}
+
+                                        <form
+                                            method="POST"
+                                            action="{% url 'edit_group_message' group.id chat_message.id %}"
+                                            class="message-edit-form"
+                                            id="edit-form-{{ chat_message.id }}"
+                                            hidden
+                                        >
+
+                                            {% csrf_token %}
+
+                                            <textarea
+                                                name="content"
+                                                class="message-edit-input"
+                                                rows="3"
+                                                required
+                                            >{{ chat_message.content }}</textarea>
+
+                                            <div class="message-edit-actions">
+
+                                                <button
+                                                    type="submit"
+                                                    class="edit-save-button"
+                                                >
+                                                    Save
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    class="edit-cancel-button"
+                                                >
+                                                    Cancel
+                                                </button>
+
+                                            </div>
+
+                                        </form>
+
+                                    {% endif %}
+
+
+                                    <form
+                                        method="POST"
+                                        action="{% url 'delete_group_message' group.id chat_message.id %}"
+                                        class="message-delete-form"
+                                        id="delete-form-{{ chat_message.id }}"
+                                        hidden
+                                    >
+
+                                        {% csrf_token %}
+
+                                        <p>
+                                            Are you sure you want to delete this message?
+                                        </p>
+
+                                        <div class="message-edit-actions">
+
+                                            <button
+                                                type="submit"
+                                                class="delete-confirm-button"
+                                            >
+                                                Yes, Delete
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                class="delete-cancel-button"
+                                            >
+                                                Cancel
+                                            </button>
+
+                                        </div>
+
+                                    </form>
+
+                                {% endif %}
+
+                            </div>
+
+                        </article>
+
+                    {% empty %}
+
+                        <p class="chat-empty">
+                            No messages yet. Start the conversation!
+                        </p>
+
+                    {% endfor %}
+
+                </div>
+
+
+                <!-- =================================================
+                     6. COMPACT CHAT COMPOSER
+                ================================================= -->
+
+                <div class="chat-composer cv-chat-composer">
+
+                    <!-- Reply preview -->
+
+                    <div
+                        class="chat-reply-preview"
+                        id="chat-reply-preview"
+                        hidden
+                    >
+
+                        <div class="reply-preview-details">
+
+                            <strong id="reply-preview-sender"></strong>
+
+                            <p id="reply-preview-content"></p>
+
+                        </div>
+
+                        <button
+                            type="button"
+                            id="cancel-reply-button"
+                            aria-label="Cancel reply"
+                        >
+                            &times;
+                        </button>
+
+                    </div>
+
+
+                    <!-- Message form -->
+
+                    <form
+                        method="POST"
+                        action="{% url 'send_group_message' group.id %}"
+                        enctype="multipart/form-data"
+                        id="chat-form"
+                        class="cv-chat-form"
+                    >
+
+                        {% csrf_token %}
+
+                        <input
+                            type="hidden"
+                            name="message_type"
+                            value="text"
+                        >
+
+                        <input
+                            type="hidden"
+                            name="reply_to_id"
+                            id="reply-to-id"
+                            value=""
+                        >
+
+
+                        {% if chat_form.errors %}
+
+                            <div class="composer-error">
+                                {{ chat_form.errors }}
+                            </div>
+
+                        {% endif %}
+
+
+                        <div class="composer-box cv-compact-composer">
+
+                            <!-- Normal composer -->
+
+                            <div
+                                class="composer-normal"
+                                id="composer-normal"
+                            >
+
+                                <!-- Attachment button -->
+
+                                <button
+                                    type="button"
+                                    class="composer-button cv-attach-button"
+                                    id="attach-file-button"
+                                    title="Attach a file"
+                                    aria-label="Attach a file"
+                                >
+
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        aria-hidden="true"
+                                    >
+                                        <path
+                                            d="m21.44 11.05-9.19 9.19
+                                               a6 6 0 0 1-8.49-8.49
+                                               l9.19-9.19a4 4 0 0 1
+                                               5.66 5.66l-9.2 9.19
+                                               a2 2 0 0 1-2.83-2.83
+                                               l8.49-8.48"
+                                        ></path>
+                                    </svg>
+
+                                </button>
+
+                                <div
+                                    class="composer-file-input"
+                                    hidden
+                                >
+                                    {{ chat_form.attachment }}
+                                </div>
+
+
+                                <!-- Small message field -->
+
+                                <textarea
+                                    name="content"
+                                    id="id_content"
+                                    class="composer-textarea cv-compact-textarea"
+                                    rows="1"
+                                    placeholder="Message #{{ group.name }}"
+                                    aria-label="Type a message"
+                                >{{ chat_form.content.value|default_if_none:"" }}</textarea>
+
+
+                                <!-- Voice recording -->
+
+                                <button
+                                    type="button"
+                                    class="composer-button cv-voice-button"
+                                    id="record-voice-button"
+                                    title="Record voice note"
+                                    aria-label="Record voice note"
+                                >
+
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        aria-hidden="true"
+                                    >
+                                        <rect
+                                            x="9"
+                                            y="2"
+                                            width="6"
+                                            height="12"
+                                            rx="3"
+                                        ></rect>
+
+                                        <path
+                                            d="M5 10a7 7 0 0 0 14 0"
+                                        ></path>
+
+                                        <path d="M12 17v5"></path>
+                                        <path d="M8 22h8"></path>
+                                    </svg>
+
+                                </button>
+
+                            </div>
+
+
+                            <!-- Voice recording interface -->
+
+                            <div
+                                class="composer-voice"
+                                id="composer-voice"
+                                hidden
+                            >
+
+                                <button
+                                    type="button"
+                                    class="composer-button"
+                                    id="cancel-voice-button"
+                                    title="Discard recording"
+                                    aria-label="Discard recording"
+                                >
+                                    🗑️
+                                </button>
+
+                                <div
+                                    class="voice-recording-status"
+                                    id="voice-recording-status"
+                                >
+
+                                    <span id="voice-recording-indicator">
+                                        🔴
+                                    </span>
+
+                                    <span id="voice-recording-timer">
+                                        00:00
+                                    </span>
+
+                                    <span id="voice-recording-label">
+                                        Recording...
+                                    </span>
+
+                                </div>
+
+                                <audio
+                                    id="voice-preview"
+                                    class="voice-preview"
+                                    controls
+                                    preload="metadata"
+                                    hidden
+                                ></audio>
+
+                                <button
+                                    type="button"
+                                    class="composer-button"
+                                    id="stop-voice-button"
+                                    title="Stop recording"
+                                    aria-label="Stop recording"
+                                >
+                                    ⏹
+                                </button>
+
+                            </div>
+
+
+                            <!-- Send message -->
+
+                            <button
+                                type="submit"
+                                class="composer-button composer-send cv-send-button"
+                                id="composer-send-button"
+                                title="Send message"
+                                aria-label="Send message"
+                            >
+
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    aria-hidden="true"
+                                >
+                                    <path d="m22 2-7 20-4-9-9-4Z"></path>
+                                    <path d="M22 2 11 13"></path>
+                                </svg>
+
+                            </button>
 
                         </div>
 
 
-                        <!-- =================================================
-                             12. PRIVATE GROUP INVITATIONS
-                        ================================================== -->
+                        <!-- Selected attachment name -->
 
-                        {% if is_owner and group.is_private %}
+                        <p
+                            class="selected-file-name"
+                            id="selected-file-name"
+                            hidden
+                        ></p>
 
-                            <div class="add-member-section">
+                    </form>
 
-                                <h3>
-                                    Invite Developer
-                                </h3>
+                </div>
 
-                                <p class="workspace-section-description">
-                                    Search for a registered developer and
-                                    send an invitation. The developer must
-                                    accept before joining the group.
-                                </p>
+            </section>
+
+        {% endif %}
 
 
-                                <!-- This form sends an invitation.
-                                     It does not add a member directly. -->
+        <!-- =================================================
+             7. GROUP MEMBERS
+        ================================================= -->
 
-                                <form
-                                    id="invite-developer-form"
-                                    method="POST"
-                                    action="{% url 'send_group_invitation' group.id %}"
-                                >
+        {% if is_member %}
 
-                                    {% csrf_token %}
+            <section
+                class="workspace-section workspace-panel"
+                id="group-members"
+                data-workspace-panel="members"
+                hidden
+            >
 
+                <h2>
+                    Group Members ({{ members|length }})
+                </h2>
 
-                                    <div class="developer-search-container">
-
-                                        <label for="developer-search">
-                                            Search Developer
-                                        </label>
-
-                                        <input
-                                            type="text"
-                                            id="developer-search"
-                                            name="username"
-                                            data-search-url="{% url 'search_group_developers' group.id %}"
-                                            placeholder="Search developer username..."
-                                            autocomplete="off"
-                                            minlength="2"
-                                            required
-                                        >
-
-                                        <!-- The selected user's ID is submitted
-                                             to the invitation endpoint. -->
-
-                                        <input
-                                            type="hidden"
-                                            name="user_id"
-                                            id="invite-user-id"
-                                            value=""
-                                        >
+                <p class="workspace-section-description">
+                    Private development groups support a maximum
+                    of 10 members, including the owner.
+                </p>
 
 
-                                        <div
-                                            id="developer-search-results"
-                                            class="developer-search-results"
-                                            aria-live="polite"
-                                        ></div>
+                <!-- Member list -->
 
-                                    </div>
+                <div class="workspace-members">
 
+                    {% for membership in members %}
 
-                                    <button
-                                        type="submit"
-                                        class="group-action"
-                                        id="send-invitation-button"
-                                    >
-                                        Send Invitation
-                                    </button>
+                        <div class="workspace-member">
 
-                                </form>
+                            <span class="member-avatar">
+                                {{ membership.user.username|first|upper }}
+                            </span>
+
+                            <div>
+
+                                <strong>
+                                    {{ membership.user.username }}
+                                </strong>
+
+                                <small>
+
+                                    {% if membership.user_id == group.owner_id %}
+                                        Owner
+                                    {% else %}
+                                        Member
+                                    {% endif %}
+
+                                </small>
 
                             </div>
 
-                        {% endif %}
+
+                            <!-- Owner-only member removal -->
+
+                            {% if is_owner and membership.user_id != group.owner_id %}
+
+                                <div class="member-actions">
+
+                                    <form
+                                        method="POST"
+                                        action="{% url 'remove_group_member' group.id membership.id %}"
+                                        class="remove-member-form"
+                                    >
+
+                                        {% csrf_token %}
+
+                                        <button
+                                            type="submit"
+                                            class="member-remove-btn"
+                                        >
+                                            Remove
+                                        </button>
+
+                                    </form>
+
+                                </div>
+
+                            {% endif %}
+
+                        </div>
+
+                    {% empty %}
+
+                        <p>No members yet.</p>
+
+                    {% endfor %}
+
+                </div>
 
 
-                        <!-- =================================================
-                             13. LEAVE GROUP
-                        ================================================== -->
+                <!-- =================================================
+                     8. INVITE DEVELOPERS
+                ================================================= -->
 
-                        {% if not is_owner %}
+                {% if is_owner and group.is_private %}
 
-                            <div class="leave-group-section">
+                    <div class="add-member-section">
 
-                                <form
-                                    id="leave-group-form"
-                                    method="POST"
-                                    action="{% url 'leave_group' group.id %}"
+                        <h3>
+                            Invite Developer
+                        </h3>
+
+                        <p class="workspace-section-description">
+                            Search for a registered developer and
+                            send an invitation. The developer must
+                            accept before joining the group.
+                        </p>
+
+                        <form
+                            id="invite-developer-form"
+                            method="POST"
+                            action="{% url 'send_group_invitation' group.id %}"
+                        >
+
+                            {% csrf_token %}
+
+                            <div class="developer-search-container">
+
+                                <label for="developer-search">
+                                    Search Developer
+                                </label>
+
+                                <input
+                                    type="text"
+                                    id="developer-search"
+                                    name="username"
+                                    data-search-url="{% url 'search_group_developers' group.id %}"
+                                    placeholder="Search developer username..."
+                                    autocomplete="off"
+                                    minlength="2"
+                                    required
                                 >
 
-                                    {% csrf_token %}
+                                <input
+                                    type="hidden"
+                                    name="user_id"
+                                    id="invite-user-id"
+                                    value=""
+                                >
 
-                                    <button
-                                        type="submit"
-                                        class="leave-group-btn"
-                                    >
-                                        Leave Group
-                                    </button>
-
-                                </form>
+                                <div
+                                    id="developer-search-results"
+                                    class="developer-search-results"
+                                    aria-live="polite"
+                                ></div>
 
                             </div>
 
-                        {% endif %}
+                            <button
+                                type="submit"
+                                class="group-action"
+                                id="send-invitation-button"
+                            >
+                                Send Invitation
+                            </button>
 
-                    </section>
+                        </form>
+
+                    </div>
 
                 {% endif %}
 
 
-    </div>
+                <!-- =================================================
+                     9. LEAVE GROUP
+                ================================================= -->
+
+                {% if not is_owner %}
+
+                    <div class="leave-group-section">
+
+                        <form
+                            id="leave-group-form"
+                            method="POST"
+                            action="{% url 'leave_group' group.id %}"
+                        >
+
+                            {% csrf_token %}
+
+                            <button
+                                type="submit"
+                                class="leave-group-btn"
+                            >
+                                Leave Group
+                            </button>
+
+                        </form>
+
+                    </div>
+
+                {% endif %}
+
+            </section>
+
+        {% endif %}
+
+    </main>
+
 </div>
 
-    <!-- =====================================================
-         14. REMOVE MEMBER CONFIRMATION MODAL
-    ====================================================== -->
 
-    {% if is_owner %}
+<!-- =========================================================
+     10. REMOVE MEMBER CONFIRMATION
+========================================================= -->
+
+{% if is_owner %}
+
+    <div
+        id="remove-member-modal"
+        class="codeview-modal"
+        hidden
+    >
+
+        <div class="codeview-modal-overlay"></div>
 
         <div
-            id="remove-member-modal"
-            class="codeview-modal"
-            hidden
+            class="codeview-modal-content"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="remove-modal-title"
+            aria-describedby="remove-modal-description"
         >
 
-            <div class="codeview-modal-overlay"></div>
+            <h2 id="remove-modal-title">
+                Remove Developer?
+            </h2>
 
-            <div
-                class="codeview-modal-content"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="remove-modal-title"
-                aria-describedby="remove-modal-description"
-            >
+            <p id="remove-modal-description">
+                Are you sure you want to remove this developer
+                from the group?
+            </p>
 
-                <h2 id="remove-modal-title">
-                    Remove Developer?
-                </h2>
+            <div class="codeview-modal-actions">
 
-                <p id="remove-modal-description">
-                    Are you sure you want to remove this developer
-                    from the group?
-                </p>
+                <button
+                    type="button"
+                    id="cancel-remove-member"
+                    class="modal-cancel-btn"
+                >
+                    Cancel
+                </button>
 
-                <div class="codeview-modal-actions">
-
-                    <button
-                        type="button"
-                        id="cancel-remove-member"
-                        class="modal-cancel-btn"
-                    >
-                        Cancel
-                    </button>
-
-                    <button
-                        type="button"
-                        id="confirm-remove-member"
-                        class="modal-remove-btn"
-                    >
-                        Remove Member
-                    </button>
-
-                </div>
+                <button
+                    type="button"
+                    id="confirm-remove-member"
+                    class="modal-remove-btn"
+                >
+                    Remove Member
+                </button>
 
             </div>
 
         </div>
 
-    {% endif %}
+    </div>
+
+{% endif %}
 
 
-    <!-- =====================================================
-         15. LEAVE GROUP CONFIRMATION MODAL
-    ====================================================== -->
+<!-- =========================================================
+     11. LEAVE GROUP CONFIRMATION
+========================================================= -->
 
-    {% if is_member and not is_owner %}
+{% if is_member and not is_owner %}
+
+    <div
+        id="leave-group-modal"
+        class="codeview-modal"
+        hidden
+    >
+
+        <div class="codeview-modal-overlay"></div>
 
         <div
-            id="leave-group-modal"
-            class="codeview-modal"
-            hidden
+            class="codeview-modal-content"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="leave-modal-title"
+            aria-describedby="leave-modal-description"
         >
 
-            <div class="codeview-modal-overlay"></div>
+            <h2 id="leave-modal-title">
+                Leave Group?
+            </h2>
 
-            <div
-                class="codeview-modal-content"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="leave-modal-title"
-                aria-describedby="leave-modal-description"
-            >
+            <p id="leave-modal-description">
+                Are you sure you want to leave this group?
+                You will lose access to member-only features.
+            </p>
 
-                <h2 id="leave-modal-title">
-                    Leave Group?
-                </h2>
+            <div class="codeview-modal-actions">
 
-                <p id="leave-modal-description">
-                    Are you sure you want to leave this group?
-                    You will lose access to member-only features.
-                </p>
+                <button
+                    type="button"
+                    id="cancel-leave-group"
+                    class="modal-cancel-btn"
+                >
+                    Cancel
+                </button>
 
-                <div class="codeview-modal-actions">
-
-                    <button
-                        type="button"
-                        id="cancel-leave-group"
-                        class="modal-cancel-btn"
-                    >
-                        Cancel
-                    </button>
-
-                    <button
-                        type="button"
-                        id="confirm-leave-group"
-                        class="modal-remove-btn"
-                    >
-                        Leave Group
-                    </button>
-
-                </div>
+                <button
+                    type="button"
+                    id="confirm-leave-group"
+                    class="modal-remove-btn"
+                >
+                    Leave Group
+                </button>
 
             </div>
 
         </div>
 
-    {% endif %}
+    </div>
 
-    <!-- =====================================================
-         EXTERNAL JAVASCRIPT FILES
-         All JavaScript stays in separate files.
-    ====================================================== -->
+{% endif %}
 
-    <!-- Workspace navigation and confirmation modals -->
+
+<!-- =========================================================
+     12. EXTERNAL JAVASCRIPT
+========================================================= -->
+
+<script
+    src="{% static 'community/group_detail/group_workspace.js' %}"
+    defer
+></script>
+
+<script
+    src="{% static 'community/group_detail/group_chat.js' %}"
+    defer
+></script>
+
+<script
+    src="{% static 'community/group_detail/developer_search.js' %}"
+    defer
+></script>
+
+{% if group.is_private and is_member %}
+
     <script
-        src="{% static 'community/group_detail/group_workspace.js' %}"
+        src="{% static 'community/group_detail/group_meeting_notifications.js' %}"
         defer
     ></script>
 
-    <!-- Group chat functionality -->
-    <script
-        src="{% static 'community/group_detail/group_chat.js' %}"
-        defer
-    ></script>
-
-    <!-- Developer search and invitation selection -->
-    <script
-        src="{% static 'community/group_detail/developer_search.js' %}"
-        defer
-    ></script>
-
-    {% if group.is_private and is_member %}
-        <!-- Receives live meeting start/end notifications. -->
-        <script
-            src="{% static 'community/group_detail/group_meeting_notifications.js' %}"
-            defer
-        ></script>
-    {% endif %}
-
+{% endif %}
 
 {% endblock %}

@@ -879,7 +879,8 @@ function resetRecordButton() {
         return;
     }
 
-    recordVoiceButton.textContent = "🎤";
+    // Keep the original SVG microphone icon.
+    // Do not replace the button's HTML with an emoji.
 
     recordVoiceButton.title = "Record voice note";
 

@@ -1,12 +1,17 @@
 /**
- * CodeView - Repository Meeting Lock
+ * ColabVerse — Repository Meeting Lock
  *
  * Keeps repository connection controls synchronized
  * with the active group meeting status in Django.
  *
  * Security:
- * Django enforces the actual repository restrictions.
- * This file only manages the browser interface.
+ * - Django enforces repository restrictions.
+ * - Repository mutation controls remain disabled until
+ *   the server confirms whether a meeting is active.
+ * - The warning is displayed only when Django confirms
+ *   that repository connections are locked.
+ *
+ * This file controls the browser interface only.
  */
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -36,10 +41,10 @@ document.addEventListener("DOMContentLoaded", () => {
         )
     );
 
-    // Determine whether Django initially rendered
-    // the repository as locked.
-    const initiallyLocked = Boolean(
-        lockMessage && !lockMessage.hidden
+    // Django may have rendered the controls disabled
+    // because a meeting was active when the page loaded.
+    const initiallyLocked = (
+        repositorySection.dataset.repositoryLocked === "true"
     );
 
     // =====================================================
@@ -55,8 +60,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         formControls.forEach((element) => {
 
-            // Hidden inputs include Django's CSRF token.
-            // They do not need to be disabled.
+            // Never disable hidden inputs such as CSRF tokens.
             if (
                 element.tagName === "INPUT" &&
                 element.type === "hidden"
@@ -71,9 +75,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 )
             );
 
-            // A button disabled only because of the
-            // initial meeting lock should become available
-            // again when Django confirms the meeting ended.
+            // Preserve controls disabled for reasons
+            // unrelated to the meeting lock.
             const originallyDisabled = (
                 element.disabled && !lockedByDjango
             );
@@ -89,17 +92,25 @@ document.addEventListener("DOMContentLoaded", () => {
     // 3. APPLY REPOSITORY LOCK
     // =====================================================
 
+    // Start locked until Django confirms the status.
     let repositoryLocked = true;
 
-    function applyRepositoryLock(locked) {
+    function applyRepositoryLock(locked, confirmed = false) {
+
         repositoryLocked = locked;
 
         repositorySection.dataset.repositoryLocked = String(
             locked
         );
 
+        // IMPORTANT:
+        // Do not show the orange warning while the
+        // initial meeting status request is pending.
+        //
+        // Show it only after Django confirms that
+        // repository connections are locked.
         if (lockMessage) {
-            lockMessage.hidden = !locked;
+            lockMessage.hidden = !(confirmed && locked);
         }
 
         controls.forEach((control) => {
@@ -124,7 +135,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     repositoryForms.forEach((form) => {
         form.addEventListener("submit", (event) => {
+
             if (repositoryLocked) {
+
                 event.preventDefault();
                 event.stopPropagation();
 
@@ -142,6 +155,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let requestInProgress = false;
 
     async function checkMeetingStatus() {
+
         if (requestInProgress) {
             return;
         }
@@ -149,6 +163,7 @@ document.addEventListener("DOMContentLoaded", () => {
         requestInProgress = true;
 
         try {
+
             const response = await fetch(statusUrl, {
                 method: "GET",
                 credentials: "same-origin",
@@ -175,21 +190,27 @@ document.addEventListener("DOMContentLoaded", () => {
                 );
             }
 
-            // Only Django's confirmed status can
-            // unlock repository connection controls.
+            // Django has confirmed the current status.
+            // The warning can now be shown or hidden.
             applyRepositoryLock(
-                data.repository_locked
+                data.repository_locked,
+                true
             );
 
         } catch (error) {
+
             console.error(
-                "CodeView repository lock status error:",
+                "ColabVerse repository lock status error:",
                 error
             );
 
-            // If the server cannot confirm the status,
-            // keep repository mutation controls disabled.
-            applyRepositoryLock(true);
+            // Security first:
+            // Keep mutation controls disabled if the
+            // server cannot confirm the meeting status.
+            //
+            // Do not display a misleading "active meeting"
+            // warning when the status is unknown.
+            applyRepositoryLock(true, false);
 
         } finally {
             requestInProgress = false;
@@ -200,13 +221,14 @@ document.addEventListener("DOMContentLoaded", () => {
     // 6. INITIALIZE
     // =====================================================
 
-    // Prevent mutations until Django confirms
-    // whether a meeting is currently active.
-    applyRepositoryLock(true);
+    // Keep repository mutations disabled while checking.
+    // Hide the warning until the status is confirmed.
+    applyRepositoryLock(true, false);
 
     if (!statusUrl) {
+
         console.error(
-            "CodeView meeting status URL is missing."
+            "ColabVerse meeting status URL is missing."
         );
 
         return;
@@ -226,23 +248,23 @@ document.addEventListener("DOMContentLoaded", () => {
         STATUS_CHECK_INTERVAL
     );
 
-    // Refresh immediately when the developer
-    // returns to the browser tab.
+    // Refresh when returning to the browser tab.
     document.addEventListener(
         "visibilitychange",
         () => {
+
             if (!document.hidden) {
                 checkMeetingStatus();
             }
         }
     );
 
-    // Refresh when navigating back to this page.
+    // Refresh when navigating back to the page.
     window.addEventListener("pageshow", () => {
         checkMeetingStatus();
     });
 
-    // Stop polling when the page is unloaded.
+    // Stop polling when leaving the page.
     window.addEventListener("pagehide", () => {
         window.clearInterval(intervalId);
     });
