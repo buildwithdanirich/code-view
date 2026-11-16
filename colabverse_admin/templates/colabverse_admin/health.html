@@ -1,0 +1,28 @@
+{% extends 'colabverse_admin/base.html' %}
+{% block title %}Project Health{% endblock %}
+{% block content %}
+    <div class="page-heading">
+        <div>
+            <p class="eyebrow">SYSTEM MONITORING</p>
+            <h1>Project Health</h1>
+            <p>Live checks of available platform components.</p>
+        </div>
+        <button class="button" type="button" id="refresh-health">Refresh checks</button>
+    </div>
+    <section class="panel" id="health-root" data-url="{% url 'colabverse_admin:health_status' %}">
+        <h2>Overall status: <span id="overall-status">{{ report.overall|capfirst }}</span></h2>
+        <p class="muted">Last checked: <time id="checked-at">{{ report.checked_at }}</time></p>
+        <div class="health-grid" id="health-checks">
+            {% for name, check in report.checks.items %}
+                <article class="health-card">
+                    <h3>{{ name|capfirst }} · {{ check.status|capfirst }}</h3>
+                    <p>{{ check.detail }}</p>
+                    {% if check.latency_ms != None %}
+                        <p>Response: {{ check.latency_ms }} ms</p>
+                    {% endif %}
+                </article>
+            {% endfor %}
+        </div>
+        <p class="muted">Unconfigured means no authenticated service probe is enabled; it does not mean healthy.</p>
+    </section>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends 'colabverse_admin/base.html' %}
+{% block title %}Security{% endblock %}
+{% block content %}
+    <div class="page-heading"><div><p class="eyebrow">SECURITY & ACCOUNTABILITY</p><h1>Admin Audit Log</h1><p>Recorded changes made through this admin app.</p></div></div>
+    <div class="panel table-wrap"><table><thead><tr><th>Time</th><th>Administrator</th><th>Action</th><th>Target</th></tr></thead><tbody>
+    {% for item in page %}<tr><td>{{ item.created_at|date:'M d, Y H:i' }}</td><td>{{ item.actor|default:'Deleted admin' }}</td><td>{{ item.action }}</td><td>{{ item.target }}</td></tr>
+    {% empty %}<tr><td colspan="4">No actions recorded yet.</td></tr>{% endfor %}
+    </tbody></table></div>
+    {% include 'colabverse_admin/pagination.html' %}
+    <p class="muted">This is not a failed-login tracker or a full system-wide security event log.</p>
+{% endblock %}

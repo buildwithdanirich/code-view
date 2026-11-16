@@ -1,0 +1,15 @@
+{% extends 'colabverse_admin/base.html' %}
+{% block title %}Communities & Groups{% endblock %}
+{% block content %}
+    <div class="page-heading"><div><p class="eyebrow">COMMUNITY MANAGEMENT</p><h1>Communities & Groups</h1><p>Inspect development groups and their owners.</p></div></div>
+    <form method="get" class="search"><input name="q" value="{{ term }}" placeholder="Search group name"><button class="button">Search</button></form>
+    <div class="panel table-wrap">
+        <table><thead><tr><th>ID</th><th>Group</th><th>Owner</th><th>Created</th></tr></thead><tbody>
+        {% for group in page %}
+            <tr><td>{{ group.pk }}</td><td>{{ group.name }}</td><td>{{ group.owner }}</td><td>{{ group.created_at|date:'M d, Y' }}</td></tr>
+        {% empty %}<tr><td colspan="4">No groups found.</td></tr>{% endfor %}
+        </tbody></table>
+    </div>
+    {% include 'colabverse_admin/pagination.html' %}
+    <p class="muted">Group administration is read-only in this version to protect existing membership and repository permissions.</p>
+{% endblock %}

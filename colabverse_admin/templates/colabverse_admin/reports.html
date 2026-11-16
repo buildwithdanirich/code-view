@@ -1,0 +1,14 @@
+{% extends 'colabverse_admin/base.html' %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+    <div class="page-heading"><div><p class="eyebrow">MODERATION QUEUE</p><h1>Content Reports</h1><p>Review reports submitted through the ContentReport model.</p></div></div>
+    <div class="panel table-wrap"><table><thead><tr><th>ID</th><th>Reporter</th><th>Content</th><th>Reason</th><th>Status</th><th>Review</th></tr></thead><tbody>
+    {% for item in page %}
+        <tr><td>{{ item.pk }}</td><td>{{ item.reporter|default:'Unknown' }}</td><td>{{ item.kind }} #{{ item.object_id }}</td><td>{{ item.reason|truncatechars:180 }}</td><td>{{ item.status }}</td><td>
+        {% if request.user.is_superuser %}<form method="post" action="{% url 'colabverse_admin:report_status' item.pk %}" class="inline-form">{% csrf_token %}<select name="status"><option value="open">Open</option><option value="reviewing">Reviewing</option><option value="resolved">Resolved</option><option value="dismissed">Dismissed</option></select><button class="button">Update</button></form>{% else %}Read only{% endif %}
+        </td></tr>
+    {% empty %}<tr><td colspan="6">No reports submitted yet.</td></tr>{% endfor %}
+    </tbody></table></div>
+    {% include 'colabverse_admin/pagination.html' %}
+    <p class="muted">User-facing report submission must be connected to this model in the main application.</p>
+{% endblock %}

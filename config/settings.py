@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     "users",
     "community",
     "questions",
+    "colabverse_admin.apps.ColabverseAdminConfig",
 
     # Django Allauth
     "allauth",

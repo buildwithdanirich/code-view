@@ -1,0 +1,45 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Admin{% endblock %} · ColabVerse</title>
+    <link rel="stylesheet" href="{% static 'colabverse_admin/css/admin.css' %}">
+    <script src="{% static 'colabverse_admin/js/admin.js' %}" defer></script>
+</head>
+<body>
+    <div class="shell">
+        <aside class="sidebar" aria-label="Admin navigation">
+            <a class="brand" href="{% url 'colabverse_admin:dashboard' %}">✦ ColabVerse <small>ADMIN</small></a>
+            <nav>
+                <a href="{% url 'colabverse_admin:dashboard' %}">▦ Overview</a>
+                <a href="{% url 'colabverse_admin:users' %}">♙ Users</a>
+                <a href="{% url 'colabverse_admin:groups' %}">◎ Communities & Groups</a>
+                <a href="{% url 'colabverse_admin:questions' %}">◇ Questions</a>
+                <a href="{% url 'colabverse_admin:answers' %}">▤ Answers</a>
+                <a href="{% url 'colabverse_admin:reports' %}">⚑ Reports</a>
+                <a href="{% url 'colabverse_admin:meetings' %}">◉ Meetings</a>
+                <a href="{% url 'colabverse_admin:support' %}">✉ Help & Support</a>
+                <a href="{% url 'colabverse_admin:health' %}">♡ Project Health</a>
+                <a href="{% url 'colabverse_admin:security' %}">♧ Security & Audit</a>
+            </nav>
+            <div class="sidebar-footer">Signed in as <strong>{{ request.user.get_username }}</strong></div>
+        </aside>
+        <main class="main">
+            <header class="topbar">
+                <span>Administration</span>
+                <span class="badge">{% if request.user.is_superuser %}Superuser{% else %}Staff · read-only controls{% endif %}</span>
+            </header>
+            {% if messages %}
+                <div class="messages" role="status">
+                    {% for message in messages %}
+                        <p class="notice">{{ message }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</body>
+</html>

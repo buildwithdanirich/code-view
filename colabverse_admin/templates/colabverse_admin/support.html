@@ -1,0 +1,24 @@
+{% extends 'colabverse_admin/base.html' %}
+{% block title %}Help & Support{% endblock %}
+{% block content %}
+    <div class="page-heading"><div><p class="eyebrow">HELP DESK</p><h1>Support Tickets</h1><p>Manage requests stored in the SupportTicket model.</p></div></div>
+    <div class="ticket-grid">
+    {% for item in page %}
+        <article class="panel ticket">
+            <div class="ticket-top"><h2>#{{ item.pk }} · {{ item.subject }}</h2><span class="pill">{{ item.status }}</span></div>
+            <p class="muted">From {{ item.requester|default:'Unknown' }} · {{ item.created_at|date:'M d, Y H:i' }} · Priority: {{ item.priority }}</p>
+            <p>{{ item.message|linebreaksbr }}</p>
+            {% if request.user.is_superuser %}
+                <form method="post" action="{% url 'colabverse_admin:support_update' item.pk %}" class="ticket-form">
+                    {% csrf_token %}
+                    <label>Status<select name="status"><option value="open" {% if item.status == 'open' %}selected{% endif %}>Open</option><option value="in_progress" {% if item.status == 'in_progress' %}selected{% endif %}>In progress</option><option value="resolved" {% if item.status == 'resolved' %}selected{% endif %}>Resolved</option></select></label>
+                    <label>Admin response<textarea name="admin_reply" rows="4" maxlength="10000">{{ item.admin_reply }}</textarea></label>
+                    <button class="button">Save response</button>
+                </form>
+            {% else %}<p><strong>Admin response:</strong> {{ item.admin_reply|default:'No response yet' }}</p>{% endif %}
+        </article>
+    {% empty %}<p class="panel">No support tickets yet.</p>{% endfor %}
+    </div>
+    {% include 'colabverse_admin/pagination.html' %}
+    <p class="muted">User-facing ticket submission and notifications are a separate integration step.</p>
+{% endblock %}

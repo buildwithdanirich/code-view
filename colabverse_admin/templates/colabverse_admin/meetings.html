@@ -1,0 +1,13 @@
+{% extends 'colabverse_admin/base.html' %}
+{% block title %}Meetings{% endblock %}
+{% block content %}
+    <div class="page-heading"><div><p class="eyebrow">MEETING MONITORING</p><h1>Meetings</h1><p>Read-only history of group meetings.</p></div></div>
+    <form method="get" class="search"><select name="status"><option value="">All statuses</option><option value="active" {% if status == 'active' %}selected{% endif %}>Active</option><option value="ended" {% if status == 'ended' %}selected{% endif %}>Ended</option></select><button class="button">Filter</button></form>
+    <div class="panel table-wrap"><table><thead><tr><th>ID</th><th>Group</th><th>Status</th><th>Started</th><th>Ended</th></tr></thead><tbody>
+    {% for item in page %}
+        <tr><td>{{ item.pk }}</td><td>{{ item.group.name }}</td><td><span class="pill">{{ item.status }}</span></td><td>{{ item.started_at|date:'M d, Y H:i' }}</td><td>{{ item.ended_at|date:'M d, Y H:i'|default:'—' }}</td></tr>
+    {% empty %}<tr><td colspan="5">No meetings found.</td></tr>{% endfor %}
+    </tbody></table></div>
+    {% include 'colabverse_admin/pagination.html' %}
+    <p class="muted">Meeting records are not a real-time LiveKit participant count.</p>
+{% endblock %}

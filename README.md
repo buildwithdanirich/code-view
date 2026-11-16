@@ -1,37 +1,74 @@
-# CodeView V1
+# ColabVerse Admin Dashboard — expanded edition
 
-Independent Django-based developer collaboration platform. This project does **not** include a browser IDE, Docker, sandboxes, runners, code execution, or a Code Board.
+An independent Django app providing an admin-only control panel at `/admin/`.
 
-## Existing modules
+## Features
 
-- User registration and login
-- Public, approval-required and private development groups
-- Membership requests, discussions, chat and attachments
-- Read-only GitHub repository connection and browser (requires security and browser verification)
-- Meeting-room UI (real-time video, screen sharing and capacity enforcement require verification and further implementation)
+- Overview: users, active users, groups, memberships, meetings, questions, answers/comments, open reports, support queue and recent admin activity.
+- Users: search, paginate, activate/deactivate accounts (superuser-only).
+- Communities & groups: searchable, paginated **read-only** list of `community.ProjectGroup` records.
+- Questions and answers: searchable questions, paginated comments/answers, superuser-only permanent deletion with typed confirmation. **Deletion can cascade**; back up data first.
+- Meetings: paginated meeting history and status filters (read-only, not live LiveKit participant telemetry).
+- Reports: moderation queue and status updates for the included `ContentReport` model.
+- Help & Support: ticket queue, statuses and admin replies for the included `SupportTicket` model.
+- Health: PostgreSQL, cache (opt-in), disk, CPU and RAM (requires psutil), LiveKit marked unconfigured until a real service probe is implemented.
+- Security: audit trail for admin changes made **through this app** (not a full login/error monitoring system).
 
-Private development groups target **15 people including the owner**. Meeting capacity remains **10 concurrent participants initially**.
+## Install / replace existing version
 
-## Fresh installation
+**Back up your current project and database first.** This archive contains a full replacement `colabverse_admin/` directory, not the entire ColabVerse project.
 
-1. Create a **new empty PostgreSQL database** dedicated to V1. Never point this project at the original CodeView database.
-2. Keep your existing `.env` outside the ZIP, with `DJANGO_SECRET_KEY`, `CODEVIEW_DB_PASSWORD`, and the V1 database name/user.
-3. Install dependencies: `python3 -m pip install -r requirements.txt`.
-4. Generate new migrations: `python3 manage.py makemigrations`.
-5. Apply migrations: `python3 manage.py migrate`.
-6. Run checks: `python3 manage.py check`.
-7. Start: `python3 -m daphne -b 127.0.0.1 -p 8000 config.asgi:application`.
+From the `code-view` project directory, extract this ZIP. If replacing the earlier admin app, back it up first:
 
-**Do not use this fresh migration history against the existing migrated database.** Reset/create a separate empty database first. The old migration files are intentionally excluded, while migration package `__init__.py` files are retained. Django will generate new initial migrations from the current models.
+```bash
+cp -a colabverse_admin colabverse_admin_backup
+unzip -o ~/Downloads/colabverse_admin_complete.zip -d .
+```
 
-## Next phases
+In `config/settings.py`, ensure `INSTALLED_APPS` includes:
 
-1. Cleanup and fresh database verification
-2. Groups, membership and permissions
-3. GitHub authorization and repository browser verification
-4. Chat and attachments
-5. WebRTC meetings and screen sharing
-6. Collaborative whiteboard
-7. Security and deployment
+```python
+'colabverse_admin.apps.ColabverseAdminConfig',
+```
 
-Production readiness is **not yet established**. In particular, use Redis-backed Channels and a TURN/SFU strategy for production meetings, review file access controls, and remove or rotate any credentials that were previously shared in documentation.
+In `config/urls.py`, ensure `include` is imported and only **one** `admin/` route exists:
+
+```python
+path('admin/', include('colabverse_admin.urls')),
+```
+
+If Django's built-in admin is needed, move its existing route to another path (e.g. `django-admin/`) rather than leaving two identical `admin/` paths. Protect it appropriately in production.
+
+Run:
+
+```bash
+python3 manage.py check
+python3 manage.py makemigrations --check --dry-run colabverse_admin
+python3 manage.py migrate
+python3 manage.py runserver
+```
+
+The included migration creates three new tables: content reports, support tickets, and admin audit logs. **Do not run `makemigrations` unless the check shows a mismatch; investigate the mismatch first.**
+
+Create a privileged administrator if needed:
+
+```bash
+python3 manage.py createsuperuser
+```
+
+Visit `/admin/`. Unauthenticated users are redirected to `/login/` and staff-only access is enforced server-side. Superuser credentials are standard Django hashed-password credentials. A **dedicated admin login page is not included**; the existing site login is reused.
+
+## Deployment notes
+
+- Use HTTPS, secure session/CSRF cookies, `DEBUG=False`, correct `ALLOWED_HOSTS`, a strong `SECRET_KEY`, and a production WSGI/ASGI server.
+- Serve static assets with your normal production static-file pipeline (`collectstatic`); do not use Django's development server in production.
+- Avoid exposing admin endpoints publicly without additional controls such as rate limiting, MFA, and network restrictions.
+- All state changes use POST, CSRF protection, and superuser checks; audit logs record the changes handled by this app.
+- Pagination limits large lists to 20 items. Database health checks run on demand; do not poll them too frequently.
+- The existing `questions.Comment` model is treated as the answer model, matching the supplied ColabVerse project snapshot.
+- **User-facing support submission, content reporting, LiveKit health, active participant counts, and community moderation actions are not wired into the existing apps.** Integrate them later rather than assuming they already work.
+- No new third-party dependencies are required. `psutil` is optional for CPU and RAM stats.
+
+## Validation
+
+Run `python3 manage.py check` and `python3 manage.py test colabverse_admin` against your actual project environment. The packaged app has been syntax-checked but cannot be verified against your live database from here.

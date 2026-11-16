@@ -1,0 +1,16 @@
+{% extends 'colabverse_admin/base.html' %}
+{% block title %}Answers{% endblock %}
+{% block content %}
+    <div class="page-heading"><div><p class="eyebrow">CONTENT MODERATION</p><h1>Answers & Comments</h1><p>ColabVerse stores answers in the Question Comment model.</p></div></div>
+    <div class="panel table-wrap"><table><thead><tr><th>ID</th><th>Answer</th><th>Question</th><th>Author</th><th>Moderation</th></tr></thead><tbody>
+    {% for item in page %}
+        <tr><td>{{ item.pk }}</td><td>{{ item.body|truncatechars:200 }}</td><td>{{ item.question.title|truncatechars:70 }}</td><td>{{ item.author }}</td><td>
+        {% if request.user.is_superuser %}
+            <form method="post" action="{% url 'colabverse_admin:delete_content' 'comment' item.pk %}" class="delete-form">
+                {% csrf_token %}<input name="confirm" placeholder="Type DELETE" aria-label="Type DELETE to confirm" required><button class="button danger">Delete</button>
+            </form>
+        {% else %}<span class="muted">Read only</span>{% endif %}</td></tr>
+    {% empty %}<tr><td colspan="5">No answers found.</td></tr>{% endfor %}
+    </tbody></table></div>
+    {% include 'colabverse_admin/pagination.html' %}
+{% endblock %}

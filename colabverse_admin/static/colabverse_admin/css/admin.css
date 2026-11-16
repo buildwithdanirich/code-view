@@ -1,0 +1,352 @@
+/* ColabVerse admin styles — formatted and separate from templates. */
+:root {
+    color-scheme: dark;
+    --bg: #0a0d1b;
+    --surface: #131a2d;
+    --border: #2b3755;
+    --text: #edf1ff;
+    --muted: #a1b0d3;
+    --accent: #8267fa;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height: 1.55;
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.shell {
+    display: grid;
+    grid-template-columns: 250px minmax(0, 1fr);
+    min-height: 100vh;
+}
+
+.sidebar {
+    padding: 28px 20px;
+    background: #0e1427;
+    border-right: 1px solid var(--border);
+}
+
+.brand {
+    display: block;
+    margin-bottom: 42px;
+    font-size: 21px;
+    font-weight: 800;
+}
+
+.brand small {
+    display: block;
+    color: var(--accent);
+    font-size: 11px;
+    letter-spacing: 3px;
+}
+
+.sidebar nav {
+    display: grid;
+    gap: 7px;
+}
+
+.sidebar nav a {
+    display: block;
+    padding: 11px 13px;
+    color: var(--muted);
+    border-radius: 10px;
+}
+
+.sidebar nav a:hover,
+.sidebar nav a.active {
+    background: #1b2540;
+    color: white;
+}
+
+.sidebar-footer {
+    margin-top: 48px;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.main {
+    min-width: 0;
+    padding: 0 36px 60px;
+}
+
+.topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 75px;
+    border-bottom: 1px solid var(--border);
+    color: var(--muted);
+}
+
+.badge,
+.pill {
+    display: inline-block;
+    padding: 5px 11px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 12px;
+}
+
+.page-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+    margin: 38px 0 26px;
+}
+
+.page-heading h1 {
+    margin: 0;
+    font-size: clamp(30px, 3vw, 42px);
+}
+
+.page-heading p {
+    margin: 8px 0 0;
+    color: var(--muted);
+}
+
+.eyebrow {
+    color: #a28aff !important;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 3px;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.stat,
+.panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+}
+
+.stat {
+    min-height: 135px;
+    padding: 22px;
+}
+
+.stat span {
+    display: block;
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.stat strong {
+    display: block;
+    margin-top: 12px;
+    font-size: 34px;
+}
+
+.panel {
+    margin-top: 24px;
+    padding: 24px;
+}
+
+.panel h2 {
+    margin-top: 0;
+}
+
+.muted {
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.activity {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.button,
+button {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 39px;
+    padding: 9px 14px;
+    border: 0;
+    border-radius: 9px;
+    background: var(--accent);
+    color: white;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.button:hover,
+button:hover {
+    filter: brightness(1.12);
+}
+
+.danger {
+    background: #8b3448;
+}
+
+input,
+select,
+textarea {
+    max-width: 100%;
+    min-height: 39px;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: #0e1528;
+    color: var(--text);
+    font: inherit;
+}
+
+textarea {
+    width: 100%;
+}
+
+.search,
+.inline-form,
+.delete-form {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.search input {
+    width: min(420px, 70vw);
+}
+
+.delete-form input {
+    width: 110px;
+}
+
+.table-wrap {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+th,
+td {
+    padding: 14px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+}
+
+th {
+    color: var(--muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.pagination {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-top: 22px;
+}
+
+.ticket-grid {
+    display: grid;
+    gap: 16px;
+}
+
+.ticket {
+    margin: 0;
+}
+
+.ticket-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.ticket-form {
+    display: grid;
+    gap: 12px;
+    max-width: 700px;
+}
+
+.ticket-form label {
+    display: grid;
+    gap: 6px;
+}
+
+.ticket-form button {
+    justify-self: start;
+}
+
+.notice {
+    padding: 14px;
+    border-radius: 10px;
+    background: #283451;
+}
+
+@media (max-width: 1100px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 760px) {
+    .shell {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar {
+        border-right: 0;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar nav {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .main {
+        padding: 0 18px 40px;
+    }
+
+    .page-heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-grid,
+    .sidebar nav {
+        grid-template-columns: 1fr;
+    }
+}
+
+.health-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 16px;
+}
+
+.health-card {
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+
+.health-card h3 {
+    margin: 0 0 10px;
+}

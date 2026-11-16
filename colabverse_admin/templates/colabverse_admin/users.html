@@ -1,0 +1,46 @@
+{% extends 'colabverse_admin/base.html' %}
+{% block title %}Users{% endblock %}
+{% block content %}
+    <div class="page-heading">
+        <div>
+            <p class="eyebrow">ACCESS MANAGEMENT</p>
+            <h1>Users</h1>
+            <p>Search accounts and manage activation status.</p>
+        </div>
+    </div>
+    <form method="get" class="search">
+        <label for="q">Search users</label>
+        <input id="q" name="q" value="{{ term }}" placeholder="Username, email, or name">
+        <button class="button" type="submit">Search</button>
+    </form>
+    <div class="panel table-wrap">
+        <table>
+            <thead>
+                <tr><th>User</th><th>Email</th><th>Role</th><th>Status</th><th>Action</th></tr>
+            </thead>
+            <tbody>
+                {% for account in page %}
+                    <tr>
+                        <td>{{ account.get_username }}</td>
+                        <td>{{ account.email|default:'—' }}</td>
+                        <td>{% if account.is_superuser %}Superuser{% elif account.is_staff %}Staff{% else %}Member{% endif %}</td>
+                        <td>{% if account.is_active %}Active{% else %}Inactive{% endif %}</td>
+                        <td>
+                            {% if request.user.is_superuser and not account.is_superuser and account.pk != request.user.pk %}
+                                <form method="post" action="{% url 'colabverse_admin:toggle_user_active' account.pk %}" data-confirm="Change this user's account status?">
+                                    {% csrf_token %}
+                                    <button class="button" type="submit">
+                                        {% if account.is_active %}Deactivate{% else %}Activate{% endif %}
+                                    </button>
+                                </form>
+                            {% else %}—{% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="5">No users found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include 'colabverse_admin/pagination.html' %}
+{% endblock %}
