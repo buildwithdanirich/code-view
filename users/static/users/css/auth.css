@@ -672,3 +672,171 @@ a:hover {
     border: none;
     box-shadow: none;
 }
+
+/* Google authentication button */
+
+.google-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+.google-button svg {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+/* ============================================================
+   17. COMPACT COLABVERSE REGISTRATION PAGE
+   ============================================================ */
+
+/*
+   These changes apply only to the registration page.
+
+   The registration form contains #id_password2.
+   This allows us to identify it without changing
+   the login or password recovery pages.
+*/
+
+/* Reduce the registration panel's vertical spacing. */
+.form-panel:has(#id_password2) {
+    padding-top: 20px;
+    padding-bottom: 12px;
+}
+
+/* Keep the registration form centered and compact. */
+.form-panel:has(#id_password2) .form-wrap {
+    max-width: 440px;
+}
+
+/* Reduce the space below the section label. */
+.form-panel:has(#id_password2) .section-label {
+    margin-bottom: 8px;
+}
+
+/* Make the registration heading slightly smaller. */
+.form-panel:has(#id_password2) h2 {
+    font-size: clamp(27px, 2.6vw, 34px);
+    margin-bottom: 6px;
+}
+
+/* Reduce the space below the description. */
+.form-panel:has(#id_password2) .subtitle {
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 16px;
+}
+
+/* Reduce spacing between registration fields. */
+.form-panel:has(#id_password2) .auth-form {
+    gap: 11px;
+}
+
+/* Reduce spacing between labels and inputs. */
+.form-panel:has(#id_password2) .field {
+    gap: 5px;
+}
+
+/* Keep labels readable. */
+.form-panel:has(#id_password2) .field label {
+    font-size: 13px;
+}
+
+/* Make input fields slightly shorter. */
+.form-panel:has(#id_password2) .field input {
+    padding: 11px 14px;
+    border-radius: 9px;
+    font-size: 14px;
+}
+
+/* Reduce password guidance spacing. */
+.form-panel:has(#id_password2) .hint {
+    font-size: 11px;
+    line-height: 1.4;
+    margin: 0;
+}
+
+/* Make the registration button more compact. */
+.form-panel:has(#id_password2) .primary-button {
+    padding: 12px 16px;
+    border-radius: 9px;
+}
+
+/* Reduce spacing before Google registration. */
+.form-panel:has(#id_password2) .social-auth {
+    margin-top: 14px;
+}
+
+/* Reduce spacing around the OR divider. */
+.form-panel:has(#id_password2) .social-divider {
+    margin-bottom: 12px;
+}
+
+/* Keep the Google button compact. */
+.form-panel:has(#id_password2) .google-button {
+    min-height: 44px;
+    padding: 11px 16px;
+    border-radius: 9px;
+}
+
+/* Preserve the multicolored Google logo. */
+.form-panel:has(#id_password2) .google-button svg {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+/* Reduce spacing above the sign-in link. */
+.form-panel:has(#id_password2) .switch {
+    margin-top: 14px;
+    font-size: 13px;
+}
+
+/* Reduce footer spacing on the registration page. */
+.form-panel:has(#id_password2) .form-footer {
+    margin-top: 14px;
+}
+
+/* ============================================================
+   SMALL LAPTOP SCREENS
+   ============================================================ */
+
+@media (max-height: 800px) and (min-width: 901px) {
+
+    .form-panel:has(#id_password2) {
+        padding-top: 12px;
+        padding-bottom: 10px;
+    }
+
+    .form-panel:has(#id_password2) .auth-form {
+        gap: 8px;
+    }
+
+    .form-panel:has(#id_password2) .field input {
+        padding-top: 9px;
+        padding-bottom: 9px;
+    }
+
+    .form-panel:has(#id_password2) .subtitle {
+        margin-bottom: 12px;
+    }
+
+}
+
+/* ============================================================
+   MOBILE REGISTRATION
+   ============================================================ */
+
+@media (max-width: 900px) {
+
+    .form-panel:has(#id_password2) {
+        padding: 24px 20px;
+    }
+
+    .form-panel:has(#id_password2) .form-wrap {
+        max-width: 460px;
+    }
+
+}

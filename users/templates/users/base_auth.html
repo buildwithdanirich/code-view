@@ -1,104 +1,173 @@
 {% load static %}
-<!doctype html>
+
+<!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0a0b16">
+    <meta charset="UTF-8">
 
-  <title>{% block title %}Welcome{% endblock %} · ColabVerse</title>
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
 
-  <link rel="stylesheet" href="{% static 'users/css/auth.css' %}">
-  <script defer src="{% static 'users/js/auth.js' %}"></script>
+    <meta
+        name="theme-color"
+        content="#0a0b16"
+    >
+
+    <title>
+        {% block title %}Welcome{% endblock %} · ColabVerse
+    </title>
+
+    <!-- Authentication stylesheet -->
+    <link
+        rel="stylesheet"
+        href="{% static 'users/css/auth.css' %}"
+    >
+
+    <!-- Authentication JavaScript -->
+    <script
+        src="{% static 'users/js/auth.js' %}"
+        defer
+    ></script>
 </head>
 
 <body>
-<main class="layout">
 
-  <!-- ColabVerse branding panel -->
-  <section class="brand-panel" aria-label="About ColabVerse">
+    <main class="layout">
 
-    <!-- Desktop logo -->
-    <a class="logo" href="{% url 'home' %}">
-      <img
-        src="{% static 'users/images/colabverse-logo.png' %}"
-        alt="ColabVerse"
-        class="brand-logo"
-      >
-    </a>
+        <!-- ==================================================
+             COLABVERSE BRANDING PANEL
+        =================================================== -->
 
-    <div class="brand-content">
+        <section
+            class="brand-panel"
+            aria-label="About ColabVerse"
+        >
 
-      <span class="eyebrow">
-        YOUR DEVELOPER COMMUNITY
-      </span>
+            <!-- Desktop Logo -->
+            <a
+                class="logo"
+                href="{% url 'home' %}"
+            >
+                <img
+                    src="{% static 'users/images/colabverse-logo.png' %}"
+                    alt="ColabVerse"
+                    class="brand-logo"
+                >
+            </a>
 
-      <h1>
-        Connect.<br>
-        <span>Learn.</span><br>
-        Collaborate.
-      </h1>
 
-      <p>
-        Welcome to ColabVerse, where developers connect,
-        share knowledge, solve problems, and build meaningful
-        relationships through collaboration.
-      </p>
+            <!-- Branding Content -->
+            <div class="brand-content">
 
-      <div class="chips">
-        <span>◉ Communities</span>
-        <span>✧ Whiteboards</span>
-        <span>◌ Live meetings</span>
-        <span>◇ Developer Q&amp;A</span>
-      </div>
+                <span class="eyebrow">
+                    YOUR DEVELOPER COMMUNITY
+                </span>
 
-    </div>
+                <h1>
+                    Connect.<br>
+                    <span>Learn.</span><br>
+                    Collaborate.
+                </h1>
 
-    <div class="brand-foot">
-      Where Developers Connect, Learn, and Collaborate.
-    </div>
+                <p>
+                    Welcome to ColabVerse, where developers connect,
+                    share knowledge, solve problems, and build meaningful
+                    relationships through collaboration.
+                </p>
 
-  </section>
 
-  <!-- Authentication forms -->
-  <section class="form-panel">
+                <!-- Platform Features -->
+                <div class="chips">
 
-    <div class="form-wrap">
+                    <span>
+                        ◉ Communities
+                    </span>
 
-      <!-- Mobile logo -->
-      <div class="mobile-logo">
-        <a class="logo" href="{% url 'home' %}">
-          <img
-            src="{% static 'users/images/colabverse-logo.png' %}"
-            alt="ColabVerse"
-            class="brand-logo"
-          >
-        </a>
-      </div>
+                    <span>
+                        ◌ Live meetings
+                    </span>
 
-      <!-- Django messages -->
-      {% if messages %}
-        <div class="messages" role="status">
-          {% for message in messages %}
-            <p class="alert alert-success">
-              {{ message }}
-            </p>
-          {% endfor %}
-        </div>
-      {% endif %}
+                    <span>
+                        ◇ Developer Q&amp;A
+                    </span>
 
-      <!-- Login, registration, and other auth pages -->
-      {% block content %}
-      {% endblock %}
+                </div>
 
-    </div>
+            </div>
 
-    <footer class="form-footer">
-      © ColabVerse · Connect, Learn, and Collaborate
-    </footer>
 
-  </section>
+            <!-- Branding Footer -->
+            <div class="brand-foot">
+                Where Developers Connect, Learn, and Collaborate.
+            </div>
 
-</main>
+        </section>
+
+
+        <!-- ==================================================
+             AUTHENTICATION PANEL
+        =================================================== -->
+
+        <section class="form-panel">
+
+            <div class="form-wrap">
+
+                <!-- Mobile Logo -->
+                <div class="mobile-logo">
+
+                    <a
+                        class="logo"
+                        href="{% url 'home' %}"
+                    >
+                        <img
+                            src="{% static 'users/images/colabverse-logo.png' %}"
+                            alt="ColabVerse"
+                            class="brand-logo"
+                        >
+                    </a>
+
+                </div>
+
+
+                <!-- Django Messages -->
+                {% if messages %}
+
+                    <div
+                        class="messages"
+                        role="status"
+                    >
+
+                        {% for message in messages %}
+
+                            <p class="alert alert-success">
+                                {{ message }}
+                            </p>
+
+                        {% endfor %}
+
+                    </div>
+
+                {% endif %}
+
+
+                <!-- Login, Registration, and Other Auth Pages -->
+                {% block content %}
+                {% endblock %}
+
+            </div>
+
+
+            <!-- Authentication Footer -->
+            <footer class="form-footer">
+                © ColabVerse · Connect, Learn, and Collaborate
+            </footer>
+
+        </section>
+
+    </main>
+
 </body>
 </html>
