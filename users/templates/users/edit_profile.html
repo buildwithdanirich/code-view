@@ -1,23 +1,280 @@
 {% extends 'questions/base.html' %}
 {% load static %}
-{% block title %}Edit Profile{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'users/css/profile.css' %}">{% endblock %}
-{% block extra_js %}<script src="{% static 'users/js/profile.js' %}" defer></script>{% endblock %}
+
+{% block title %}Edit Profile | ColabVerse{% endblock %}
+
+{% block extra_css %}
+<link
+  rel="stylesheet"
+  href="{% static 'users/css/profile.css' %}"
+>
+{% endblock %}
+
+{% block extra_js %}
+<script
+  src="{% static 'users/js/profile.js' %}"
+  defer
+></script>
+{% endblock %}
+
 {% block content %}
-<main class="cv-profile-wrap"><section class="cv-profile-card cv-edit-card">
-  <a class="cv-back" href="{% url 'my_profile' %}">← Back to profile</a>
-  <h1>Edit Developer Profile</h1><p class="cv-muted">Your public developer identity on ColabVerse.</p>
-  <form method="post" enctype="multipart/form-data" class="cv-profile-form" id="cv-profile-form">
-    {% csrf_token %}
-    {% if form.non_field_errors %}<div class="cv-form-errors">{{ form.non_field_errors }}</div>{% endif %}
-    <div class="cv-avatar-preview">
-      <div class="cv-avatar cv-avatar-large">{% if profile.avatar %}<img id="cv-avatar-preview" src="{{ profile.avatar.url }}" alt="Current profile photo">{% else %}<img id="cv-avatar-preview" alt="Selected profile photo" hidden><span id="cv-avatar-fallback">{{ request.user.username|first|upper }}</span>{% endif %}</div>
-      <p class="cv-muted">JPG, PNG or WebP · Maximum 3 MB</p>
+
+<main class="cv-profile-wrap">
+
+  <section class="cv-profile-card cv-edit-card">
+
+    <!-- BACK TO PROFILE -->
+    <a
+      class="cv-back"
+      href="{% url 'my_profile' %}"
+    >
+      ← Back to profile
+    </a>
+
+    <!-- PAGE HEADER -->
+    <div class="cv-edit-header">
+
+      <h1>Edit Developer Profile</h1>
+
+      <p class="cv-muted">
+        Manage your public developer identity on ColabVerse.
+      </p>
+
     </div>
-    {% for field in form %}<div class="cv-field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<p class="cv-field-error">{{ error }}</p>{% endfor %}</div>{% endfor %}
-    <div class="cv-form-actions"><button type="submit" class="cv-primary">Save changes</button><a href="{% url 'my_profile' %}">Cancel</a></div>
-  </form>
-  {% if profile.avatar %}<form method="post" action="{% url 'remove_profile_photo' %}" class="cv-remove-form">{% csrf_token %}<button type="submit">Remove current photo</button></form>{% endif %}
-</section></main>
+
+    <!-- EDIT PROFILE FORM -->
+    <form
+      method="post"
+      enctype="multipart/form-data"
+      class="cv-profile-form"
+      id="cv-profile-form"
+    >
+
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+
+        <div class="cv-form-errors" role="alert">
+          {{ form.non_field_errors }}
+        </div>
+
+      {% endif %}
+
+      <!-- PROFILE PICTURE -->
+      <div class="cv-photo-section">
+
+        <h2 class="cv-photo-heading">
+          Profile picture
+        </h2>
+
+        <div class="cv-photo-container">
+
+          <!-- CIRCULAR PHOTO -->
+          <div class="cv-photo-wrapper">
+
+            <div class="cv-avatar cv-avatar-large cv-edit-avatar">
+
+              {% if profile.avatar %}
+
+                <img
+                  id="cv-avatar-preview"
+                  src="{{ profile.avatar.url }}"
+                  alt="Your current profile picture"
+                >
+
+              {% else %}
+
+                <img
+                  id="cv-avatar-preview"
+                  alt="Selected profile picture"
+                  hidden
+                >
+
+                <span id="cv-avatar-fallback">
+                  {{ request.user.username|first|upper }}
+                </span>
+
+              {% endif %}
+
+            </div>
+
+            <!-- CAMERA BUTTON -->
+            <button
+              type="button"
+              class="cv-camera-button"
+              id="cv-camera-button"
+              aria-label="Choose a new profile picture"
+              title="Change profile picture"
+            >
+
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+
+                <path
+                  d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"
+                />
+
+                <circle cx="12" cy="13" r="3"/>
+
+              </svg>
+
+            </button>
+
+          </div>
+
+          <!-- PHOTO INSTRUCTIONS -->
+          <div class="cv-photo-info">
+
+            <p class="cv-photo-title">
+              Change your photo
+            </p>
+
+            <p class="cv-muted">
+              Click the camera icon to choose a picture.
+            </p>
+
+            <small>
+              JPG, PNG or WebP · Maximum 3 MB
+            </small>
+
+            <p
+              id="cv-photo-status"
+              class="cv-photo-status"
+              role="status"
+              aria-live="polite"
+            ></p>
+
+          </div>
+
+        </div>
+
+        <!--
+          The avatar field is rendered separately so the
+          camera button can open its file picker.
+
+          The input stays inside the form, allowing Django
+          to receive the uploaded file when Save changes
+          is clicked.
+        -->
+        {% for field in form %}
+
+          {% if field.name == "avatar" %}
+
+            <div class="cv-avatar-input">
+
+              {{ field }}
+
+              {% for error in field.errors %}
+
+                <p class="cv-field-error" role="alert">
+                  {{ error }}
+                </p>
+
+              {% endfor %}
+
+            </div>
+
+          {% endif %}
+
+        {% endfor %}
+
+      </div>
+
+      <!-- PROFILE DETAILS -->
+      <div class="cv-edit-section-heading">
+
+        <h2>Developer information</h2>
+
+        <p class="cv-muted">
+          Tell other developers about yourself.
+        </p>
+
+      </div>
+
+      <!-- ALL OTHER PROFILE FIELDS -->
+      {% for field in form %}
+
+        {% if field.name != "avatar" %}
+
+          <div class="cv-field">
+
+            <label for="{{ field.id_for_label }}">
+              {{ field.label }}
+            </label>
+
+            {{ field }}
+
+            {% if field.help_text %}
+
+              <small>
+                {{ field.help_text }}
+              </small>
+
+            {% endif %}
+
+            {% for error in field.errors %}
+
+              <p class="cv-field-error" role="alert">
+                {{ error }}
+              </p>
+
+            {% endfor %}
+
+          </div>
+
+        {% endif %}
+
+      {% endfor %}
+
+      <!-- SAVE BUTTON -->
+      <div class="cv-form-actions">
+
+        <button
+          type="submit"
+          class="cv-primary"
+        >
+          Save changes
+        </button>
+
+        <a href="{% url 'my_profile' %}">
+          Cancel
+        </a>
+
+      </div>
+
+    </form>
+
+    <!-- REMOVE EXISTING PHOTO -->
+    {% if profile.avatar %}
+
+      <form
+        method="post"
+        action="{% url 'remove_profile_photo' %}"
+        class="cv-remove-form"
+      >
+
+        {% csrf_token %}
+
+        <button type="submit">
+          Remove current photo
+        </button>
+
+      </form>
+
+    {% endif %}
+
+  </section>
+
+</main>
 
 {% endblock %}

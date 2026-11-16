@@ -1059,3 +1059,444 @@
         transform: none;
     }
 }
+/* ==========================================================
+   COLABVERSE — EDIT DEVELOPER PROFILE IMPROVEMENTS
+   ========================================================== */
+
+/* Main edit profile container */
+
+.cv-edit-card {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 36px;
+    background: #121b32;
+    border: 1px solid #303c60;
+    border-radius: 20px;
+}
+
+/* Page heading */
+
+.cv-edit-card h1 {
+    margin: 16px 0 10px;
+    font-size: clamp(26px, 3vw, 34px);
+    font-weight: 800;
+    color: #ffffff;
+}
+
+/* Avatar preview */
+
+.cv-avatar-preview {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    margin: 24px 0;
+    padding: 22px;
+
+    background: #19243d;
+    border: 1px solid #35415f;
+    border-radius: 16px;
+}
+
+.cv-avatar-preview .cv-avatar {
+    width: 105px;
+    height: 105px;
+    min-width: 105px;
+    margin: 0;
+    border: 3px solid #7265ed;
+    border-radius: 50%;
+}
+
+/* Form layout */
+
+.cv-profile-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 22px;
+    margin-top: 26px;
+}
+
+/* Individual form fields */
+
+.cv-field {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    min-width: 0;
+}
+
+.cv-field label {
+    font-size: 14px;
+    font-weight: 700;
+    color: #e9eafb;
+}
+
+/* Text inputs and textareas */
+
+.cv-field input,
+.cv-field textarea {
+    width: 100%;
+    padding: 14px 15px;
+
+    background: #0b1427;
+    border: 1px solid #425075;
+    border-radius: 12px;
+
+    color: #ffffff;
+    font: inherit;
+    font-size: 14px;
+
+    outline: none;
+
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.cv-field input:hover,
+.cv-field textarea:hover {
+    border-color: #6d77a3;
+}
+
+.cv-field input:focus,
+.cv-field textarea:focus {
+    border-color: #867bff;
+    box-shadow: 0 0 0 3px rgba(114, 101, 237, 0.16);
+}
+
+/* Biography field */
+
+.cv-field textarea {
+    min-height: 140px;
+    resize: vertical;
+    line-height: 1.7;
+}
+
+/* File upload */
+
+.cv-field input[type="file"] {
+    padding: 12px;
+    background: #101a30;
+    cursor: pointer;
+}
+
+.cv-field input[type="file"]::file-selector-button {
+    padding: 9px 14px;
+    margin-right: 12px;
+
+    background: #7265ed;
+    border: none;
+    border-radius: 8px;
+
+    color: #ffffff;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+
+    cursor: pointer;
+}
+
+.cv-field input[type="file"]::file-selector-button:hover {
+    background: #867bff;
+}
+
+/* Helper text */
+
+.cv-field small {
+    font-size: 12px;
+    line-height: 1.6;
+    color: #9daed1;
+}
+
+/* Form errors */
+
+.cv-field-error,
+.cv-form-errors {
+    color: #ff99a6;
+    font-size: 13px;
+}
+
+/* Full-width biography and action sections */
+
+.cv-field:has(textarea),
+.cv-form-actions {
+    grid-column: 1 / -1;
+}
+
+/* Form buttons */
+
+.cv-form-actions {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-top: 12px;
+    padding-top: 24px;
+    border-top: 1px solid #303c60;
+}
+
+.cv-form-actions .cv-primary {
+    padding: 13px 24px;
+    font-size: 14px;
+}
+
+.cv-form-actions a {
+    color: #b5c9f1;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+/* Remove profile picture */
+
+.cv-remove-form {
+    margin-top: 18px;
+}
+
+/* Responsive layout */
+
+@media (max-width: 650px) {
+
+    .cv-edit-card {
+        padding: 22px 16px;
+    }
+
+    .cv-avatar-preview {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 18px;
+    }
+
+    .cv-profile-form {
+        grid-template-columns: 1fr;
+        gap: 18px;
+    }
+
+    .cv-field:has(textarea),
+    .cv-form-actions {
+        grid-column: 1;
+    }
+
+    .cv-form-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .cv-form-actions .cv-primary {
+        width: 100%;
+    }
+}
+
+/* ==========================================================
+   COLABVERSE — WHATSAPP-STYLE PROFILE PICTURE
+   ========================================================== */
+
+/* Make the photo section occupy the full form width. */
+.cv-photo-section {
+    grid-column: 1 / -1;
+    width: 100%;
+    padding: 24px;
+    margin-top: 12px;
+
+    background: #19243d;
+    border: 1px solid #35415f;
+    border-radius: 16px;
+}
+
+/* Section heading */
+.cv-photo-heading {
+    margin: 0 0 24px;
+    color: #ffffff;
+    font-size: 17px;
+    font-weight: 700;
+}
+
+/* Photo and instructions */
+.cv-photo-container {
+    display: flex;
+    align-items: center;
+    gap: 30px;
+}
+
+/* Circular photo container */
+.cv-photo-wrapper {
+    position: relative;
+    width: 130px;
+    height: 130px;
+    flex-shrink: 0;
+}
+
+/* Override the avatar positioning used on public profiles. */
+.cv-photo-wrapper .cv-edit-avatar {
+    width: 130px;
+    height: 130px;
+    margin: 0;
+    border: 4px solid #7265ed;
+    border-radius: 50%;
+    overflow: hidden;
+    position: relative;
+}
+
+/* Display uploaded picture correctly. */
+.cv-edit-avatar img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Preserve hidden state when no picture is selected. */
+.cv-edit-avatar img[hidden] {
+    display: none;
+}
+
+/* Camera button attached to the avatar. */
+.cv-camera-button {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 40px;
+    height: 40px;
+
+    border: 3px solid #19243d;
+    border-radius: 50%;
+
+    background: #7265ed;
+    color: #ffffff;
+
+    cursor: pointer;
+
+    transition:
+        background 0.2s ease,
+        transform 0.2s ease;
+}
+
+.cv-camera-button:hover {
+    background: #867bff;
+    transform: scale(1.08);
+}
+
+.cv-camera-button:focus-visible {
+    outline: 3px solid #a9caff;
+    outline-offset: 3px;
+}
+
+/* Photo instructions */
+.cv-photo-info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+.cv-photo-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.cv-photo-info .cv-muted {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.cv-photo-info small {
+    color: #9daed1;
+    font-size: 12px;
+}
+
+/* JavaScript status message */
+.cv-photo-status {
+    margin: 4px 0 0;
+    color: #78e0ae;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.cv-photo-status:empty {
+    display: none;
+}
+
+.cv-photo-error {
+    color: #ff99a6;
+}
+
+/* Hide the original file picker without disabling it. */
+.cv-avatar-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+/* Ensure the edit form positions its fields correctly. */
+.cv-edit-card .cv-profile-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 22px;
+}
+
+/* Developer information heading spans both columns. */
+.cv-edit-section-heading {
+    grid-column: 1 / -1;
+    margin-top: 12px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #303c60;
+}
+
+.cv-edit-section-heading h2 {
+    margin: 0 0 8px;
+    color: #ffffff;
+    font-size: 19px;
+}
+
+.cv-edit-section-heading p {
+    margin: 0;
+    font-size: 13px;
+}
+
+/* Keep form errors visible across both columns. */
+.cv-edit-card .cv-form-errors {
+    grid-column: 1 / -1;
+}
+
+/* Responsive profile-picture layout */
+@media (max-width: 650px) {
+
+    .cv-edit-card .cv-profile-form {
+        grid-template-columns: 1fr;
+    }
+
+    .cv-photo-section,
+    .cv-edit-section-heading {
+        grid-column: 1;
+    }
+
+    .cv-photo-section {
+        padding: 20px 16px;
+    }
+
+    .cv-photo-container {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 20px;
+    }
+
+    .cv-photo-wrapper,
+    .cv-photo-wrapper .cv-edit-avatar {
+        width: 110px;
+        height: 110px;
+    }
+
+    .cv-camera-button {
+        width: 38px;
+        height: 38px;
+    }
+}
