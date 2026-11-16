@@ -159,13 +159,79 @@
     <!-- QUESTION ACTIONS -->
     <div class="actions">
 
-      <a href="{% url 'questions:detail' question.pk %}">
-        ♥ {{ question.like_count }} likes
-      </a>
+      <!-- ================================================ -->
+      <!-- LIKE / UNLIKE QUESTION -->
+      <!-- ================================================ -->
+
+      {% if user.is_authenticated %}
+
+        <form
+          method="post"
+          action="{% url 'questions:like' question.pk %}"
+          class="cv-question-like-form"
+          data-question-like-form
+        >
+
+          {% csrf_token %}
+
+          <button
+            type="submit"
+            class="cv-question-like-button{% if question.liked_by_user %} is-liked{% endif %}"
+            data-question-like-button
+            aria-pressed="{% if question.liked_by_user %}true{% else %}false{% endif %}"
+            {% if question.author_id == user.id %}disabled title="You cannot like your own question"{% endif %}
+          >
+
+            <span
+              class="cv-question-like-icon"
+              data-question-like-icon
+              aria-hidden="true"
+            >
+              {% if question.liked_by_user %}
+                ♥
+              {% else %}
+                ♡
+              {% endif %}
+            </span>
+
+            <span data-question-like-label>
+              {% if question.liked_by_user %}
+                Unlike
+              {% else %}
+                Like
+              {% endif %}
+            </span>
+
+            <span aria-hidden="true">·</span>
+
+            <span data-question-like-count>
+              {{ question.like_count }}
+            </span>
+
+          </button>
+
+        </form>
+
+      {% else %}
+
+        <!-- Visitors must log in before liking. -->
+        <a href="{% url 'login' %}">
+          ♡ Like · {{ question.like_count }}
+        </a>
+
+      {% endif %}
+
+      <!-- ================================================ -->
+      <!-- COMMENTS -->
+      <!-- ================================================ -->
 
       <a href="{% url 'questions:detail' question.pk %}#discussion">
         ☏ {{ question.comment_count }} comments
       </a>
+
+      <!-- ================================================ -->
+      <!-- FULL DISCUSSION -->
+      <!-- ================================================ -->
 
       <a href="{% url 'questions:detail' question.pk %}">
         View discussion →

@@ -227,23 +227,25 @@
 
         <!-- Comment actions -->
         <div class="actions">
-
             <form
                 method="post"
                 action="{% url 'questions:comment_like' comment.pk %}"
+                class="cv-comment-like-form"
+                data-comment-like-form
             >
                 {% csrf_token %}
-
-                <button type="submit">
-
-                    {% if comment.pk in liked_comments %}
-                        ♥
-                    {% else %}
-                        ♡
-                    {% endif %}
-
-                    {{ comment.like_count }}
-
+            
+                <button
+                    type="submit"
+                    class="cv-comment-like-button{% if comment.pk in liked_comments %} is-liked{% endif %}"
+                    data-comment-like-button
+                    aria-pressed="{% if comment.pk in liked_comments %}true{% else %}false{% endif %}"
+                    {% if user == comment.author %}disabled title="You cannot like your own comment"{% endif %}
+                >
+                    <span data-comment-like-icon aria-hidden="true">
+                        {% if comment.pk in liked_comments %}♥{% else %}♡{% endif %}
+                    </span>
+                    <span data-comment-like-count>{{ comment.like_count }}</span>
                 </button>
             </form>
 
@@ -392,23 +394,25 @@
 
                 <!-- Reply actions -->
                 <div class="actions">
-
                     <form
                         method="post"
                         action="{% url 'questions:comment_like' reply.pk %}"
+                        class="cv-comment-like-form"
+                        data-comment-like-form
                     >
                         {% csrf_token %}
-
-                        <button type="submit">
-
-                            {% if reply.pk in liked_comments %}
-                                ♥
-                            {% else %}
-                                ♡
-                            {% endif %}
-
-                            {{ reply.like_count }}
-
+                    
+                        <button
+                            type="submit"
+                            class="cv-comment-like-button{% if reply.pk in liked_comments %} is-liked{% endif %}"
+                            data-comment-like-button
+                            aria-pressed="{% if reply.pk in liked_comments %}true{% else %}false{% endif %}"
+                            {% if user == reply.author %}disabled title="You cannot like your own comment"{% endif %}
+                        >
+                            <span data-comment-like-icon aria-hidden="true">
+                                {% if reply.pk in liked_comments %}♥{% else %}♡{% endif %}
+                            </span>
+                            <span data-comment-like-count>{{ reply.like_count }}</span>
                         </button>
                     </form>
 

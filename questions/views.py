@@ -1,9 +1,10 @@
 from django.contrib import messages
+from django.db.models import Exists, OuterRef
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Count, Q
-from django.http import Http404, HttpResponseNotAllowed
+from django.http import Http404, HttpResponseNotAllowed, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.text import slugify
 from django.views.decorators.http import require_POST
@@ -13,16 +14,71 @@ from .services import adjust_reputation, notify
 
 
 def feed(request):
-    qs = Question.objects.select_related('author').prefetch_related('tags').annotate(like_count=Count('likes', distinct=True), comment_count=Count('comments', distinct=True))
-    term = request.GET.get('q', '').strip()[:100]
-    tag = request.GET.get('tag', '').strip()[:50]
-    sort = request.GET.get('sort', 'new')
-    if term: qs = qs.filter(Q(title__icontains=term) | Q(body__icontains=term) | Q(tags__name__icontains=term)).distinct()
-    if tag: qs = qs.filter(tags__slug=tag)
-    qs = qs.order_by('-like_count', '-created_at') if sort == 'popular' else qs.order_by('-created_at')
-    page = Paginator(qs, 15).get_page(request.GET.get('page'))
-    return render(request, 'questions/feed.html', {'page_obj': page, 'term': term, 'active_tag': tag, 'sort': sort, 'popular_tags': Tag.objects.annotate(total=Count('questions')).order_by('-total')[:12]})
+    """
+    Display community questions with like counts,
+    comment counts, and the current user's like status.
+    """
 
+    qs = (
+        Question.objects
+        .select_related("author")
+        .prefetch_related("tags")
+        .annotate(
+            like_count=Count("likes", distinct=True),
+            comment_count=Count("comments", distinct=True),
+        )
+    )
+
+    # Check whether the logged-in user liked each question.
+    if request.user.is_authenticated:
+
+        user_likes = QuestionLike.objects.filter(
+            question_id=OuterRef("pk"),
+            user=request.user,
+        )
+
+        qs = qs.annotate(
+            liked_by_user=Exists(user_likes)
+        )
+
+    term = request.GET.get("q", "").strip()[:100]
+    tag = request.GET.get("tag", "").strip()[:50]
+    sort = request.GET.get("sort", "new")
+
+    if term:
+        qs = qs.filter(
+            Q(title__icontains=term) |
+            Q(body__icontains=term) |
+            Q(tags__name__icontains=term)
+        ).distinct()
+
+    if tag:
+        qs = qs.filter(tags__slug=tag)
+
+    if sort == "popular":
+        qs = qs.order_by("-like_count", "-created_at")
+    else:
+        qs = qs.order_by("-created_at")
+
+    page = Paginator(qs, 15).get_page(
+        request.GET.get("page")
+    )
+
+    return render(
+        request,
+        "questions/feed.html",
+        {
+            "page_obj": page,
+            "term": term,
+            "active_tag": tag,
+            "sort": sort,
+            "popular_tags": (
+                Tag.objects
+                .annotate(total=Count("questions"))
+                .order_by("-total")[:12]
+            ),
+        },
+    )
 
 def detail(request, pk):
     question = get_object_or_404(Question.objects.select_related('author').prefetch_related('tags'), pk=pk)
@@ -80,19 +136,83 @@ def delete(request, pk):
 @login_required
 @require_POST
 def toggle_question_like(request, pk):
-    question = get_object_or_404(Question.objects.select_related('author'), pk=pk)
+    """
+    Like or unlike a question.
+
+    AJAX requests receive JSON.
+    Normal form submissions retain their existing redirect.
+    """
+
+    question = get_object_or_404(
+        Question.objects.select_related("author"),
+        pk=pk,
+    )
+
+    is_ajax = (
+        request.headers.get("X-Requested-With")
+        == "XMLHttpRequest"
+    )
+
+    # Prevent developers from liking their own questions.
     if question.author_id == request.user.pk:
-        messages.error(request, 'You cannot like your own question.')
-    else:
-        with transaction.atomic():
-            like, created = QuestionLike.objects.get_or_create(question=question, user=request.user)
-            if created:
-                adjust_reputation(question.author, 1)
-                notify(question.author, request.user, question, 'liked your question')
-            else:
-                like.delete()
-                adjust_reputation(question.author, -1)
-    return redirect('questions:detail', pk=pk)
+
+        if is_ajax:
+            return JsonResponse(
+                {
+                    "error": "You cannot like your own question.",
+                },
+                status=403,
+            )
+
+        messages.error(
+            request,
+            "You cannot like your own question.",
+        )
+
+        return redirect("questions:detail", pk=pk)
+
+    with transaction.atomic():
+
+        like, created = QuestionLike.objects.get_or_create(
+            question=question,
+            user=request.user,
+        )
+
+        if created:
+
+            # Increase the author's reputation.
+            adjust_reputation(question.author, 1)
+
+            # Notify the author.
+            notify(
+                question.author,
+                request.user,
+                question,
+                "liked your question",
+            )
+
+            liked = True
+
+        else:
+
+            # Remove the existing like.
+            like.delete()
+
+            # Decrease the author's reputation.
+            adjust_reputation(question.author, -1)
+
+            liked = False
+
+    # Return the updated count to JavaScript.
+    if is_ajax:
+
+        return JsonResponse({
+            "liked": liked,
+            "like_count": question.likes.count(),
+        })
+
+    # Preserve the existing non-JavaScript behavior.
+    return redirect("questions:detail", pk=pk)
 
 @login_required
 @require_POST
@@ -119,20 +239,93 @@ def comment(request, pk):
 @login_required
 @require_POST
 def toggle_comment_like(request, pk):
-    entry = get_object_or_404(Comment.objects.select_related('author', 'question'), pk=pk)
-    if entry.author_id == request.user.pk:
-        messages.error(request, 'You cannot like your own comment.')
-    else:
-        with transaction.atomic():
-            like, created = CommentLike.objects.get_or_create(comment=entry, user=request.user)
-            if created:
-                adjust_reputation(entry.author, 1)
-                notify(entry.author, request.user, entry.question, 'liked your comment')
-            else:
-                like.delete()
-                adjust_reputation(entry.author, -1)
-    return redirect('questions:detail', pk=entry.question_id)
+    """
+    Like or unlike a comment or reply.
 
+    AJAX requests return JSON without refreshing the page.
+    Normal form submissions keep the existing redirect.
+    """
+
+    entry = get_object_or_404(
+        Comment.objects.select_related("author", "question"),
+        pk=pk,
+    )
+
+    # Check whether JavaScript sent this request.
+    is_ajax = (
+        request.headers.get("X-Requested-With")
+        == "XMLHttpRequest"
+    )
+
+    # Prevent developers from liking their own comments.
+    if entry.author_id == request.user.pk:
+
+        if is_ajax:
+            return JsonResponse(
+                {
+                    "error": "You cannot like your own comment.",
+                },
+                status=403,
+            )
+
+        messages.error(
+            request,
+            "You cannot like your own comment.",
+        )
+
+        return redirect(
+            "questions:detail",
+            pk=entry.question_id,
+        )
+
+    # Keep the database changes together.
+    with transaction.atomic():
+
+        like, created = CommentLike.objects.get_or_create(
+            comment=entry,
+            user=request.user,
+        )
+
+        if created:
+
+            # Increase the comment author's reputation.
+            adjust_reputation(entry.author, 1)
+
+            # Notify the comment author.
+            notify(
+                entry.author,
+                request.user,
+                entry.question,
+                "liked your comment",
+            )
+
+            liked = True
+
+        else:
+
+            # Remove the existing like.
+            like.delete()
+
+            # Reverse the reputation increase.
+            adjust_reputation(entry.author, -1)
+
+            liked = False
+
+    # JavaScript uses this response to update the heart.
+    if is_ajax:
+
+        return JsonResponse({
+            "liked": liked,
+            "like_count": entry.likes.count(),
+        })
+
+    # Keep existing behavior for normal form submissions.
+    return redirect(
+        "questions:detail",
+        pk=entry.question_id,
+    )
+
+    
 @login_required
 @require_POST
 def accept(request, pk):
