@@ -1500,3 +1500,46 @@
         height: 38px;
     }
 }
+
+/* ==========================================================
+   COLABVERSE — BACK TO GROUP MEMBERS
+   ========================================================== */
+
+.cv-profile-return-navigation {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.cv-profile-back-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+
+    padding: 11px 16px;
+
+    background: #302455;
+    color: #e9ddff;
+
+    border: 1px solid #49347e;
+    border-radius: 9px;
+
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease;
+}
+
+.cv-profile-back-button:hover {
+    background: #49347e;
+    border-color: #8b7cf6;
+    color: #ffffff;
+}
+
+.cv-profile-back-button:focus-visible {
+    outline: 2px solid #a99cff;
+    outline-offset: 3px;
+}

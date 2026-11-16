@@ -730,3 +730,116 @@
         height: 36px;
     }
 }
+
+/* ==========================================================
+   COLABVERSE — DEVELOPER SEARCH COLOR REFINEMENT
+   ========================================================== */
+
+.developer-search-results {
+    background: #111a2e;
+    border-color: #29364e;
+    scrollbar-color: #475569 #111a2e;
+}
+
+.developer-search-result {
+    background: #151f35;
+    border-bottom-color: #29364e;
+}
+
+.developer-search-result:hover,
+.developer-search-result:focus-within {
+    background: #1c2942;
+}
+
+.developer-result-username {
+    color: #f8fafc;
+}
+
+.developer-result-profile-link {
+    color: #a99cff;
+}
+
+.developer-result-profile-link:hover {
+    color: #c4b5fd;
+}
+
+.developer-result-invite {
+    background: #302455;
+    color: #e9ddff;
+    border-color: #49347e;
+}
+
+.developer-result-invite:hover {
+    background: #49347e;
+    border-color: #8b7cf6;
+}
+
+.developer-result-avatar {
+    background: #302455;
+    color: #c4b5fd;
+}
+
+/* ==========================================================
+   COLABVERSE — INVITE DEVELOPER FORM
+   Dark Navy + Purple Theme
+   ========================================================== */
+
+/* Developer search input */
+#developer-search {
+    background: #111a2e;
+    color: #f8fafc;
+
+    border: 1px solid #35415c;
+    border-radius: 10px;
+
+    outline: none;
+
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+/* Search input when selected */
+#developer-search:focus {
+    border-color: #8b7cf6;
+
+    box-shadow: 0 0 0 3px rgba(139, 124, 246, 0.15);
+}
+
+/* Send Invitation button */
+#send-invitation-button {
+    background: #49347e;
+    color: #ffffff;
+
+    border: 1px solid #6851a8;
+    border-radius: 10px;
+
+    font-weight: 600;
+    cursor: pointer;
+
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease;
+}
+
+/* Button hover */
+#send-invitation-button:hover {
+    background: #60479e;
+    border-color: #8b7cf6;
+}
+
+/* Button when clicked */
+#send-invitation-button:active {
+    background: #302455;
+}
+
+/* Button while invitation is sending */
+#send-invitation-button:disabled {
+    background: #302455;
+    color: #a99cff;
+
+    border-color: #49347e;
+    cursor: not-allowed;
+
+    opacity: 0.7;
+}

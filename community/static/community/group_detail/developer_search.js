@@ -18,7 +18,6 @@ document.addEventListener("DOMContentLoaded", function () {
         "invite-developer-form"
     );
 
-    // Stop if developer search is unavailable.
     if (!searchInput || !resultsBox) {
         return;
     }
@@ -30,23 +29,17 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
     }
 
-
     // =====================================================
     // 2. SEARCH SETTINGS
     // =====================================================
 
     let searchTimer = null;
-
     let controller = null;
-
     let selectedDeveloper = null;
-
-    // Prevent outdated requests from updating the interface.
     let searchVersion = 0;
 
-
     // =====================================================
-    // 3. HELPER: CLEAR SELECTED DEVELOPER
+    // 3. CLEAR SELECTED DEVELOPER
     // =====================================================
 
     function clearSelection() {
@@ -56,12 +49,10 @@ document.addEventListener("DOMContentLoaded", function () {
         if (selectedUserInput) {
             selectedUserInput.value = "";
         }
-
     }
 
-
     // =====================================================
-    // 4. HELPER: CREATE STATUS MESSAGE
+    // 4. DISPLAY SEARCH STATUS
     // =====================================================
 
     function showMessage(message) {
@@ -71,39 +62,53 @@ document.addEventListener("DOMContentLoaded", function () {
         const paragraph = document.createElement("p");
 
         paragraph.className = "developer-search-message";
-
         paragraph.textContent = message;
 
         resultsBox.appendChild(paragraph);
-
     }
 
-
     // =====================================================
-    // 5. HELPER: BUILD PUBLIC PROFILE URL
+    // 5. BUILD DEVELOPER PROFILE URL
     // =====================================================
 
     function getProfileURL(developer) {
 
-        // Use the profile URL supplied by Django when available.
+        let profilePath;
+
         if (
             typeof developer.profile_url === "string" &&
             developer.profile_url.startsWith("/") &&
             !developer.profile_url.startsWith("//")
         ) {
-            return developer.profile_url;
+            profilePath = developer.profile_url;
+        } else {
+            profilePath = "/developers/" +
+                encodeURIComponent(developer.username) +
+                "/";
         }
 
-        // Fall back to the existing ColabVerse profile route.
-        return "/developers/" +
-            encodeURIComponent(developer.username) +
-            "/";
+        const profileURL = new URL(
+            profilePath,
+            window.location.origin
+        );
 
+        // Return to this group's Members section.
+        const returnURL = new URL(window.location.href);
+
+        returnURL.hash = "group-members";
+
+        profileURL.searchParams.set(
+            "next",
+            returnURL.pathname +
+            returnURL.search +
+            returnURL.hash
+        );
+
+        return profileURL.pathname + profileURL.search;
     }
 
-
     // =====================================================
-    // 6. HELPER: CREATE DEVELOPER AVATAR
+    // 6. CREATE DEVELOPER AVATAR
     // =====================================================
 
     function createAvatar(developer) {
@@ -112,7 +117,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
         avatar.className = "developer-result-avatar";
 
-        // Display the uploaded photo if Django provides one.
         if (
             typeof developer.avatar_url === "string" &&
             developer.avatar_url.startsWith("/") &&
@@ -122,13 +126,9 @@ document.addEventListener("DOMContentLoaded", function () {
             const image = document.createElement("img");
 
             image.src = developer.avatar_url;
-
             image.alt = "";
-
             image.loading = "lazy";
-
             image.width = 40;
-
             image.height = 40;
 
             avatar.appendChild(image);
@@ -138,32 +138,40 @@ document.addEventListener("DOMContentLoaded", function () {
             avatar.textContent = developer.username
                 .charAt(0)
                 .toUpperCase();
-
         }
 
         return avatar;
-
     }
 
+    // =====================================================
+    // 7. CHECK INVITATION STATUS
+    // =====================================================
+
+    function isAlreadyInvited(developer) {
+
+        // Pending means the invitation is awaiting a response.
+        return developer.invitation_status === "pending";
+    }
 
     // =====================================================
-    // 7. SELECT DEVELOPER FOR INVITATION
+    // 8. SELECT DEVELOPER FOR INVITATION
     // =====================================================
 
     function selectDeveloper(developer) {
 
-        // Remember the selected developer.
+        // Never select a developer with a pending invitation.
+        if (isAlreadyInvited(developer)) {
+            return;
+        }
+
         selectedDeveloper = developer;
 
-        // Display the selected username.
         searchInput.value = developer.username;
 
-        // Store the selected developer ID.
         if (selectedUserInput) {
             selectedUserInput.value = developer.id;
         }
 
-        // Cancel pending searches.
         clearTimeout(searchTimer);
 
         if (controller) {
@@ -172,17 +180,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
         searchVersion += 1;
 
-        // Close the results dropdown.
         resultsBox.replaceChildren();
 
-        // Return focus to the search input.
         searchInput.focus();
-
     }
 
-
     // =====================================================
-    // 8. CREATE ONE DEVELOPER SEARCH RESULT
+    // 9. CREATE DEVELOPER SEARCH RESULT
     // =====================================================
 
     function createDeveloperResult(developer) {
@@ -190,7 +194,6 @@ document.addEventListener("DOMContentLoaded", function () {
         const result = document.createElement("div");
 
         result.className = "developer-search-result";
-
 
         // -------------------------------------------------
         // Developer identity
@@ -200,25 +203,19 @@ document.addEventListener("DOMContentLoaded", function () {
 
         identity.className = "developer-result-identity";
 
-
         // Clickable avatar.
         const avatarLink = document.createElement("a");
 
         avatarLink.className = "developer-result-avatar-link";
-
         avatarLink.href = getProfileURL(developer);
 
-        avatarLink.target = "_blank";
-
-        avatarLink.rel = "noopener noreferrer";
-
+        // No target="_blank": open in the SAME tab.
         avatarLink.setAttribute(
             "aria-label",
             "View " + developer.username + "'s profile"
         );
 
         avatarLink.appendChild(createAvatar(developer));
-
 
         // Username and profile link.
         const information = document.createElement("div");
@@ -228,78 +225,75 @@ document.addEventListener("DOMContentLoaded", function () {
         const usernameLink = document.createElement("a");
 
         usernameLink.className = "developer-result-username";
-
         usernameLink.href = getProfileURL(developer);
-
-        usernameLink.target = "_blank";
-
-        usernameLink.rel = "noopener noreferrer";
-
         usernameLink.textContent = developer.username;
-
 
         // Secondary profile link.
         const profileLink = document.createElement("a");
 
         profileLink.className = "developer-result-profile-link";
-
         profileLink.href = getProfileURL(developer);
-
-        profileLink.target = "_blank";
-
-        profileLink.rel = "noopener noreferrer";
-
         profileLink.textContent = "View Profile";
 
-
         information.appendChild(usernameLink);
-
         information.appendChild(profileLink);
 
         identity.appendChild(avatarLink);
-
         identity.appendChild(information);
 
-
         // -------------------------------------------------
-        // Invitation selection button
+        // Invitation status / selection button
         // -------------------------------------------------
 
         const inviteButton = document.createElement("button");
 
         inviteButton.type = "button";
-
         inviteButton.className = "developer-result-invite";
 
-        inviteButton.textContent = "Select";
+        if (isAlreadyInvited(developer)) {
 
-        inviteButton.setAttribute(
-            "aria-label",
-            "Select " + developer.username + " for invitation"
-        );
+            // Developer already has a pending invitation.
+            inviteButton.textContent = "✓ Invited";
 
-        inviteButton.addEventListener("click", function () {
+            inviteButton.disabled = true;
 
-            selectDeveloper(developer);
+            inviteButton.classList.add(
+                "developer-result-invited"
+            );
 
-        });
+            inviteButton.setAttribute(
+                "aria-label",
+                developer.username + " has already been invited"
+            );
 
+            result.classList.add(
+                "developer-search-result-invited"
+            );
 
-        // -------------------------------------------------
-        // Assemble result
-        // -------------------------------------------------
+        } else {
+
+            // Developer can be selected for invitation.
+            inviteButton.textContent = "Select";
+
+            inviteButton.setAttribute(
+                "aria-label",
+                "Select " + developer.username + " for invitation"
+            );
+
+            inviteButton.addEventListener("click", function () {
+
+                selectDeveloper(developer);
+            });
+        }
 
         result.appendChild(identity);
-
         result.appendChild(inviteButton);
 
         return result;
-
     }
 
-
     // =====================================================
-    // 9. SEARCH REGISTERED DEVELOPERS
+    // 10. SEARCH REGISTERED DEVELOPERS
     // =====================================================
 
     searchInput.addEventListener("input", function () {
@@ -320,7 +314,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
         resultsBox.replaceChildren();
 
-        // Require at least two characters.
         if (query.length < 2) {
             return;
         }
@@ -333,7 +326,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
             try {
 
-                // Build the Django search URL.
                 const url = new URL(
                     searchURL,
                     window.location.origin
@@ -341,8 +333,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
                 url.searchParams.set("q", query);
 
-
-                // Request matching developers.
                 const response = await fetch(
                     url.toString(),
                     {
@@ -364,7 +354,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     );
                 }
 
-                // Ignore outdated responses.
+                // Ignore outdated search responses.
                 if (
                     currentVersion !== searchVersion ||
                     searchInput.value.trim() !== query
@@ -374,26 +364,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
                 resultsBox.replaceChildren();
 
-
-                // -------------------------------------------------
-                // No matching developers
-                // -------------------------------------------------
-
                 if (data.users.length === 0) {
 
                     showMessage("No developers found.");
-
                     return;
                 }
 
-
-                // -------------------------------------------------
-                // Display matching developers
-                // -------------------------------------------------
-
                 data.users.forEach(function (developer) {
 
-                    // Skip invalid results.
+                    // Validate the developer information.
                     if (
                         !developer ||
                         typeof developer.username !== "string" ||
@@ -407,7 +386,6 @@ document.addEventListener("DOMContentLoaded", function () {
                     const result = createDeveloperResult(developer);
 
                     resultsBox.appendChild(result);
-
                 });
 
                 if (!resultsBox.children.length) {
@@ -427,16 +405,13 @@ document.addEventListener("DOMContentLoaded", function () {
                 console.error("Developer search error:", error);
 
                 showMessage("Unable to search developers.");
-
             }
 
         }, 250);
-
     });
 
-
     // =====================================================
-    // 10. CLOSE RESULTS WHEN CLICKING OUTSIDE
+    // 11. CLOSE RESULTS WHEN CLICKING OUTSIDE
     // =====================================================
 
     document.addEventListener("click", function (event) {
@@ -447,19 +422,16 @@ document.addEventListener("DOMContentLoaded", function () {
         ) {
             resultsBox.replaceChildren();
         }
-
     });
 
-
     // =====================================================
-    // 11. VALIDATE INVITATION FORM
+    // 12. VALIDATE INVITATION FORM
     // =====================================================
 
     if (invitationForm) {
 
         invitationForm.addEventListener("submit", function (event) {
 
-            // A developer must be selected from search results.
             if (!selectedDeveloper) {
 
                 event.preventDefault();
@@ -469,6 +441,17 @@ document.addEventListener("DOMContentLoaded", function () {
                 );
 
                 searchInput.focus();
+                return;
+            }
+
+            // Prevent submitting a pending invitation again.
+            if (isAlreadyInvited(selectedDeveloper)) {
+
+                event.preventDefault();
+
+                alert(
+                    "This developer already has a pending invitation."
+                );
 
                 return;
             }
@@ -483,11 +466,10 @@ document.addEventListener("DOMContentLoaded", function () {
                 event.preventDefault();
 
                 alert("Developer selection is invalid.");
-
                 return;
             }
 
-            // Prevent duplicate submissions.
+            // Prevent accidental duplicate submissions.
             const submitButton = invitationForm.querySelector(
                 'button[type="submit"]'
             );
@@ -495,14 +477,12 @@ document.addEventListener("DOMContentLoaded", function () {
             if (submitButton) {
 
                 submitButton.disabled = true;
-
                 submitButton.textContent = "Sending Invitation...";
-
             }
 
-            // Django performs the final authorization checks.
+            // Django performs the final permission,
+            // invitation-status, and membership checks.
         });
-
     }
 
 });

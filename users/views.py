@@ -941,6 +941,19 @@ def public_profile(request, username):
     context = _profile_context(profile)
     context["is_public_view"] = True
 
+    # Read the optional return destination.
+    return_to = request.GET.get("next", "")
+
+    # Only allow safe URLs on this website.
+    if return_to and url_has_allowed_host_and_scheme(
+        url=return_to,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        context["return_to"] = return_to
+    else:
+        context["return_to"] = None
+
     return render(
         request,
         "users/profile.html",

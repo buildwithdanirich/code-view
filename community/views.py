@@ -619,10 +619,6 @@ def leave_group(request, group_id):
 
     return redirect("groups")
 
-
-# ============================================================
-# 7. SEARCH DEVELOPERS FOR INVITATIONS
-# ============================================================
 # ============================================================
 # 7. SEARCH DEVELOPERS FOR INVITATIONS
 # ============================================================
@@ -630,23 +626,22 @@ def leave_group(request, group_id):
 @require_GET
 def search_group_developers(request, group_id):
     """
-    Allow private-group owners to search registered developers.
+    Search developers for private-group invitations.
 
     Rules:
     1. Only private-group owners can search.
     2. Existing members are excluded.
-    3. Developers with pending invitations are excluded.
-    4. Searching does not automatically add members.
-    5. Search results include public profile information.
+    3. Pending invitees remain visible as "Invited".
+    4. Accepted invitations are not treated as pending.
+    5. Searching never creates an invitation.
     """
 
-    # Find the requested group.
     group = get_object_or_404(
         ProjectGroup,
         id=group_id,
     )
 
-    # Only private-group owners can search developers.
+    # Only the owner of a private group may search.
     if not group.is_private or not is_group_owner(
         group,
         request.user,
@@ -656,27 +651,19 @@ def search_group_developers(request, group_id):
             status=403,
         )
 
-    # Get the search text.
     query = request.GET.get("q", "").strip()
 
-    # Require at least two characters.
     if len(query) < 2:
         return JsonResponse({"users": []})
 
     User = get_user_model()
 
-    # Find existing group members.
+    # Exclude developers already in this group.
     existing_members = GroupMember.objects.filter(
         group=group,
     ).values_list("user_id", flat=True)
 
-    # Find developers with pending invitations.
-    pending_invitees = GroupInvitation.objects.filter(
-        group=group,
-        status="pending",
-    ).values_list("invited_user_id", flat=True)
-
-    # Search registered developers.
+    # Include pending invitees in search results.
     developers = (
         User.objects
         .filter(
@@ -684,33 +671,56 @@ def search_group_developers(request, group_id):
             is_active=True,
         )
         .exclude(id__in=existing_members)
-        .exclude(id__in=pending_invitees)
         .exclude(id=group.owner_id)
         .select_related("developer_profile")
         .order_by("username")[:10]
     )
 
-    # Prepare public profile information.
+    developer_ids = [
+        developer.id
+        for developer in developers
+    ]
+
+    # Retrieve invitation statuses in one database query.
+    invitation_statuses = dict(
+        GroupInvitation.objects
+        .filter(
+            group=group,
+            invited_user_id__in=developer_ids,
+        )
+        .values_list(
+            "invited_user_id",
+            "status",
+        )
+    )
+
     results = []
 
     for developer in developers:
 
-        # Get the developer's profile, if one exists.
-        try:
-            profile = developer.developer_profile
-        except User.developer_profile.RelatedObjectDoesNotExist:
-            profile = None
+        # A profile may not exist for every developer.
+        profile = getattr(
+            developer,
+            "developer_profile",
+            None,
+        )
 
-        # Default to no uploaded profile picture.
         avatar_url = None
 
         if profile and profile.avatar:
             avatar_url = profile.avatar.url
 
-        # Build the developer's public profile URL.
+        # Retrieve the developer's invitation status.
+        invitation_status = invitation_statuses.get(
+            developer.id,
+        )
+
+        # Build the public profile URL.
         profile_url = reverse(
             "public_profile",
-            kwargs={"username": developer.username},
+            kwargs={
+                "username": developer.username,
+            },
         )
 
         results.append({
@@ -718,6 +728,7 @@ def search_group_developers(request, group_id):
             "username": developer.username,
             "avatar_url": avatar_url,
             "profile_url": profile_url,
+            "invitation_status": invitation_status,
         })
 
     return JsonResponse({

@@ -119,12 +119,22 @@ def send_group_invitation(group, invited_by, invited_user):
                     "This developer already has a pending invitation."
                 )
 
-            # Reuse an old accepted or declined invitation.
+            # Reuse the existing invitation record.
             invitation.status = "pending"
             invitation.responded_at = None
             invitation.invited_by = invited_by
 
-            invitation.save()
+            # Record when the invitation was sent again.
+            invitation.created_at = timezone.now()
+
+            invitation.save(
+                update_fields=[
+                    "status",
+                    "responded_at",
+                    "invited_by",
+                    "created_at",
+                ]
+            )
 
             return invitation
 

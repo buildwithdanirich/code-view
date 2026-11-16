@@ -16,6 +16,26 @@
 
 <main class="cv-profile-wrap">
 
+
+  {% if return_to %}
+
+  <nav
+    class="cv-profile-return-navigation"
+    aria-label="Return to previous page"
+  >
+
+    <a
+      href="{{ return_to }}"
+      class="cv-profile-back-button"
+    >
+      <span aria-hidden="true">←</span>
+      Back to Group Members
+    </a>
+
+  </nav>
+
+{% endif %}
+
   <!-- ===================================================== -->
   <!-- PROFILE HEADER -->
   <!-- ===================================================== -->
