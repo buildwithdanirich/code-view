@@ -1,0 +1,32 @@
+{% extends 'questions/base.html' %}
+{% load static %}
+{% block title %}{{ profile.user.username }} · Developer Profile{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'users/css/profile.css' %}">{% endblock %}
+{% block content %}
+<main class="cv-profile-wrap">
+  <section class="cv-profile-card">
+    <div class="cv-profile-cover"></div>
+    <div class="cv-profile-content">
+      <div class="cv-avatar cv-avatar-large">
+        {% if profile.avatar %}<img src="{{ profile.avatar.url }}" alt="{{ profile.user.username }} profile picture">
+        {% else %}<span aria-hidden="true">{{ profile.user.username|first|upper }}</span>{% endif %}
+      </div>
+      <div class="cv-profile-heading">
+        <div><h1>{{ profile.user.get_full_name|default:profile.user.username }}</h1><p class="cv-muted">@{{ profile.user.username }}</p></div>
+        {% if profile.user_id == request.user.id %}<a class="cv-primary" href="{% url 'edit_profile' %}">Edit Profile</a>{% endif %}
+      </div>
+      {% if profile.title %}<p class="cv-profile-title">{{ profile.title }}</p>{% endif %}
+      {% if profile.bio %}<p class="cv-bio">{{ profile.bio|linebreaksbr }}</p>{% else %}<p class="cv-muted">No bio added yet.</p>{% endif %}
+      {% if profile.location %}<p class="cv-muted">📍 {{ profile.location }}</p>{% endif %}
+      {% if profile.skills %}<div class="cv-detail"><strong>Skills</strong><p>{{ profile.skills }}</p></div>{% endif %}
+      <div class="cv-links">
+        {% if profile.github_url %}<a href="{{ profile.github_url }}" target="_blank" rel="noopener noreferrer">GitHub ↗</a>{% endif %}
+        {% if profile.linkedin_url %}<a href="{{ profile.linkedin_url }}" target="_blank" rel="noopener noreferrer">LinkedIn ↗</a>{% endif %}
+        {% if profile.portfolio_url %}<a href="{{ profile.portfolio_url }}" target="_blank" rel="noopener noreferrer">Portfolio ↗</a>{% endif %}
+      </div>
+      <div class="cv-stats"><div><strong>{{ groups_joined }}</strong><span>Groups joined</span></div><div><strong>{{ groups_created }}</strong><span>Groups created</span></div><div><strong>{{ profile.user.date_joined|date:'M Y' }}</strong><span>Member since</span></div></div>
+      {% if profile.user_id == request.user.id %}<form method="post" action="{% url 'logout' %}" class="cv-logout">{% csrf_token %}<button type="submit">Log out securely</button></form>{% endif %}
+    </div>
+  </section>
+</main>
+{% endblock %}

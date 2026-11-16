@@ -10,3 +10,10 @@ urlpatterns = [
     path("forgot-password/", views.forgot_password, name="forgot_password"),
     path("reset-password/<str:uidb64>/<str:token>/", views.password_reset_confirm, name="password_reset_confirm"),
 ]
+
+urlpatterns += [
+    path("profile/", views.my_profile, name="my_profile"),
+    path("profile/edit/", views.edit_profile, name="edit_profile"),
+    path("profile/remove-photo/", views.remove_profile_photo, name="remove_profile_photo"),
+    path("developers/<str:username>/", views.public_profile, name="public_profile"),
+]

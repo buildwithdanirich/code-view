@@ -353,3 +353,59 @@ def password_reset_confirm(request, uidb64, token):
         "users/reset_password.html",
         {"form": form},
     )
+
+# ============================================================
+# DEVELOPER PROFILES
+# ============================================================
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import get_object_or_404
+from django.views.decorators.http import require_http_methods
+from .models import DeveloperProfile
+from .forms import DeveloperProfileForm
+
+
+def _profile_context(profile):
+    from community.models import ProjectGroup, GroupMember
+    user = profile.user
+    return {
+        "profile": profile,
+        "groups_created": ProjectGroup.objects.filter(owner=user).count(),
+        "groups_joined": GroupMember.objects.filter(user=user).count(),
+    }
+
+
+@login_required
+def my_profile(request):
+    profile, _ = DeveloperProfile.objects.get_or_create(user=request.user)
+    return render(request, "users/profile.html", _profile_context(profile))
+
+
+@login_required
+def public_profile(request, username):
+    user = get_object_or_404(User, username=username, is_active=True)
+    profile, _ = DeveloperProfile.objects.get_or_create(user=user)
+    context = _profile_context(profile)
+    context["is_public_view"] = True
+    return render(request, "users/profile.html", context)
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def edit_profile(request):
+    profile, _ = DeveloperProfile.objects.get_or_create(user=request.user)
+    form = DeveloperProfileForm(request.POST or None, request.FILES or None, instance=profile)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Your profile has been updated.")
+        return redirect("my_profile")
+    return render(request, "users/edit_profile.html", {"form": form, "profile": profile})
+
+
+@login_required
+@require_POST
+def remove_profile_photo(request):
+    profile, _ = DeveloperProfile.objects.get_or_create(user=request.user)
+    if profile.avatar:
+        profile.avatar.delete(save=True)
+    messages.success(request, "Profile photo removed.")
+    return redirect("edit_profile")

@@ -29,6 +29,7 @@ msgpack==1.2.4
 multidict==7.2.1
 oauthlib==4.0.1
 packaging==26.3
+pillow==13.0.0
 propcache==0.5.4
 protobuf==7.36.2
 psycopg==3.3.6

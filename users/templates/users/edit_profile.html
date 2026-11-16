@@ -1,0 +1,23 @@
+{% extends 'questions/base.html' %}
+{% load static %}
+{% block title %}Edit Profile{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'users/css/profile.css' %}">{% endblock %}
+{% block extra_js %}<script src="{% static 'users/js/profile.js' %}" defer></script>{% endblock %}
+{% block content %}
+<main class="cv-profile-wrap"><section class="cv-profile-card cv-edit-card">
+  <a class="cv-back" href="{% url 'my_profile' %}">← Back to profile</a>
+  <h1>Edit Developer Profile</h1><p class="cv-muted">Your public developer identity on ColabVerse.</p>
+  <form method="post" enctype="multipart/form-data" class="cv-profile-form" id="cv-profile-form">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="cv-form-errors">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="cv-avatar-preview">
+      <div class="cv-avatar cv-avatar-large">{% if profile.avatar %}<img id="cv-avatar-preview" src="{{ profile.avatar.url }}" alt="Current profile photo">{% else %}<img id="cv-avatar-preview" alt="Selected profile photo" hidden><span id="cv-avatar-fallback">{{ request.user.username|first|upper }}</span>{% endif %}</div>
+      <p class="cv-muted">JPG, PNG or WebP · Maximum 3 MB</p>
+    </div>
+    {% for field in form %}<div class="cv-field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<p class="cv-field-error">{{ error }}</p>{% endfor %}</div>{% endfor %}
+    <div class="cv-form-actions"><button type="submit" class="cv-primary">Save changes</button><a href="{% url 'my_profile' %}">Cancel</a></div>
+  </form>
+  {% if profile.avatar %}<form method="post" action="{% url 'remove_profile_photo' %}" class="cv-remove-form">{% csrf_token %}<button type="submit">Remove current photo</button></form>{% endif %}
+</section></main>
+
+{% endblock %}
