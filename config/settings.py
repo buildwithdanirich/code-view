@@ -144,6 +144,8 @@ SOCIALACCOUNT_PROVIDERS = {
     },
 }
 
+SOCIALACCOUNT_AUTO_SIGNUP = False
+
 # Use CodeView's custom Google authentication rules.
 SOCIALACCOUNT_ADAPTER = "users.adapters.CodeViewSocialAccountAdapter"
 
@@ -283,7 +285,7 @@ CODEVIEW_EMAIL_BACKEND = os.environ.get(
 # Sender name and email address.
 CODEVIEW_EMAIL_FROM = os.environ.get(
     "CODEVIEW_EMAIL_FROM",
-    "CodeView <no-reply@localhost>",
+    "Colabverse <no-reply@localhost>",
 )
 
 

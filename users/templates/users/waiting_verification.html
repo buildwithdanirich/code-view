@@ -1,0 +1,52 @@
+{% extends 'users/base_auth.html' %}
+
+{% block title %}Verify Your Email | ColabVerse{% endblock %}
+
+{% block content %}
+
+<!-- COLABVERSE EMAIL VERIFICATION -->
+<div
+  class="email-verification-waiting"
+  data-verification-status-url="{{ verification_status_url }}"
+  data-verification-expiry="{{ verification_expiry }}"
+>
+
+  <div class="section-label">
+    COLABVERSE ACCOUNT SECURITY
+  </div>
+
+  <h2>Check your email</h2>
+
+  <p class="subtitle">
+    We've sent a verification link to your email address.
+  </p>
+
+  <p class="subtitle">
+    Open the link on your phone or laptop to verify your account.
+    Keep this page open while you complete verification.
+  </p>
+
+  <!-- VERIFICATION STATUS -->
+  <div
+    id="verification-status"
+    class="verification-status"
+    role="status"
+    aria-live="polite"
+  >
+    Waiting for email verification...
+  </div>
+
+  <p class="hint">
+    Once your email is verified, ColabVerse will automatically
+    sign you in on this device and open your dashboard.
+  </p>
+
+  <!-- FALLBACK -->
+  <p class="switch">
+    Already verified your email?
+    <a href="{% url 'login' %}">Sign in manually</a>
+  </p>
+
+</div>
+
+{% endblock %}

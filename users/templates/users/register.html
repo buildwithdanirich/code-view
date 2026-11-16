@@ -26,6 +26,26 @@
 <form method="post" class="auth-form" novalidate>
   {% csrf_token %}
 
+  <!-- First name -->
+  <div class="field">
+    <label for="{{ form.first_name.id_for_label }}">
+      First name
+    </label>
+
+    {{ form.first_name }}
+    {{ form.first_name.errors }}
+  </div>
+
+  <!-- Last name -->
+  <div class="field">
+    <label for="{{ form.last_name.id_for_label }}">
+      Last name
+    </label>
+
+    {{ form.last_name }}
+    {{ form.last_name.errors }}
+  </div>
+
   <!-- Username -->
   <div class="field">
     <label for="id_username">Username</label>

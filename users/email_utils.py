@@ -1,28 +1,28 @@
-"""Email utilities for CodeView account verification."""
+"""Email utilities for ColabVerse account verification and recovery."""
 
-import os
-
+from django.conf import settings
 from django.core.mail import EmailMessage, get_connection
 
 
 def send_account_email(subject, body, recipient):
     """
-    Send verification and password-reset emails.
+    Send ColabVerse account emails.
 
-    Django 6.1 uses the MAILERS configuration in settings.py.
+    Used for:
+    - Email verification.
+    - Password recovery.
+    - Future account notifications.
+
+    Django uses the MAILERS configuration in settings.py.
     """
 
-    # Get the default email connection from Django settings.
-    # Do not pass a backend name or alias here.
+    # Get Django's configured email connection.
     connection = get_connection()
 
-    # Get the sender address from the environment.
-    sender = os.environ.get(
-        "CODEVIEW_EMAIL_FROM",
-        "CodeView <no-reply@localhost>",
-    )
+    # Use the sender identity configured in settings.py.
+    sender = settings.CODEVIEW_EMAIL_FROM
 
-    # Create the email.
+    # Create the email with ColabVerse as the sender.
     email = EmailMessage(
         subject=subject,
         body=body,
@@ -31,5 +31,5 @@ def send_account_email(subject, body, recipient):
         connection=connection,
     )
 
-    # Send the email and report any delivery errors.
+    # Send the email and raise an exception if delivery fails.
     return email.send(fail_silently=False)

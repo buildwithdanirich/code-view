@@ -1,0 +1,74 @@
+{% extends 'users/base_auth.html' %}
+
+{% block title %}Verify Reset Code | ColabVerse{% endblock %}
+
+{% block content %}
+
+<!-- COLABVERSE OTP VERIFICATION HEADER -->
+<div class="section-label">
+  COLABVERSE ACCOUNT SECURITY
+</div>
+
+<h2>Verify your email</h2>
+
+<p class="subtitle">
+  We've sent a 6-digit verification code to your email address.
+  Enter the code below to continue resetting your password.
+</p>
+
+<!-- OTP VERIFICATION FORM -->
+<form method="post" class="auth-form" novalidate>
+  {% csrf_token %}
+
+  <!-- General form errors -->
+  {% if form.non_field_errors %}
+    <div class="form-errors" role="alert">
+      {{ form.non_field_errors }}
+    </div>
+  {% endif %}
+
+  <!-- OTP input -->
+  <div class="field">
+    <label for="{{ form.code.id_for_label }}">
+      Verification code
+    </label>
+
+    {{ form.code }}
+
+    {% if form.code.errors %}
+      <div class="field-errors" role="alert">
+        {{ form.code.errors }}
+      </div>
+    {% endif %}
+  </div>
+
+  <p class="subtitle">
+    Your verification code expires after 10 minutes.
+    You have up to 5 attempts to enter the correct code.
+  </p>
+
+  <!-- Verify button -->
+  <button class="primary-button" type="submit">
+    Verify code
+    <span aria-hidden="true">→</span>
+  </button>
+
+</form>
+
+<!-- REQUEST ANOTHER CODE -->
+<p class="switch">
+  Didn't receive your code?
+  <a href="{% url 'forgot_password' %}">
+    Request another code
+  </a>
+</p>
+
+<!-- BACK TO LOGIN -->
+<p class="switch">
+  Remember your password?
+  <a href="{% url 'login' %}">
+    Back to sign in
+  </a>
+</p>
+
+{% endblock %}
