@@ -32,10 +32,36 @@ urlpatterns = [
     ),
 
     # Verify a new developer's email address.
+    # The developer can open this link on their phone.
     path(
         "verify-email/<str:uidb64>/<str:token>/",
         views.verify_email,
         name="verify_email",
+    ),
+
+    # ============================================================
+    # AUTOMATIC LOGIN AFTER EMAIL VERIFICATION
+    # ============================================================
+
+    # Display the waiting page on the original registration laptop.
+    path(
+        "register/waiting-verification/",
+        views.waiting_verification,
+        name="waiting_verification",
+    ),
+
+    # Check whether email verification has been completed.
+    #
+    # GET:
+    # Check the verification status.
+    #
+    # POST:
+    # Complete secure login on the original registration browser
+    # after the account has been verified.
+    path(
+        "register/verification-status/",
+        views.registration_verification_status,
+        name="registration_verification_status",
     ),
 
     # ============================================================

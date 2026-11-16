@@ -1,4 +1,5 @@
 {% extends 'users/base_auth.html' %}
+{% load static %}
 
 {% block title %}Verify Your Email | ColabVerse{% endblock %}
 
@@ -48,5 +49,11 @@
   </p>
 
 </div>
+
+<!-- Load the external email-verification JavaScript -->
+<script
+  src="{% static 'users/js/email_verification.js' %}"
+  defer
+></script>
 
 {% endblock %}

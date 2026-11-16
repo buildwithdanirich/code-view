@@ -1,1 +1,1061 @@
-.cv-profile-wrap{width:min(100%,960px);margin:28px auto;padding:0 18px 50px;color:#e9eafb}.cv-profile-card{background:#121b32;border:1px solid #303c60;border-radius:20px;overflow:hidden;box-shadow:0 18px 60px #05091645}.cv-profile-cover{height:145px;background:linear-gradient(110deg,#252968,#473a9a,#186a9d)}.cv-profile-content{padding:0 32px 32px}.cv-avatar{display:grid;place-items:center;overflow:hidden;border-radius:50%;background:#3c4288;color:white;font-weight:800}.cv-avatar-large{width:116px;height:116px;font-size:44px;border:5px solid #121b32;margin-top:-57px;position:relative}.cv-avatar img{width:100%;height:100%;object-fit:cover}.cv-profile-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}.cv-profile-heading h1,.cv-edit-card h1{font-size:clamp(24px,3vw,34px);margin:15px 0 3px;color:#fff}.cv-muted{color:#aebbd8}.cv-profile-title{font-weight:650;color:#b8b1ff}.cv-bio{white-space:normal;line-height:1.7}.cv-primary{display:inline-block;background:#7265ed;border:0;border-radius:10px;padding:12px 19px;color:white;text-decoration:none;font-weight:700;cursor:pointer}.cv-primary:hover{background:#867bff}.cv-links{display:flex;gap:13px;flex-wrap:wrap;margin:20px 0}.cv-links a,.cv-back{color:#a9caff;text-decoration:none}.cv-detail{margin-top:20px}.cv-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:30px}.cv-stats>div{background:#1c2743;border:1px solid #35415f;border-radius:13px;padding:18px 12px;display:flex;flex-direction:column;gap:8px}.cv-stats strong{font-size:23px;color:white}.cv-stats span{color:#aebbd8;font-size:13px}.cv-logout{margin-top:25px}.cv-logout button,.cv-remove-form button{border:1px solid #bb5b6c;color:#ffb3bf;background:transparent;border-radius:10px;padding:10px 15px;cursor:pointer}.cv-edit-card{padding:28px 32px}.cv-edit-card h1{margin-top:22px}.cv-avatar-preview{margin:25px 0}.cv-avatar-preview .cv-avatar{margin:0}.cv-profile-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.cv-field{display:flex;flex-direction:column;gap:7px}.cv-field label{font-weight:650}.cv-field input,.cv-field textarea{width:100%;box-sizing:border-box;background:#0b1427;border:1px solid #425075;border-radius:10px;padding:12px;color:#fff;font:inherit}.cv-field input[type=file]{padding:10px}.cv-field:has(textarea),.cv-form-actions{grid-column:1/-1}.cv-field small{color:#9daed1}.cv-field-error,.cv-form-errors{color:#ff99a6}.cv-form-actions{display:flex;align-items:center;gap:18px}.cv-form-actions a{color:#b5c9f1}.cv-remove-form{margin-top:20px}@media(max-width:650px){.cv-profile-form{grid-template-columns:1fr}.cv-profile-content,.cv-edit-card{padding-left:18px;padding-right:18px}.cv-stats{gap:7px}.cv-stats>div{padding:13px 8px}.cv-stats strong{font-size:17px}}
+/* ==========================================================
+   COLABVERSE — DEVELOPER PROFILE
+   ========================================================== */
+
+/* ----------------------------------------------------------
+   1. PROFILE PAGE
+   ---------------------------------------------------------- */
+
+.cv-profile-wrap {
+    width: min(100%, 1100px);
+    margin: 32px auto;
+    padding: 0 20px 60px;
+    box-sizing: border-box;
+    color: #e9eafb;
+}
+
+.cv-profile-wrap * {
+    box-sizing: border-box;
+}
+
+.cv-muted {
+    color: #aebbd8;
+}
+
+/* ----------------------------------------------------------
+   2. PROFILE HEADER CARD
+   ---------------------------------------------------------- */
+
+.cv-profile-card {
+    background: #121b32;
+    border: 1px solid #303c60;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 18px 60px rgba(5, 9, 22, 0.27);
+}
+
+.cv-profile-cover {
+    height: 165px;
+    position: relative;
+    overflow: hidden;
+
+    background: linear-gradient(
+        115deg,
+        #252968 0%,
+        #473a9a 50%,
+        #186a9d 100%
+    );
+}
+
+.cv-cover-pattern {
+    position: absolute;
+    inset: 0;
+
+    background-image:
+        linear-gradient(
+            rgba(255, 255, 255, 0.04) 1px,
+            transparent 1px
+        ),
+        linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0.04) 1px,
+            transparent 1px
+        );
+
+    background-size: 36px 36px;
+}
+
+.cv-cover-label {
+    position: absolute;
+    right: 24px;
+    top: 22px;
+
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.cv-profile-content {
+    padding: 0 32px 32px;
+}
+
+/* ----------------------------------------------------------
+   3. PROFILE AVATAR
+   ---------------------------------------------------------- */
+
+.cv-profile-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 20px;
+}
+
+.cv-avatar {
+    display: grid;
+    place-items: center;
+
+    overflow: hidden;
+    border-radius: 50%;
+
+    background: #3c4288;
+    color: #ffffff;
+
+    font-weight: 800;
+}
+
+.cv-avatar-large {
+    width: 116px;
+    height: 116px;
+
+    flex-shrink: 0;
+
+    font-size: 44px;
+
+    border: 5px solid #121b32;
+
+    margin-top: -57px;
+    position: relative;
+    z-index: 1;
+}
+
+.cv-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* ----------------------------------------------------------
+   4. BUTTONS
+   ---------------------------------------------------------- */
+
+.cv-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+
+    background: #7265ed;
+    border: 1px solid transparent;
+    border-radius: 10px;
+
+    padding: 12px 19px;
+
+    color: #ffffff;
+    text-decoration: none;
+    font-weight: 700;
+
+    cursor: pointer;
+    transition:
+        background 0.2s ease,
+        transform 0.2s ease;
+}
+
+.cv-primary:hover {
+    background: #867bff;
+    transform: translateY(-1px);
+}
+
+.cv-edit-profile {
+    margin-bottom: 5px;
+}
+
+/* ----------------------------------------------------------
+   5. DEVELOPER IDENTITY
+   ---------------------------------------------------------- */
+
+.cv-profile-heading {
+    margin-top: 14px;
+}
+
+.cv-profile-identity {
+    width: 100%;
+}
+
+.cv-profile-name-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.cv-profile-heading h1,
+.cv-edit-card h1 {
+    font-size: clamp(24px, 3vw, 34px);
+    line-height: 1.25;
+    margin: 0;
+    color: #ffffff;
+    overflow-wrap: anywhere;
+}
+
+.cv-profile-username {
+    margin: 7px 0;
+    font-size: 14px;
+}
+
+.cv-developer-badge {
+    display: inline-flex;
+    align-items: center;
+
+    padding: 6px 12px;
+
+    border-radius: 100px;
+
+    background: rgba(114, 101, 237, 0.16);
+    border: 1px solid rgba(153, 140, 255, 0.35);
+
+    color: #c3bbff;
+
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.cv-profile-title {
+    margin: 12px 0 0;
+
+    font-size: 16px;
+    font-weight: 650;
+    color: #b8b1ff;
+}
+
+/* ----------------------------------------------------------
+   6. REPUTATION STARS
+   ---------------------------------------------------------- */
+
+.cv-reputation-summary {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+
+    margin-top: 16px;
+}
+
+.cv-reputation-stars {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.cv-star {
+    display: inline-block;
+    line-height: 1;
+    font-size: 22px;
+}
+
+.cv-star-active {
+    color: #fbbf24;
+
+    text-shadow:
+        0 0 12px rgba(251, 191, 36, 0.22);
+}
+
+.cv-star-inactive {
+    color: #64708c;
+}
+
+.cv-reputation-points {
+    font-size: 13px;
+    font-weight: 650;
+
+    color: #f6d78b;
+
+    background: rgba(251, 191, 36, 0.08);
+    border: 1px solid rgba(251, 191, 36, 0.18);
+
+    padding: 7px 12px;
+    border-radius: 100px;
+}
+
+/* ----------------------------------------------------------
+   7. BIOGRAPHY
+   ---------------------------------------------------------- */
+
+.cv-profile-bio-section {
+    margin-top: 28px;
+    padding-top: 24px;
+
+    border-top: 1px solid #303c60;
+}
+
+.cv-section-heading {
+    margin: 0 0 12px;
+
+    font-size: 15px;
+    font-weight: 800;
+
+    color: #ffffff;
+}
+
+.cv-bio {
+    margin: 0;
+
+    font-size: 14px;
+    line-height: 1.8;
+
+    color: #c6d0e8;
+
+    overflow-wrap: anywhere;
+}
+
+/* ----------------------------------------------------------
+   8. LOCATION AND MEMBERSHIP
+   ---------------------------------------------------------- */
+
+.cv-profile-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 20px;
+
+    margin-top: 22px;
+}
+
+.cv-meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+
+    color: #aebbd8;
+    font-size: 13px;
+}
+
+.cv-meta-icon {
+    font-size: 15px;
+}
+
+/* ----------------------------------------------------------
+   9. PROFILE STATISTICS
+   ---------------------------------------------------------- */
+
+.cv-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+
+    margin-top: 30px;
+}
+
+.cv-stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    padding: 20px;
+
+    background: #1c2743;
+    border: 1px solid #35415f;
+    border-radius: 13px;
+
+    transition:
+        border-color 0.2s ease,
+        transform 0.2s ease;
+}
+
+.cv-stat-item:hover {
+    border-color: #7265ed;
+    transform: translateY(-2px);
+}
+
+.cv-stat-item strong {
+    color: #ffffff;
+    font-size: 25px;
+    font-weight: 800;
+}
+
+.cv-stat-item span {
+    color: #aebbd8;
+    font-size: 13px;
+}
+
+.cv-reputation-stat strong {
+    color: #fbbf24;
+}
+
+/* ----------------------------------------------------------
+   10. PROFILE DETAILS GRID
+   ---------------------------------------------------------- */
+
+.cv-profile-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    gap: 22px;
+
+    margin-top: 24px;
+}
+
+.cv-profile-main,
+.cv-profile-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+
+    min-width: 0;
+}
+
+/* ----------------------------------------------------------
+   11. PROFILE SECTIONS
+   ---------------------------------------------------------- */
+
+.cv-profile-section {
+    background: #121b32;
+    border: 1px solid #303c60;
+    border-radius: 18px;
+
+    padding: 25px;
+
+    box-shadow: 0 12px 35px rgba(5, 9, 22, 0.12);
+}
+
+.cv-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    margin-bottom: 24px;
+}
+
+.cv-section-eyebrow {
+    display: block;
+
+    margin-bottom: 8px;
+
+    color: #9d94ff;
+
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+}
+
+.cv-section-header h2 {
+    margin: 0;
+
+    font-size: 19px;
+    font-weight: 800;
+
+    color: #ffffff;
+}
+
+/* ----------------------------------------------------------
+   12. SKILLS AND TECHNOLOGIES
+   ---------------------------------------------------------- */
+
+.cv-skills-content {
+    padding: 18px;
+
+    background: #1c2743;
+    border: 1px solid #35415f;
+    border-radius: 12px;
+
+    color: #d9e1f5;
+
+    font-size: 14px;
+    line-height: 1.8;
+
+    overflow-wrap: anywhere;
+}
+
+.cv-empty-state {
+    padding: 20px;
+
+    background: rgba(28, 39, 67, 0.6);
+    border: 1px dashed #425075;
+    border-radius: 12px;
+}
+
+.cv-empty-state p {
+    margin: 0;
+
+    color: #aebbd8;
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+.cv-empty-state a {
+    display: inline-block;
+    margin-top: 12px;
+
+    color: #b8b1ff;
+    text-decoration: none;
+
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.cv-empty-state a:hover {
+    color: #ffffff;
+}
+
+/* ----------------------------------------------------------
+   13. REPUTATION CARD
+   ---------------------------------------------------------- */
+
+.cv-reputation-card {
+    padding: 24px;
+
+    border-radius: 14px;
+
+    background: linear-gradient(
+        135deg,
+        rgba(251, 191, 36, 0.09),
+        rgba(114, 101, 237, 0.07)
+    );
+
+    border: 1px solid rgba(251, 191, 36, 0.22);
+}
+
+.cv-reputation-score {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+.cv-reputation-icon {
+    display: grid;
+    place-items: center;
+
+    width: 62px;
+    height: 62px;
+
+    flex-shrink: 0;
+
+    border-radius: 16px;
+
+    background: rgba(251, 191, 36, 0.12);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+
+    color: #fbbf24;
+    font-size: 34px;
+}
+
+.cv-reputation-score > div {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.cv-reputation-score strong {
+    color: #ffffff;
+    font-size: 34px;
+    font-weight: 800;
+}
+
+.cv-reputation-score div span {
+    color: #aebbd8;
+    font-size: 13px;
+}
+
+.cv-reputation-level {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+
+    margin-top: 24px;
+    padding-top: 20px;
+
+    border-top: 1px solid rgba(251, 191, 36, 0.16);
+}
+
+.cv-reputation-level span {
+    color: #aebbd8;
+    font-size: 13px;
+}
+
+.cv-reputation-level strong {
+    color: #f6d78b;
+    font-size: 14px;
+}
+
+.cv-reputation-stars-large {
+    margin-top: 18px;
+    gap: 8px;
+}
+
+.cv-reputation-stars-large .cv-star {
+    font-size: 32px;
+}
+
+.cv-reputation-card > p {
+    margin: 20px 0 0;
+
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+/* ----------------------------------------------------------
+   14. COMMUNITY ACTIVITY
+   ---------------------------------------------------------- */
+
+.cv-activity-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.cv-activity-item {
+    padding: 20px;
+
+    background: #1c2743;
+    border: 1px solid #35415f;
+    border-radius: 12px;
+}
+
+.cv-activity-label {
+    display: block;
+
+    margin-bottom: 12px;
+
+    color: #aebbd8;
+    font-size: 13px;
+}
+
+.cv-activity-item strong {
+    display: block;
+
+    color: #ffffff;
+    font-size: 30px;
+    font-weight: 800;
+}
+
+.cv-activity-item p {
+    margin: 10px 0 0;
+
+    color: #9daed1;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+/* ----------------------------------------------------------
+   15. DEVELOPER LINKS
+   ---------------------------------------------------------- */
+
+.cv-links {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.cv-social-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+
+    padding: 15px;
+
+    background: #1c2743;
+    border: 1px solid #35415f;
+    border-radius: 11px;
+
+    color: #c8d9ff;
+    text-decoration: none;
+
+    font-size: 14px;
+    font-weight: 700;
+
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease;
+}
+
+.cv-social-link:hover {
+    background: #253354;
+    border-color: #7265ed;
+    color: #ffffff;
+}
+
+.cv-social-link span:last-child {
+    color: #9d94ff;
+    font-size: 18px;
+}
+
+/* ----------------------------------------------------------
+   16. ACCOUNT INFORMATION
+   ---------------------------------------------------------- */
+
+.cv-account-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.cv-account-info-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+
+    padding: 14px 0;
+
+    border-bottom: 1px solid #303c60;
+}
+
+.cv-account-info-row:first-child {
+    padding-top: 0;
+}
+
+.cv-account-info-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.cv-account-info-row > span {
+    color: #aebbd8;
+    font-size: 13px;
+}
+
+.cv-account-info-row strong {
+    color: #ffffff;
+
+    font-size: 13px;
+    font-weight: 700;
+
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+.cv-account-status {
+    color: #78e0ae !important;
+}
+
+/* ----------------------------------------------------------
+   17. ACCOUNT ACTIONS
+   ---------------------------------------------------------- */
+
+.cv-profile-account-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 20px;
+
+    margin-top: 24px;
+    padding: 24px;
+
+    background: #121b32;
+    border: 1px solid #303c60;
+    border-radius: 18px;
+}
+
+.cv-profile-account-actions h2 {
+    margin: 0 0 8px;
+
+    color: #ffffff;
+    font-size: 18px;
+}
+
+.cv-profile-account-actions p {
+    margin: 0;
+}
+
+.cv-logout {
+    margin: 0;
+}
+
+.cv-logout button,
+.cv-remove-form button {
+    border: 1px solid #bb5b6c;
+    color: #ffb3bf;
+    background: transparent;
+
+    border-radius: 10px;
+    padding: 11px 17px;
+
+    font: inherit;
+    font-weight: 700;
+
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.cv-logout button:hover,
+.cv-remove-form button:hover {
+    background: rgba(187, 91, 108, 0.12);
+}
+
+/* ----------------------------------------------------------
+   18. EDIT PROFILE PAGE
+   Preserve existing editing functionality.
+   ---------------------------------------------------------- */
+
+.cv-edit-card {
+    padding: 28px 32px;
+}
+
+.cv-edit-card h1 {
+    margin: 22px 0 8px;
+}
+
+.cv-avatar-preview {
+    margin: 25px 0;
+}
+
+.cv-avatar-preview .cv-avatar {
+    margin: 0;
+}
+
+.cv-profile-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.cv-field {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.cv-field label {
+    font-weight: 650;
+    color: #e9eafb;
+}
+
+.cv-field input,
+.cv-field textarea {
+    width: 100%;
+
+    background: #0b1427;
+    border: 1px solid #425075;
+    border-radius: 10px;
+
+    padding: 12px;
+
+    color: #ffffff;
+    font: inherit;
+
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+
+.cv-field input:focus,
+.cv-field textarea:focus {
+    border-color: #867bff;
+}
+
+.cv-field input[type="file"] {
+    padding: 10px;
+}
+
+.cv-field:has(textarea),
+.cv-form-actions {
+    grid-column: 1 / -1;
+}
+
+.cv-field small {
+    color: #9daed1;
+}
+
+.cv-field-error,
+.cv-form-errors {
+    color: #ff99a6;
+}
+
+.cv-form-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 18px;
+}
+
+.cv-form-actions a {
+    color: #b5c9f1;
+    text-decoration: none;
+}
+
+.cv-form-actions a:hover {
+    color: #ffffff;
+}
+
+.cv-remove-form {
+    margin-top: 20px;
+}
+
+/* ----------------------------------------------------------
+   19. ACCESSIBILITY
+   ---------------------------------------------------------- */
+
+.cv-profile-wrap a:focus-visible,
+.cv-profile-wrap button:focus-visible {
+    outline: 3px solid #a9caff;
+    outline-offset: 3px;
+}
+
+/* ----------------------------------------------------------
+   20. TABLET RESPONSIVENESS
+   ---------------------------------------------------------- */
+
+@media (max-width: 900px) {
+
+    .cv-profile-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .cv-profile-sidebar {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: start;
+    }
+}
+
+/* ----------------------------------------------------------
+   21. MOBILE RESPONSIVENESS
+   ---------------------------------------------------------- */
+
+@media (max-width: 650px) {
+
+    .cv-profile-wrap {
+        padding: 0 12px 40px;
+        margin-top: 18px;
+    }
+
+    .cv-profile-cover {
+        height: 130px;
+    }
+
+    .cv-cover-label {
+        top: 15px;
+        right: 15px;
+        font-size: 9px;
+    }
+
+    .cv-profile-content {
+        padding: 0 18px 24px;
+    }
+
+    .cv-profile-top {
+        align-items: center;
+    }
+
+    .cv-avatar-large {
+        width: 96px;
+        height: 96px;
+        margin-top: -48px;
+        font-size: 35px;
+    }
+
+    .cv-edit-profile {
+        padding: 10px 13px;
+        font-size: 12px;
+    }
+
+    .cv-profile-heading h1 {
+        font-size: 25px;
+    }
+
+    .cv-profile-name-row {
+        gap: 10px;
+    }
+
+    .cv-reputation-summary {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .cv-stats {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .cv-stat-item {
+        padding: 13px 9px;
+    }
+
+    .cv-stat-item strong {
+        font-size: 20px;
+    }
+
+    .cv-stat-item span {
+        font-size: 11px;
+    }
+
+    .cv-profile-grid {
+        gap: 16px;
+        margin-top: 16px;
+    }
+
+    .cv-profile-main,
+    .cv-profile-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .cv-profile-section {
+        padding: 20px 16px;
+    }
+
+    .cv-activity-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .cv-reputation-card {
+        padding: 18px;
+    }
+
+    .cv-reputation-stars-large .cv-star {
+        font-size: 28px;
+    }
+
+    .cv-profile-account-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .cv-profile-form {
+        grid-template-columns: 1fr;
+    }
+
+    .cv-edit-card {
+        padding: 20px 18px;
+    }
+
+    .cv-form-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .cv-form-actions .cv-primary {
+        width: 100%;
+    }
+}
+
+/* ----------------------------------------------------------
+   22. SMALL MOBILE SCREENS
+   ---------------------------------------------------------- */
+
+@media (max-width: 380px) {
+
+    .cv-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .cv-stat-item {
+        padding: 15px;
+    }
+
+    .cv-reputation-level {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+
+/* ----------------------------------------------------------
+   23. REDUCED MOTION
+   ---------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+
+    .cv-primary,
+    .cv-stat-item,
+    .cv-social-link {
+        transition: none;
+    }
+
+    .cv-primary:hover,
+    .cv-stat-item:hover {
+        transform: none;
+    }
+}

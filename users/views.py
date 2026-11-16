@@ -10,6 +10,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.tokens import default_token_generator
 from django.core.cache import cache
 from django.db import transaction
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.encoding import force_bytes, force_str
@@ -18,6 +19,7 @@ from django.utils.http import (
     urlsafe_base64_decode,
     urlsafe_base64_encode,
 )
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods, require_POST
 
 from .email_utils import send_account_email
@@ -34,6 +36,11 @@ from .otp_service import (
     can_reset_password,
     send_password_reset_otp,
     verify_password_reset_otp as verify_otp_code,
+)
+from .registration_session import (
+    clear_registration_session,
+    get_pending_registration_user,
+    start_registration_session,
 )
 
 
@@ -253,7 +260,7 @@ def _rate_limit_exceeded(category, identifier, limit):
 
 
 def register(request):
-    """Register developers and require email verification."""
+    """Register developers and wait for verification on the original browser."""
 
     if request.user.is_authenticated:
         return redirect("questions:feed")
@@ -261,13 +268,9 @@ def register(request):
     form = RegisterForm(request.POST or None)
 
     if request.method == "POST" and form.is_valid():
-
         try:
             with transaction.atomic():
-
                 user = form.save(commit=False)
-
-                # New accounts must verify their email.
                 user.is_active = False
                 user.save()
 
@@ -294,43 +297,28 @@ def register(request):
                 )
 
         except Exception:
-            logger.exception(
-                "Could not send ColabVerse verification email"
-            )
-
+            logger.exception("Could not send ColabVerse verification email")
             form.add_error(
                 None,
                 "We couldn't send your verification email. "
                 "Please try again later.",
             )
-
         else:
-            return render(
-                request,
-                "users/notice.html",
-                {
-                    "heading": "Check your inbox",
-                    "detail": (
-                        "We've sent a ColabVerse verification link "
-                        "to your email. Open it to activate your account."
-                    ),
-                },
-            )
+            # Authorization belongs to the browser that submitted registration.
+            # It does not authenticate the user before email verification.
+            start_registration_session(request, user)
+            return redirect("waiting_verification")
 
-    return render(
-        request,
-        "users/register.html",
-        {"form": form},
-    )
+    return render(request, "users/register.html", {"form": form})
 
 
 # ============================================================
-# EMAIL VERIFICATION
+# EMAIL VERIFICATION AND ORIGINAL-BROWSER SIGN-IN
 # ============================================================
 
 
 def verify_email(request, uidb64, token):
-    """Activate accounts after successful email verification."""
+    """Activate the account; never sign in the browser opening this link."""
 
     user = _user_from_uid(uidb64)
 
@@ -339,16 +327,24 @@ def verify_email(request, uidb64, token):
         and not user.is_active
         and default_token_generator.check_token(user, token)
     ):
-
         user.is_active = True
         user.save(update_fields=["is_active"])
 
-        messages.success(
+        # The phone/browser that opens the link is not authenticated.
+        # Only the original registration browser may complete sign-in.
+        return render(
             request,
-            "Your ColabVerse email is verified. You can now sign in.",
+            "users/notice.html",
+            {
+                "heading": "Email verified successfully",
+                "detail": (
+                    "Your ColabVerse account is now active. "
+                    "Return to the device where you registered; "
+                    "it will sign you in automatically if the waiting page "
+                    "is still open and the registration session is valid."
+                ),
+            },
         )
-
-        return redirect("login")
 
     return render(
         request,
@@ -361,6 +357,63 @@ def verify_email(request, uidb64, token):
             ),
         },
         status=400,
+    )
+
+
+@ensure_csrf_cookie
+def waiting_verification(request):
+    """Show the waiting page only to the original registration browser."""
+
+    if request.user.is_authenticated:
+        return redirect("questions:feed")
+
+    user = get_pending_registration_user(request)
+    if user is None:
+        return redirect("login")
+
+    return render(
+        request,
+        "users/waiting_verification.html",
+        {
+            "verification_status_url": reverse("registration_verification_status"),
+        },
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def registration_verification_status(request):
+    """GET reports verification; CSRF-protected POST completes laptop login."""
+
+    if request.user.is_authenticated:
+        return JsonResponse(
+            {"verified": True, "redirect_url": reverse("questions:feed")}
+        )
+
+    user = get_pending_registration_user(request)
+    if user is None:
+        return JsonResponse(
+            {"verified": False, "expired": True},
+            status=403,
+        )
+
+    if not user.is_active:
+        return JsonResponse({"verified": False, "expired": False})
+
+    if request.method == "GET":
+        return JsonResponse({"verified": True, "expired": False})
+
+    # The registration session identifies the exact account, and
+    # Django's CSRF middleware protects the sign-in POST.
+    # Never accept an account ID or email supplied by the caller.
+    backend = "django.contrib.auth.backends.ModelBackend"
+    if backend not in settings.AUTHENTICATION_BACKENDS:
+        logger.error("ModelBackend is required for registration auto-login")
+        return JsonResponse({"error": "Login unavailable"}, status=503)
+
+    clear_registration_session(request)
+    login(request, user, backend=backend)
+    return JsonResponse(
+        {"verified": True, "redirect_url": reverse("questions:feed")}
     )
 
 
@@ -812,25 +865,49 @@ def password_reset_confirm(request, uidb64, token):
 # ============================================================
 # DEVELOPER PROFILES
 # ============================================================
-
-
 def _profile_context(profile):
-    """Prepare developer profile statistics."""
+    """
+    Prepare developer profile statistics.
+
+    Includes:
+    - Developer profile information
+    - Groups created
+    - Groups joined
+    - Reputation points
+    - Reputation stars
+    """
 
     from community.models import ProjectGroup, GroupMember
+    from questions.models import Reputation
 
     user = profile.user
 
+    # Retrieve the developer's existing reputation.
+    # Create a default record if one does not exist yet.
+    reputation, _ = Reputation.objects.get_or_create(
+        user=user
+    )
+
     return {
+        # Developer profile information.
         "profile": profile,
+
+        # Number of development groups created.
         "groups_created": ProjectGroup.objects.filter(
             owner=user
         ).count(),
+
+        # Number of development groups joined.
         "groups_joined": GroupMember.objects.filter(
             user=user
         ).count(),
-    }
 
+        # Developer's total reputation points.
+        "reputation_points": reputation.points,
+
+        # Star level calculated by the existing reputation model.
+        "reputation_stars": reputation.stars,
+    }
 
 @login_required
 def my_profile(request):

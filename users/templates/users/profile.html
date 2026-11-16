@@ -1,32 +1,674 @@
 {% extends 'questions/base.html' %}
 {% load static %}
-{% block title %}{{ profile.user.username }} · Developer Profile{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'users/css/profile.css' %}">{% endblock %}
+
+{% block title %}
+  {{ profile.user.username }} | Developer Profile | ColabVerse
+{% endblock %}
+
+{% block extra_css %}
+  <link
+    rel="stylesheet"
+    href="{% static 'users/css/profile.css' %}"
+  >
+{% endblock %}
+
 {% block content %}
+
 <main class="cv-profile-wrap">
+
+  <!-- ===================================================== -->
+  <!-- PROFILE HEADER -->
+  <!-- ===================================================== -->
+
   <section class="cv-profile-card">
-    <div class="cv-profile-cover"></div>
-    <div class="cv-profile-content">
-      <div class="cv-avatar cv-avatar-large">
-        {% if profile.avatar %}<img src="{{ profile.avatar.url }}" alt="{{ profile.user.username }} profile picture">
-        {% else %}<span aria-hidden="true">{{ profile.user.username|first|upper }}</span>{% endif %}
-      </div>
-      <div class="cv-profile-heading">
-        <div><h1>{{ profile.user.get_full_name|default:profile.user.username }}</h1><p class="cv-muted">@{{ profile.user.username }}</p></div>
-        {% if profile.user_id == request.user.id %}<a class="cv-primary" href="{% url 'edit_profile' %}">Edit Profile</a>{% endif %}
-      </div>
-      {% if profile.title %}<p class="cv-profile-title">{{ profile.title }}</p>{% endif %}
-      {% if profile.bio %}<p class="cv-bio">{{ profile.bio|linebreaksbr }}</p>{% else %}<p class="cv-muted">No bio added yet.</p>{% endif %}
-      {% if profile.location %}<p class="cv-muted">📍 {{ profile.location }}</p>{% endif %}
-      {% if profile.skills %}<div class="cv-detail"><strong>Skills</strong><p>{{ profile.skills }}</p></div>{% endif %}
-      <div class="cv-links">
-        {% if profile.github_url %}<a href="{{ profile.github_url }}" target="_blank" rel="noopener noreferrer">GitHub ↗</a>{% endif %}
-        {% if profile.linkedin_url %}<a href="{{ profile.linkedin_url }}" target="_blank" rel="noopener noreferrer">LinkedIn ↗</a>{% endif %}
-        {% if profile.portfolio_url %}<a href="{{ profile.portfolio_url }}" target="_blank" rel="noopener noreferrer">Portfolio ↗</a>{% endif %}
-      </div>
-      <div class="cv-stats"><div><strong>{{ groups_joined }}</strong><span>Groups joined</span></div><div><strong>{{ groups_created }}</strong><span>Groups created</span></div><div><strong>{{ profile.user.date_joined|date:'M Y' }}</strong><span>Member since</span></div></div>
-      {% if profile.user_id == request.user.id %}<form method="post" action="{% url 'logout' %}" class="cv-logout">{% csrf_token %}<button type="submit">Log out securely</button></form>{% endif %}
+
+    <!-- Decorative profile cover -->
+    <div class="cv-profile-cover">
+
+      <div
+        class="cv-cover-pattern"
+        aria-hidden="true"
+      ></div>
+
+      <span class="cv-cover-label">
+        COLABVERSE / DEVELOPER PROFILE
+      </span>
+
     </div>
+
+    <div class="cv-profile-content">
+
+      <!-- AVATAR AND EDIT BUTTON -->
+      <div class="cv-profile-top">
+
+        <div class="cv-avatar cv-avatar-large">
+
+          {% if profile.avatar %}
+
+            <img
+              src="{{ profile.avatar.url }}"
+              alt="{{ profile.user.username }} profile picture"
+              loading="lazy"
+            >
+
+          {% else %}
+
+            <span aria-hidden="true">
+              {{ profile.user.username|first|upper }}
+            </span>
+
+          {% endif %}
+
+        </div>
+
+        {% if profile.user_id == request.user.id %}
+
+          <a
+            href="{% url 'edit_profile' %}"
+            class="cv-primary cv-edit-profile"
+          >
+            Edit profile
+            <span aria-hidden="true">↗</span>
+          </a>
+
+        {% endif %}
+
+      </div>
+
+      <!-- DEVELOPER IDENTITY -->
+      <div class="cv-profile-heading">
+
+        <div class="cv-profile-identity">
+
+          <div class="cv-profile-name-row">
+
+            <h1>
+              {{ profile.user.get_full_name|default:profile.user.username }}
+            </h1>
+
+            <span class="cv-developer-badge">
+              Developer
+            </span>
+
+          </div>
+
+          <p class="cv-muted cv-profile-username">
+            @{{ profile.user.username }}
+          </p>
+
+          {% if profile.title %}
+
+            <p class="cv-profile-title">
+              {{ profile.title }}
+            </p>
+
+          {% endif %}
+
+          <!-- REPUTATION STARS -->
+          <div class="cv-reputation-summary">
+
+            <div
+              class="cv-reputation-stars"
+              role="img"
+              aria-label="{{ reputation_stars }} out of 5 reputation stars"
+            >
+
+              {% if reputation_stars >= 1 %}
+                <span class="cv-star cv-star-active">★</span>
+              {% endif %}
+
+              {% if reputation_stars >= 2 %}
+                <span class="cv-star cv-star-active">★</span>
+              {% endif %}
+
+              {% if reputation_stars >= 3 %}
+                <span class="cv-star cv-star-active">★</span>
+              {% endif %}
+
+              {% if reputation_stars >= 4 %}
+                <span class="cv-star cv-star-active">★</span>
+              {% endif %}
+
+              {% if reputation_stars >= 5 %}
+                <span class="cv-star cv-star-active">★</span>
+              {% endif %}
+
+            </div>
+
+            <span class="cv-reputation-points">
+              {{ reputation_points }} reputation points
+            </span>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- BIOGRAPHY -->
+      <div class="cv-profile-bio-section">
+
+        <h2 class="cv-section-heading">
+          About
+        </h2>
+
+        {% if profile.bio %}
+
+          <p class="cv-bio">
+            {{ profile.bio|linebreaksbr }}
+          </p>
+
+        {% else %}
+
+          <p class="cv-muted">
+            This developer hasn't added a bio yet.
+          </p>
+
+        {% endif %}
+
+      </div>
+
+      <!-- LOCATION AND MEMBERSHIP -->
+      <div class="cv-profile-meta">
+
+        {% if profile.location %}
+
+          <div class="cv-meta-item">
+
+            <span
+              class="cv-meta-icon"
+              aria-hidden="true"
+            >
+              📍
+            </span>
+
+            <span>
+              {{ profile.location }}
+            </span>
+
+          </div>
+
+        {% endif %}
+
+        <div class="cv-meta-item">
+
+          <span
+            class="cv-meta-icon"
+            aria-hidden="true"
+          >
+            📅
+          </span>
+
+          <span>
+            Joined {{ profile.user.date_joined|date:"F Y" }}
+          </span>
+
+        </div>
+
+      </div>
+
+      <!-- PROFILE STATISTICS -->
+      <div class="cv-stats">
+
+        <!-- REPUTATION -->
+        <div class="cv-stat-item cv-reputation-stat">
+
+          <strong>
+            ★ {{ reputation_points }}
+          </strong>
+
+          <span>
+            Reputation points
+          </span>
+
+        </div>
+
+        <!-- GROUPS JOINED -->
+        <div class="cv-stat-item">
+
+          <strong>
+            {{ groups_joined }}
+          </strong>
+
+          <span>
+            Groups joined
+          </span>
+
+        </div>
+
+        <!-- GROUPS CREATED -->
+        <div class="cv-stat-item">
+
+          <strong>
+            {{ groups_created }}
+          </strong>
+
+          <span>
+            Groups created
+          </span>
+
+        </div>
+
+      </div>
+
+    </div>
+
   </section>
+
+  <!-- ===================================================== -->
+  <!-- PROFILE DETAILS -->
+  <!-- ===================================================== -->
+
+  <div class="cv-profile-grid">
+
+    <!-- LEFT COLUMN -->
+    <div class="cv-profile-main">
+
+      <!-- SKILLS -->
+      <section class="cv-profile-section cv-skills-section">
+
+        <div class="cv-section-header">
+
+          <div>
+
+            <span class="cv-section-eyebrow">
+              TECHNICAL EXPERTISE
+            </span>
+
+            <h2>
+              Skills & Technologies
+            </h2>
+
+          </div>
+
+        </div>
+
+        {% if profile.skills %}
+
+          <div class="cv-skills-content">
+            {{ profile.skills }}
+          </div>
+
+        {% else %}
+
+          <div class="cv-empty-state">
+
+            <p>
+              No skills have been added yet.
+            </p>
+
+            {% if profile.user_id == request.user.id %}
+
+              <a href="{% url 'edit_profile' %}">
+                Add your skills →
+              </a>
+
+            {% endif %}
+
+          </div>
+
+        {% endif %}
+
+      </section>
+
+      <!-- DEVELOPER REPUTATION -->
+      <section class="cv-profile-section cv-reputation-section">
+
+        <div class="cv-section-header">
+
+          <div>
+
+            <span class="cv-section-eyebrow">
+              COMMUNITY RECOGNITION
+            </span>
+
+            <h2>
+              Developer Reputation
+            </h2>
+
+          </div>
+
+        </div>
+
+        <div class="cv-reputation-card">
+
+          <div class="cv-reputation-score">
+
+            <span
+              class="cv-reputation-icon"
+              aria-hidden="true"
+            >
+              ★
+            </span>
+
+            <div>
+
+              <strong>
+                {{ reputation_points }}
+              </strong>
+
+              <span>
+                Total reputation points
+              </span>
+
+            </div>
+
+          </div>
+
+          <div class="cv-reputation-level">
+
+            <span>
+              Reputation level
+            </span>
+
+            <strong>
+              {{ reputation_stars }} / 5 stars
+            </strong>
+
+          </div>
+
+          <div
+            class="cv-reputation-stars cv-reputation-stars-large"
+            role="img"
+            aria-label="{{ reputation_stars }} out of 5 reputation stars"
+          >
+
+            {% if reputation_stars >= 1 %}
+              <span class="cv-star cv-star-active">★</span>
+            {% else %}
+              <span class="cv-star cv-star-inactive">☆</span>
+            {% endif %}
+
+            {% if reputation_stars >= 2 %}
+              <span class="cv-star cv-star-active">★</span>
+            {% else %}
+              <span class="cv-star cv-star-inactive">☆</span>
+            {% endif %}
+
+            {% if reputation_stars >= 3 %}
+              <span class="cv-star cv-star-active">★</span>
+            {% else %}
+              <span class="cv-star cv-star-inactive">☆</span>
+            {% endif %}
+
+            {% if reputation_stars >= 4 %}
+              <span class="cv-star cv-star-active">★</span>
+            {% else %}
+              <span class="cv-star cv-star-inactive">☆</span>
+            {% endif %}
+
+            {% if reputation_stars >= 5 %}
+              <span class="cv-star cv-star-active">★</span>
+            {% else %}
+              <span class="cv-star cv-star-inactive">☆</span>
+            {% endif %}
+
+          </div>
+
+          <p class="cv-muted">
+            Reputation grows through contributions to the
+            ColabVerse developer community.
+          </p>
+
+        </div>
+
+      </section>
+
+      <!-- COMMUNITY ACTIVITY -->
+      <section class="cv-profile-section">
+
+        <div class="cv-section-header">
+
+          <div>
+
+            <span class="cv-section-eyebrow">
+              COMMUNITY
+            </span>
+
+            <h2>
+              Developer Activity
+            </h2>
+
+          </div>
+
+        </div>
+
+        <div class="cv-activity-grid">
+
+          <div class="cv-activity-item">
+
+            <span class="cv-activity-label">
+              Groups created
+            </span>
+
+            <strong>
+              {{ groups_created }}
+            </strong>
+
+            <p>
+              Development groups started on ColabVerse.
+            </p>
+
+          </div>
+
+          <div class="cv-activity-item">
+
+            <span class="cv-activity-label">
+              Groups joined
+            </span>
+
+            <strong>
+              {{ groups_joined }}
+            </strong>
+
+            <p>
+              Development groups this developer belongs to.
+            </p>
+
+          </div>
+
+        </div>
+
+      </section>
+
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <aside class="cv-profile-sidebar">
+
+      <!-- SOCIAL LINKS -->
+      <section class="cv-profile-section cv-social-section">
+
+        <div class="cv-section-header">
+
+          <div>
+
+            <span class="cv-section-eyebrow">
+              CONNECT
+            </span>
+
+            <h2>
+              Developer Links
+            </h2>
+
+          </div>
+
+        </div>
+
+        <div class="cv-links">
+
+          {% if profile.github_url %}
+
+            <a
+              href="{{ profile.github_url }}"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="cv-social-link"
+            >
+
+              <span>GitHub</span>
+
+              <span aria-hidden="true">↗</span>
+
+            </a>
+
+          {% endif %}
+
+          {% if profile.linkedin_url %}
+
+            <a
+              href="{{ profile.linkedin_url }}"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="cv-social-link"
+            >
+
+              <span>LinkedIn</span>
+
+              <span aria-hidden="true">↗</span>
+
+            </a>
+
+          {% endif %}
+
+          {% if profile.portfolio_url %}
+
+            <a
+              href="{{ profile.portfolio_url }}"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="cv-social-link"
+            >
+
+              <span>Portfolio</span>
+
+              <span aria-hidden="true">↗</span>
+
+            </a>
+
+          {% endif %}
+
+          {% if not profile.github_url and not profile.linkedin_url and not profile.portfolio_url %}
+
+            <div class="cv-empty-state">
+
+              <p>
+                No developer links have been added yet.
+              </p>
+
+              {% if profile.user_id == request.user.id %}
+
+                <a href="{% url 'edit_profile' %}">
+                  Add your links →
+                </a>
+
+              {% endif %}
+
+            </div>
+
+          {% endif %}
+
+        </div>
+
+      </section>
+
+      <!-- ACCOUNT INFORMATION -->
+      <section class="cv-profile-section cv-account-section">
+
+        <div class="cv-section-header">
+
+          <div>
+
+            <span class="cv-section-eyebrow">
+              COLABVERSE
+            </span>
+
+            <h2>
+              Profile Information
+            </h2>
+
+          </div>
+
+        </div>
+
+        <div class="cv-account-info">
+
+          <div class="cv-account-info-row">
+
+            <span>Username</span>
+
+            <strong>
+              @{{ profile.user.username }}
+            </strong>
+
+          </div>
+
+          <div class="cv-account-info-row">
+
+            <span>Member since</span>
+
+            <strong>
+              {{ profile.user.date_joined|date:"F Y" }}
+            </strong>
+
+          </div>
+
+          <div class="cv-account-info-row">
+
+            <span>Account</span>
+
+            <strong class="cv-account-status">
+              Active developer
+            </strong>
+
+          </div>
+
+        </div>
+
+      </section>
+
+    </aside>
+
+  </div>
+
+  <!-- ===================================================== -->
+  <!-- ACCOUNT ACTIONS -->
+  <!-- ===================================================== -->
+
+  {% if profile.user_id == request.user.id %}
+
+    <section class="cv-profile-account-actions">
+
+      <div>
+
+        <h2>
+          Account
+        </h2>
+
+        <p class="cv-muted">
+          Manage your ColabVerse developer session.
+        </p>
+
+      </div>
+
+      <form
+        method="post"
+        action="{% url 'logout' %}"
+        class="cv-logout"
+      >
+
+        {% csrf_token %}
+
+        <button type="submit">
+          Log out securely
+        </button>
+
+      </form>
+
+    </section>
+
+  {% endif %}
+
 </main>
+
 {% endblock %}
