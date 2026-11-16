@@ -1097,3 +1097,98 @@ textarea:focus {
 /* Developer profile avatar in the existing navigation */
 .profile-button.cv-profile-link,.profile-button[href]{display:inline-flex;align-items:center;justify-content:center;overflow:hidden;border-radius:50%;text-decoration:none}
 .cv-header-avatar{width:100%;height:100%;object-fit:cover;border-radius:50%}
+
+/* ============================================================
+   DEVELOPER PROFILE LINKS
+   Used on questions, comments, and replies.
+   ============================================================ */
+
+/* Make the avatar link behave like a circular profile picture. */
+.cv-author-avatar-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    width: 34px;
+    height: 34px;
+
+    border-radius: 50%;
+    text-decoration: none;
+}
+
+/* Keep the existing avatar styling. */
+.cv-author-avatar-link .avatar {
+    width: 34px;
+    height: 34px;
+
+    overflow: hidden;
+    border-radius: 50%;
+
+    transition:
+        box-shadow 0.2s ease,
+        transform 0.2s ease;
+}
+
+/* Display the developer's uploaded profile picture. */
+.cv-author-avatar-link .avatar img {
+    display: block;
+
+    width: 100%;
+    height: 100%;
+
+    max-width: none;
+
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+/* Highlight the avatar when hovered. */
+.cv-author-avatar-link:hover .avatar {
+    box-shadow: 0 0 0 2px #8b7cf6;
+    transform: scale(1.05);
+}
+
+/* Style clickable developer usernames. */
+.cv-author-profile-link {
+    display: inline-flex;
+    align-items: center;
+
+    color: #f1f5f9;
+    font-weight: 700;
+
+    text-decoration: none;
+
+    transition: color 0.2s ease;
+}
+
+/* Change username color on hover. */
+.cv-author-profile-link:hover {
+    color: #a99cff;
+}
+
+/* Keyboard accessibility. */
+.cv-author-avatar-link:focus-visible,
+.cv-author-profile-link:focus-visible {
+    outline: 2px solid #a99cff;
+    outline-offset: 3px;
+    border-radius: 4px;
+}
+
+/* Keep the avatar link's focus outline circular. */
+.cv-author-avatar-link:focus-visible {
+    border-radius: 50%;
+}
+
+/* Mobile layout. */
+@media (max-width: 600px) {
+
+    .post-meta {
+        gap: 8px;
+    }
+
+    .cv-author-profile-link {
+        overflow-wrap: anywhere;
+    }
+
+}

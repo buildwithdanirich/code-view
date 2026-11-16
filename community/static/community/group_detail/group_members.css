@@ -1,169 +1,385 @@
 /* ==========================================================
-   CODEVIEW — ADD DEVELOPER & LIVE SEARCH
+   COLABVERSE — ADD DEVELOPER & LIVE SEARCH
    ========================================================== */
 
-/* Main section */
 .add-member-section {
     margin-top: 24px;
     padding-top: 24px;
-    border-top: 1px solid #38383e;
+    border-top: 1px solid #29364e;
 }
 
 .add-member-section h3 {
-    color: #f5f5f5;
-    font-size: 17px;
-    font-weight: 600;
-    margin-bottom: 16px;
+    margin: 0 0 12px;
+    color: #f8fafc;
+    font-size: 18px;
+    font-weight: 700;
 }
 
-/* Form layout */
+.add-member-section .workspace-section-description {
+    margin-bottom: 20px;
+    color: #94a3b8;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+/* Invitation form */
+
 .add-member-section form {
     display: flex;
-    align-items: flex-start;
+    align-items: flex-end;
     gap: 12px;
     flex-wrap: wrap;
 }
 
 /* Search container */
+
 .developer-search-container {
     position: relative;
-    flex: 1;
-    min-width: 180px;
-    max-width: 400px;
+    flex: 1 1 320px;
+    min-width: 0;
+    max-width: 520px;
+}
+
+.developer-search-container label {
+    display: block;
+    margin-bottom: 9px;
+    color: #cbd5e1;
+    font-size: 13px;
+    font-weight: 600;
 }
 
 /* Search input */
+
 #developer-search {
+    box-sizing: border-box;
     width: 100%;
-    height: 44px;
-    padding: 0 14px;
+    height: 46px;
+    padding: 0 15px;
 
-    background: #19191d;
-    color: #ffffff;
+    background: #0e172b;
+    color: #f8fafc;
 
-    border: 1px solid #414149;
-    border-radius: 8px;
+    border: 1px solid #334155;
+    border-radius: 10px;
 
+    font-family: inherit;
     font-size: 14px;
+
     outline: none;
 
-    transition: border-color 0.2s, box-shadow 0.2s;
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        background 0.2s ease;
 }
 
-/* Placeholder */
 #developer-search::placeholder {
-    color: #8f9099;
+    color: #64748b;
 }
 
-/* Input focus */
+#developer-search:hover {
+    border-color: #475569;
+}
+
 #developer-search:focus {
+    background: #111d34;
     border-color: #22c55e;
     box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.12);
 }
 
-/* Search results dropdown */
+/* ==========================================================
+   DEVELOPER SEARCH DROPDOWN
+   ========================================================== */
+
 .developer-search-results {
     position: absolute;
-    top: calc(100% + 6px);
+    top: calc(100% + 8px);
     left: 0;
     right: 0;
 
     z-index: 1000;
 
-    background: #242428;
-    border: 1px solid #414149;
-    border-radius: 10px;
+    box-sizing: border-box;
+    width: 100%;
 
-    max-height: 220px;
+    max-height: 330px;
     overflow-y: auto;
+    overscroll-behavior: contain;
 
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+    background: #141f35;
+    border: 1px solid #334155;
+    border-radius: 12px;
+
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.45);
 }
 
-/* Hide dropdown when empty */
+/* Hide empty dropdown */
+
 .developer-search-results:empty {
     display: none;
 }
 
-/* Individual developer result */
-.developer-search-option {
-    display: flex;
-    align-items: center;
+/* Custom scrollbar */
 
-    width: 100%;
-    min-height: 44px;
-    padding: 12px 14px;
-
-    background: transparent;
-    color: #f5f5f5;
-
-    border: none;
-    border-bottom: 1px solid #35353b;
-
-    font-size: 14px;
-    text-align: left;
-    cursor: pointer;
-
-    transition: background 0.2s;
+.developer-search-results {
+    scrollbar-width: thin;
+    scrollbar-color: #475569 #141f35;
 }
 
-/* Remove last border */
-.developer-search-option:last-child {
+/* ==========================================================
+   INDIVIDUAL DEVELOPER SEARCH RESULT
+   ========================================================== */
+
+.developer-search-result {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+
+    min-height: 72px;
+    padding: 12px 14px;
+
+    border-bottom: 1px solid #29364e;
+
+    transition: background 0.2s ease;
+}
+
+.developer-search-result:last-child {
     border-bottom: none;
 }
 
-/* Hover and keyboard focus */
-.developer-search-option:hover,
-.developer-search-option:focus-visible {
-    background: #174c37;
-    color: #ffffff;
-    outline: none;
+.developer-search-result:hover,
+.developer-search-result:focus-within {
+    background: #1b2b47;
 }
 
-/* Add Member button */
+/* Developer identity */
+
+.developer-result-identity {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    flex: 1;
+    min-width: 0;
+}
+
+/* ==========================================================
+   SEARCH RESULT PROFILE PICTURE
+   ========================================================== */
+
+.developer-result-avatar-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+
+    border-radius: 50%;
+    overflow: hidden;
+
+    text-decoration: none;
+
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.developer-result-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 100%;
+    height: 100%;
+
+    border-radius: 50%;
+    overflow: hidden;
+
+    background: #174c37;
+    color: #4ade80;
+
+    font-size: 16px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.developer-result-avatar img {
+    display: block;
+
+    width: 100%;
+    height: 100%;
+    max-width: none;
+
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+.developer-result-avatar-link:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 2px #8b7cf6;
+}
+
+/* ==========================================================
+   DEVELOPER USERNAME AND PROFILE LINK
+   ========================================================== */
+
+.developer-result-information {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+
+    min-width: 0;
+}
+
+.developer-result-username {
+    max-width: 100%;
+
+    color: #f8fafc;
+    font-size: 14px;
+    font-weight: 700;
+
+    text-decoration: none;
+    overflow-wrap: anywhere;
+
+    transition: color 0.2s ease;
+}
+
+.developer-result-username:hover {
+    color: #a99cff;
+}
+
+.developer-result-profile-link {
+    color: #94a3b8;
+    font-size: 12px;
+    font-weight: 500;
+
+    text-decoration: none;
+
+    transition: color 0.2s ease;
+}
+
+.developer-result-profile-link:hover {
+    color: #a99cff;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+/* ==========================================================
+   SELECT DEVELOPER BUTTON
+   ========================================================== */
+
+.developer-result-invite {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    min-width: 74px;
+    min-height: 34px;
+    padding: 8px 12px;
+
+    background: #14532d;
+    color: #bbf7d0;
+
+    border: 1px solid #166534;
+    border-radius: 8px;
+
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+
+    cursor: pointer;
+
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease,
+        transform 0.2s ease;
+}
+
+.developer-result-invite:hover {
+    background: #166534;
+    border-color: #22c55e;
+    transform: translateY(-1px);
+}
+
+.developer-result-invite:active {
+    transform: translateY(0);
+}
+
+/* ==========================================================
+   SEARCH STATUS MESSAGES
+   ========================================================== */
+
+.developer-search-message {
+    margin: 0;
+    padding: 18px 16px;
+
+    color: #94a3b8;
+    font-size: 13px;
+    line-height: 1.5;
+    text-align: center;
+}
+
+/* ==========================================================
+   INVITATION SUBMIT BUTTON
+   ========================================================== */
+
 .add-member-section form > button[type="submit"] {
-    height: 44px;
-    padding: 0 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    min-height: 46px;
+    padding: 0 22px;
 
     background: #16a34a;
     color: #ffffff;
 
-    border: none;
-    border-radius: 8px;
+    border: 1px solid #16a34a;
+    border-radius: 10px;
 
-    font-size: 14px;
-    font-weight: 600;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+
     cursor: pointer;
 
-    transition: background 0.2s, transform 0.2s;
+    transition:
+        background 0.2s ease,
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
 }
 
-/* Button hover */
 .add-member-section form > button[type="submit"]:hover {
     background: #15803d;
+    box-shadow: 0 4px 15px rgba(22, 163, 74, 0.18);
     transform: translateY(-1px);
 }
 
-/* Mobile responsiveness */
-@media (max-width: 600px) {
-
-    .add-member-section form {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .developer-search-container {
-        width: 100%;
-        max-width: 100%;
-    }
-
-    .add-member-section form > button[type="submit"] {
-        width: 100%;
-    }
+.add-member-section form > button[type="submit"]:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
 }
 
 /* ==========================================================
-   CODEVIEW — MEMBER MANAGEMENT
+   ACCESSIBILITY
+   ========================================================== */
+
+.developer-result-avatar-link:focus-visible,
+.developer-result-username:focus-visible,
+.developer-result-profile-link:focus-visible,
+.developer-result-invite:focus-visible,
+.add-member-section form > button[type="submit"]:focus-visible {
+    outline: 2px solid #a99cff;
+    outline-offset: 3px;
+}
+
+/* ==========================================================
+   MEMBER MANAGEMENT
    ========================================================== */
 
 .member-role-btn,
@@ -178,6 +394,7 @@
 }
 
 /* Promote/demote */
+
 .member-role-btn {
     background: #174c37;
     color: #4ade80;
@@ -189,6 +406,7 @@
 }
 
 /* Remove member */
+
 .member-remove-btn {
     background: #3b2025;
     color: #fca5a5;
@@ -200,6 +418,7 @@
 }
 
 /* Leave group */
+
 .leave-group-section {
     margin-top: 24px;
     padding-top: 20px;
@@ -215,9 +434,10 @@
 .leave-group-btn:hover {
     background: #3b2025;
 }
-/* ========================================
-   CODEVIEW REMOVE MEMBER MODAL
-======================================== */
+
+/* ==========================================================
+   REMOVE MEMBER CONFIRMATION MODAL
+   ========================================================== */
 
 .codeview-modal[hidden] {
     display: none !important;
@@ -311,23 +531,21 @@
 .modal-remove-btn:hover {
     background: #b91c1c;
 }
-/* ==========================================
+
+/* ==========================================================
    MOBILE REMOVE MEMBER MODAL
-========================================== */
+   ========================================================== */
 
 @media (max-width: 600px) {
 
-    /* Reduce modal spacing on smaller screens. */
     .codeview-modal-content {
         padding: 20px;
     }
 
-    /* Stack confirmation buttons vertically. */
     .codeview-modal-actions {
         flex-direction: column;
     }
 
-    /* Make buttons fill the available width. */
     .modal-cancel-btn,
     .modal-remove-btn {
         width: 100%;
@@ -335,7 +553,7 @@
 }
 
 /* ==========================================================
-   COLABVERSE — GROUP MEMBER AVATAR
+   GROUP MEMBER AVATAR
    ========================================================== */
 
 .member-avatar {
@@ -355,4 +573,160 @@
     font-size: 16px;
     font-weight: 700;
     text-transform: uppercase;
+}
+
+/* ==========================================================
+   PUBLIC DEVELOPER PROFILE LINKS
+   ========================================================== */
+
+.cv-member-profile-link {
+    color: #e6edf3;
+    text-decoration: none;
+    font-weight: 600;
+
+    transition: color 0.2s ease;
+}
+
+.cv-member-profile-link:hover {
+    color: #a99cff;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.cv-member-profile-link:focus-visible {
+    outline: 2px solid #a99cff;
+    outline-offset: 3px;
+    border-radius: 3px;
+}
+
+/* ==========================================================
+   MEMBER PROFILE PICTURES
+   ========================================================== */
+
+.workspace-member .cv-member-avatar-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+
+    border-radius: 50%;
+    overflow: hidden;
+
+    background: #174c37;
+    color: #4ade80;
+
+    text-decoration: none;
+
+    transition:
+        box-shadow 0.2s ease,
+        transform 0.2s ease;
+}
+
+.workspace-member .cv-member-avatar-link img {
+    display: block;
+
+    width: 100%;
+    height: 100%;
+    max-width: none;
+
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.workspace-member .cv-member-avatar-link:hover {
+    box-shadow: 0 0 0 2px #a99cff;
+    transform: scale(1.05);
+}
+
+.workspace-member .cv-member-avatar-link:focus-visible {
+    outline: 2px solid #a99cff;
+    outline-offset: 3px;
+}
+
+/* ==========================================================
+   GROUP CHAT PROFILE PICTURES
+   ========================================================== */
+
+.chat-message .cv-member-avatar-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    flex-shrink: 0;
+    overflow: hidden;
+
+    border-radius: 50%;
+    text-decoration: none;
+
+    transition:
+        box-shadow 0.2s ease,
+        transform 0.2s ease;
+}
+
+.chat-message .cv-member-avatar-link img {
+    display: block;
+
+    width: 100%;
+    height: 100%;
+    max-width: none;
+
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.chat-message .cv-member-avatar-link:hover {
+    box-shadow: 0 0 0 2px #a99cff;
+}
+
+.chat-message .cv-member-avatar-link:focus-visible {
+    outline: 2px solid #a99cff;
+    outline-offset: 3px;
+}
+
+/* ==========================================================
+   MOBILE SEARCH AND MEMBER SUPPORT
+   ========================================================== */
+
+@media (max-width: 600px) {
+
+    .add-member-section form {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .developer-search-container {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .add-member-section form > button[type="submit"] {
+        width: 100%;
+    }
+
+    .developer-search-result {
+        gap: 10px;
+        padding: 12px 10px;
+    }
+
+    .developer-result-avatar-link {
+        width: 36px;
+        height: 36px;
+    }
+
+    .developer-result-invite {
+        min-width: 64px;
+        padding: 7px 9px;
+    }
+
+    .cv-member-profile-link {
+        overflow-wrap: anywhere;
+    }
+
+    .workspace-member .cv-member-avatar-link {
+        width: 36px;
+        height: 36px;
+    }
 }

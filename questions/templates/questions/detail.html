@@ -1,5 +1,468 @@
-{% extends 'questions/base.html' %}{% block title %}{{ question.title }}{% endblock %}{% block content %}
-<article class="post"><div class="post-meta"><span class="avatar">{{ question.author.username|slice:':1'|upper }}</span><strong>{{ question.author.username }}</strong><span class="muted">· {{ question.created_at|timesince }} ago</span></div><h1>{{ question.title }}</h1><div class="bodytext">{{ question.body|linebreaks }}</div><div class="tags">{% for tag in question.tags.all %}<a href="{% url 'questions:feed' %}?tag={{ tag.slug }}">#{{ tag.name }}</a>{% endfor %}</div><div class="actions"><form method="post" action="{% url 'questions:like' question.pk %}">{% csrf_token %}<button type="submit">{% if liked_question %}♥ Unlike{% else %}♡ Like{% endif %} · {{ like_count }}</button></form><a href="#discussion">☏ Comments</a>{% if user == question.author %}<a href="{% url 'questions:edit' question.pk %}">Edit</a><form method="post" action="{% url 'questions:delete' question.pk %}" data-confirm="Delete this question and all its comments?">{% csrf_token %}<button type="submit">Delete</button></form>{% endif %}</div></article>
-<section id="discussion" class="panel"><h2>Discussion</h2><p class="muted">Help the author solve their problem. Accepted answers earn reputation.</p>{% if user.is_authenticated %}<form method="post" action="{% url 'questions:comment' question.pk %}" class="editor">{% csrf_token %}{{ comment_form.body }}<button type="submit" class="button">Post comment</button></form>{% else %}<p>Sign in to participate.</p>{% endif %}</section>
-{% for comment in roots %}<article class="post comment" id="comment-{{ comment.pk }}"><div class="post-meta"><span class="avatar">{{ comment.author.username|slice:':1'|upper }}</span><strong>{{ comment.author.username }}</strong><span class="muted">· {{ comment.created_at|timesince }} ago</span>{% if comment.is_accepted %}<span class="accepted">✓ Accepted solution</span>{% endif %}</div><div class="bodytext">{{ comment.body|linebreaks }}</div><div class="actions"><form method="post" action="{% url 'questions:comment_like' comment.pk %}">{% csrf_token %}<button type="submit">{% if comment.pk in liked_comments %}♥{% else %}♡{% endif %} {{ comment.like_count }}</button></form>{% if user.is_authenticated %}<button type="button" class="reply-toggle" data-target="reply-{{ comment.pk }}">↩ Reply</button>{% endif %}{% if user == question.author and user != comment.author %}<form method="post" action="{% url 'questions:accept' comment.pk %}">{% csrf_token %}<button type="submit">{% if comment.is_accepted %}Unaccept{% else %}✓ Accept answer{% endif %}</button></form>{% endif %}{% if user == comment.author %}<form method="post" action="{% url 'questions:delete_comment' comment.pk %}" data-confirm="Delete this comment?">{% csrf_token %}<button type="submit">Delete</button></form>{% endif %}</div><form method="post" action="{% url 'questions:comment' question.pk %}" class="editor reply-form" id="reply-{{ comment.pk }}" hidden>{% csrf_token %}<input type="hidden" name="parent_id" value="{{ comment.pk }}"><textarea name="body" rows="2" required placeholder="Write a reply…"></textarea><button class="button" type="submit">Reply</button></form>
-{% for reply in comment.thread_replies %}<div class="nested"><div class="post-meta"><strong>{{ reply.author.username }}</strong><span class="muted">· {{ reply.created_at|timesince }} ago</span>{% if reply.is_accepted %}<span class="accepted">✓ Accepted</span>{% endif %}</div><div class="bodytext">{{ reply.body|linebreaks }}</div><div class="actions"><form method="post" action="{% url 'questions:comment_like' reply.pk %}">{% csrf_token %}<button type="submit">{% if reply.pk in liked_comments %}♥{% else %}♡{% endif %} {{ reply.like_count }}</button></form>{% if user == question.author and user != reply.author %}<form method="post" action="{% url 'questions:accept' reply.pk %}">{% csrf_token %}<button type="submit">{% if reply.is_accepted %}Unaccept{% else %}✓ Accept answer{% endif %}</button></form>{% endif %}{% if user == reply.author %}<form method="post" action="{% url 'questions:delete_comment' reply.pk %}">{% csrf_token %}<button type="submit">Delete</button></form>{% endif %}</div></div>{% endfor %}</article>{% empty %}<div class="panel muted">No comments yet. Start the conversation!</div>{% endfor %}{% endblock %}
+{% extends 'questions/base.html' %}
+
+{% block title %}{{ question.title }}{% endblock %}
+
+{% block content %}
+
+<!-- ============================================================
+     QUESTION
+     ============================================================ -->
+
+<article class="post">
+
+    <div class="post-meta">
+
+        <!-- Question author's profile picture -->
+        <a
+            href="{% url 'public_profile' question.author.username %}"
+            class="cv-author-avatar-link"
+            aria-label="View {{ question.author.username }}'s profile"
+        >
+            <span class="avatar">
+
+                {% if question.author.developer_profile.avatar %}
+
+                    <img
+                        src="{{ question.author.developer_profile.avatar.url }}"
+                        alt="{{ question.author.username }}'s profile picture"
+                        loading="lazy"
+                    >
+
+                {% else %}
+
+                    {{ question.author.username|slice:':1'|upper }}
+
+                {% endif %}
+
+            </span>
+        </a>
+
+        <!-- Question author's username -->
+        <a
+            href="{% url 'public_profile' question.author.username %}"
+            class="cv-author-profile-link"
+        >
+            <strong>{{ question.author.username }}</strong>
+        </a>
+
+        <span class="muted">
+            · {{ question.created_at|timesince }} ago
+        </span>
+
+    </div>
+
+    <h1>{{ question.title }}</h1>
+
+    <div class="bodytext">
+        {{ question.body|linebreaks }}
+    </div>
+
+    <!-- Question tags -->
+    <div class="tags">
+
+        {% for tag in question.tags.all %}
+
+            <a href="{% url 'questions:feed' %}?tag={{ tag.slug }}">
+                #{{ tag.name }}
+            </a>
+
+        {% endfor %}
+
+    </div>
+
+    <!-- Question actions -->
+    <div class="actions">
+
+        <form
+            method="post"
+            action="{% url 'questions:like' question.pk %}"
+        >
+            {% csrf_token %}
+
+            <button type="submit">
+
+                {% if liked_question %}
+                    ♥ Unlike
+                {% else %}
+                    ♡ Like
+                {% endif %}
+
+                · {{ like_count }}
+
+            </button>
+        </form>
+
+        <a href="#discussion">
+            ☏ Comments
+        </a>
+
+        {% if user == question.author %}
+
+            <a href="{% url 'questions:edit' question.pk %}">
+                Edit
+            </a>
+
+            <form
+                method="post"
+                action="{% url 'questions:delete' question.pk %}"
+                data-confirm="Delete this question and all its comments?"
+            >
+                {% csrf_token %}
+
+                <button type="submit">
+                    Delete
+                </button>
+            </form>
+
+        {% endif %}
+
+    </div>
+
+</article>
+
+
+<!-- ============================================================
+     DISCUSSION FORM
+     ============================================================ -->
+
+<section id="discussion" class="panel">
+
+    <h2>Discussion</h2>
+
+    <p class="muted">
+        Help the author solve their problem.
+        Accepted answers earn reputation.
+    </p>
+
+    {% if user.is_authenticated %}
+
+        <form
+            method="post"
+            action="{% url 'questions:comment' question.pk %}"
+            class="editor"
+        >
+            {% csrf_token %}
+
+            {{ comment_form.body }}
+
+            <button type="submit" class="button">
+                Post comment
+            </button>
+
+        </form>
+
+    {% else %}
+
+        <p>Sign in to participate.</p>
+
+    {% endif %}
+
+</section>
+
+
+<!-- ============================================================
+     COMMENTS
+     ============================================================ -->
+
+{% for comment in roots %}
+
+    <article
+        class="post comment"
+        id="comment-{{ comment.pk }}"
+    >
+
+        <div class="post-meta">
+
+            <!-- Comment author's profile picture -->
+            <a
+                href="{% url 'public_profile' comment.author.username %}"
+                class="cv-author-avatar-link"
+                aria-label="View {{ comment.author.username }}'s profile"
+            >
+                <span class="avatar">
+
+                    {% if comment.author.developer_profile.avatar %}
+
+                        <img
+                            src="{{ comment.author.developer_profile.avatar.url }}"
+                            alt="{{ comment.author.username }}'s profile picture"
+                            loading="lazy"
+                        >
+
+                    {% else %}
+
+                        {{ comment.author.username|slice:':1'|upper }}
+
+                    {% endif %}
+
+                </span>
+            </a>
+
+            <!-- Comment author's username -->
+            <a
+                href="{% url 'public_profile' comment.author.username %}"
+                class="cv-author-profile-link"
+            >
+                <strong>{{ comment.author.username }}</strong>
+            </a>
+
+            <span class="muted">
+                · {{ comment.created_at|timesince }} ago
+            </span>
+
+            {% if comment.is_accepted %}
+
+                <span class="accepted">
+                    ✓ Accepted solution
+                </span>
+
+            {% endif %}
+
+        </div>
+
+        <!-- Comment content -->
+        <div class="bodytext">
+            {{ comment.body|linebreaks }}
+        </div>
+
+        <!-- Comment actions -->
+        <div class="actions">
+
+            <form
+                method="post"
+                action="{% url 'questions:comment_like' comment.pk %}"
+            >
+                {% csrf_token %}
+
+                <button type="submit">
+
+                    {% if comment.pk in liked_comments %}
+                        ♥
+                    {% else %}
+                        ♡
+                    {% endif %}
+
+                    {{ comment.like_count }}
+
+                </button>
+            </form>
+
+            {% if user.is_authenticated %}
+
+                <button
+                    type="button"
+                    class="reply-toggle"
+                    data-target="reply-{{ comment.pk }}"
+                >
+                    ↩ Reply
+                </button>
+
+            {% endif %}
+
+            {% if user == question.author and user != comment.author %}
+
+                <form
+                    method="post"
+                    action="{% url 'questions:accept' comment.pk %}"
+                >
+                    {% csrf_token %}
+
+                    <button type="submit">
+
+                        {% if comment.is_accepted %}
+                            Unaccept
+                        {% else %}
+                            ✓ Accept answer
+                        {% endif %}
+
+                    </button>
+                </form>
+
+            {% endif %}
+
+            {% if user == comment.author %}
+
+                <form
+                    method="post"
+                    action="{% url 'questions:delete_comment' comment.pk %}"
+                    data-confirm="Delete this comment?"
+                >
+                    {% csrf_token %}
+
+                    <button type="submit">
+                        Delete
+                    </button>
+                </form>
+
+            {% endif %}
+
+        </div>
+
+        <!-- Reply form -->
+        <form
+            method="post"
+            action="{% url 'questions:comment' question.pk %}"
+            class="editor reply-form"
+            id="reply-{{ comment.pk }}"
+            hidden
+        >
+            {% csrf_token %}
+
+            <input
+                type="hidden"
+                name="parent_id"
+                value="{{ comment.pk }}"
+            >
+
+            <textarea
+                name="body"
+                rows="2"
+                required
+                placeholder="Write a reply…"
+            ></textarea>
+
+            <button class="button" type="submit">
+                Reply
+            </button>
+
+        </form>
+
+
+        <!-- ====================================================
+             NESTED REPLIES
+             ==================================================== -->
+
+        {% for reply in comment.thread_replies %}
+
+            <div class="nested">
+
+                <div class="post-meta">
+
+                    <!-- Reply author's profile picture -->
+                    <a
+                        href="{% url 'public_profile' reply.author.username %}"
+                        class="cv-author-avatar-link"
+                        aria-label="View {{ reply.author.username }}'s profile"
+                    >
+                        <span class="avatar">
+
+                            {% if reply.author.developer_profile.avatar %}
+
+                                <img
+                                    src="{{ reply.author.developer_profile.avatar.url }}"
+                                    alt="{{ reply.author.username }}'s profile picture"
+                                    loading="lazy"
+                                >
+
+                            {% else %}
+
+                                {{ reply.author.username|slice:':1'|upper }}
+
+                            {% endif %}
+
+                        </span>
+                    </a>
+
+                    <!-- Reply author's username -->
+                    <a
+                        href="{% url 'public_profile' reply.author.username %}"
+                        class="cv-author-profile-link"
+                    >
+                        <strong>{{ reply.author.username }}</strong>
+                    </a>
+
+                    <span class="muted">
+                        · {{ reply.created_at|timesince }} ago
+                    </span>
+
+                    {% if reply.is_accepted %}
+
+                        <span class="accepted">
+                            ✓ Accepted
+                        </span>
+
+                    {% endif %}
+
+                </div>
+
+                <!-- Reply content -->
+                <div class="bodytext">
+                    {{ reply.body|linebreaks }}
+                </div>
+
+                <!-- Reply actions -->
+                <div class="actions">
+
+                    <form
+                        method="post"
+                        action="{% url 'questions:comment_like' reply.pk %}"
+                    >
+                        {% csrf_token %}
+
+                        <button type="submit">
+
+                            {% if reply.pk in liked_comments %}
+                                ♥
+                            {% else %}
+                                ♡
+                            {% endif %}
+
+                            {{ reply.like_count }}
+
+                        </button>
+                    </form>
+
+                    {% if user == question.author and user != reply.author %}
+
+                        <form
+                            method="post"
+                            action="{% url 'questions:accept' reply.pk %}"
+                        >
+                            {% csrf_token %}
+
+                            <button type="submit">
+
+                                {% if reply.is_accepted %}
+                                    Unaccept
+                                {% else %}
+                                    ✓ Accept answer
+                                {% endif %}
+
+                            </button>
+                        </form>
+
+                    {% endif %}
+
+                    {% if user == reply.author %}
+
+                        <form
+                            method="post"
+                            action="{% url 'questions:delete_comment' reply.pk %}"
+                            data-confirm="Delete this comment?"
+                        >
+                            {% csrf_token %}
+
+                            <button type="submit">
+                                Delete
+                            </button>
+                        </form>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+        {% endfor %}
+
+    </article>
+
+{% empty %}
+
+    <div class="panel muted">
+        No comments yet. Start the conversation!
+    </div>
+
+{% endfor %}
+
+{% endblock %}

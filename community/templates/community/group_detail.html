@@ -221,7 +221,7 @@
                     <div class="workspace-group-meta">
 
                         <span>
-                            Owner: {{ group.owner.username }}
+                            Owner: <a href="{% url 'public_profile' group.owner.username %}" class="cv-member-profile-link">{{ group.owner.username }}</a>
                         </span>
 
                         {% if is_member %}
@@ -433,9 +433,13 @@
                             data-message-id="{{ chat_message.id }}"
                         >
 
-                            <div class="message-avatar">
-                                {{ chat_message.sender.username|first|upper }}
-                            </div>
+                            <a href="{% url 'public_profile' chat_message.sender.username %}" class="message-avatar cv-member-avatar-link" aria-label="View {{ chat_message.sender.username }}'s profile">
+                                {% if chat_message.sender.developer_profile.avatar %}
+                                    <img src="{{ chat_message.sender.developer_profile.avatar.url }}" alt="" loading="lazy" width="34" height="34">
+                                {% else %}
+                                    {{ chat_message.sender.username|first|upper }}
+                                {% endif %}
+                            </a>
 
                             <div class="message-body">
 
@@ -443,9 +447,9 @@
 
                                 <div class="message-header">
 
-                                    <strong class="message-author">
+                                    <a href="{% url 'public_profile' chat_message.sender.username %}" class="message-author cv-member-profile-link">
                                         {{ chat_message.sender.username }}
-                                    </strong>
+                                    </a>
 
                                     <time class="message-time">
                                         {{ chat_message.created_at|date:"M d, Y - H:i" }}
@@ -991,15 +995,19 @@
 
                         <div class="workspace-member">
 
-                            <span class="member-avatar">
-                                {{ membership.user.username|first|upper }}
-                            </span>
+                            <a href="{% url 'public_profile' membership.user.username %}" class="member-avatar cv-member-avatar-link" aria-label="View {{ membership.user.username }}'s profile">
+                                {% if membership.user.developer_profile.avatar %}
+                                    <img src="{{ membership.user.developer_profile.avatar.url }}" alt="" loading="lazy" width="40" height="40">
+                                {% else %}
+                                    {{ membership.user.username|first|upper }}
+                                {% endif %}
+                            </a>
 
                             <div>
 
-                                <strong>
-                                    {{ membership.user.username }}
-                                </strong>
+                                <a href="{% url 'public_profile' membership.user.username %}" class="cv-member-profile-link">
+                                    <strong>{{ membership.user.username }}</strong>
+                                </a>
 
                                 <small>
 

@@ -623,6 +623,9 @@ def leave_group(request, group_id):
 # ============================================================
 # 7. SEARCH DEVELOPERS FOR INVITATIONS
 # ============================================================
+# ============================================================
+# 7. SEARCH DEVELOPERS FOR INVITATIONS
+# ============================================================
 @login_required
 @require_GET
 def search_group_developers(request, group_id):
@@ -634,6 +637,7 @@ def search_group_developers(request, group_id):
     2. Existing members are excluded.
     3. Developers with pending invitations are excluded.
     4. Searching does not automatically add members.
+    5. Search results include public profile information.
     """
 
     # Find the requested group.
@@ -642,7 +646,7 @@ def search_group_developers(request, group_id):
         id=group_id,
     )
 
-    # Only the owner of a private group can search developers.
+    # Only private-group owners can search developers.
     if not group.is_private or not is_group_owner(
         group,
         request.user,
@@ -652,7 +656,7 @@ def search_group_developers(request, group_id):
             status=403,
         )
 
-    # Get the developer's search text.
+    # Get the search text.
     query = request.GET.get("q", "").strip()
 
     # Require at least two characters.
@@ -661,12 +665,12 @@ def search_group_developers(request, group_id):
 
     User = get_user_model()
 
-    # Find developers who already belong to this group.
+    # Find existing group members.
     existing_members = GroupMember.objects.filter(
         group=group,
     ).values_list("user_id", flat=True)
 
-    # Find developers who already have pending invitations.
+    # Find developers with pending invitations.
     pending_invitees = GroupInvitation.objects.filter(
         group=group,
         status="pending",
@@ -682,22 +686,43 @@ def search_group_developers(request, group_id):
         .exclude(id__in=existing_members)
         .exclude(id__in=pending_invitees)
         .exclude(id=group.owner_id)
+        .select_related("developer_profile")
         .order_by("username")[:10]
     )
 
-    # Prepare results for developer_search.js.
-    results = [
-        {
+    # Prepare public profile information.
+    results = []
+
+    for developer in developers:
+
+        # Get the developer's profile, if one exists.
+        try:
+            profile = developer.developer_profile
+        except User.developer_profile.RelatedObjectDoesNotExist:
+            profile = None
+
+        # Default to no uploaded profile picture.
+        avatar_url = None
+
+        if profile and profile.avatar:
+            avatar_url = profile.avatar.url
+
+        # Build the developer's public profile URL.
+        profile_url = reverse(
+            "public_profile",
+            kwargs={"username": developer.username},
+        )
+
+        results.append({
             "id": developer.id,
             "username": developer.username,
-        }
-        for developer in developers
-    ]
+            "avatar_url": avatar_url,
+            "profile_url": profile_url,
+        })
 
     return JsonResponse({
         "users": results,
     })
-
 
 # ============================================================
 # 8. PRIVATE DEVELOPMENT MEETING ROOM
