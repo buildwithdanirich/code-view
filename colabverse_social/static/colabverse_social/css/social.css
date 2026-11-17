@@ -401,3 +401,358 @@ input:focus-visible {
         width: 100%;
     }
 }
+
+/* =========================================================
+   COLABVERSE — SUPPORT AND REPORTS
+   ========================================================= */
+
+/* ---------------------------------------------------------
+   SHARED PAGE LAYOUT
+   --------------------------------------------------------- */
+
+.support-page,
+.reports-page {
+    width: 100%;
+    max-width: 100%;
+}
+
+.support-page > nav,
+.reports-page > nav {
+    margin-bottom: 1.5rem;
+}
+
+.support-page .developers-header,
+.reports-page .developers-header {
+    margin-bottom: 1.75rem;
+}
+
+.support-page h2,
+.reports-page h2 {
+    color: var(--cv-navy);
+    font-size: 1.25rem;
+}
+
+.support-page h3,
+.reports-page h3 {
+    color: var(--cv-text);
+    font-size: 1rem;
+}
+
+/* ---------------------------------------------------------
+   BACK NAVIGATION
+   --------------------------------------------------------- */
+
+.support-page > nav .developer-profile-link,
+.reports-page > nav .developer-profile-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    margin: 0;
+    padding: 0.6rem 0.9rem;
+
+    background: var(--cv-surface);
+    color: var(--cv-primary);
+
+    border: 1px solid var(--cv-border);
+    border-radius: 8px;
+
+    font-size: 0.9rem;
+    font-weight: 650;
+    text-decoration: none;
+
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease;
+}
+
+.support-page > nav .developer-profile-link:hover,
+.reports-page > nav .developer-profile-link:hover {
+    background: var(--cv-background);
+    border-color: var(--cv-primary);
+}
+
+/* ---------------------------------------------------------
+   SUPPORT TICKET HISTORY
+   --------------------------------------------------------- */
+
+.support-tickets {
+    margin-top: 2rem;
+}
+
+.support-ticket-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.25rem 0;
+}
+
+.support-ticket-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.support-ticket-info h3 {
+    margin: 0 0 0.4rem;
+}
+
+.support-ticket-info h3 a {
+    color: var(--cv-text);
+    text-decoration: none;
+}
+
+.support-ticket-info h3 a:hover {
+    color: var(--cv-primary);
+    text-decoration: underline;
+}
+
+.support-ticket-info p {
+    margin: 0;
+    color: var(--cv-muted);
+    font-size: 0.9rem;
+}
+
+.support-ticket-status {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+}
+
+/* ---------------------------------------------------------
+   SUPPORT STATUS BADGE
+   --------------------------------------------------------- */
+
+.support-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 0.35rem 0.75rem;
+
+    background: #e8efff;
+    color: var(--cv-primary) !important;
+
+    border: 1px solid #cbd9ff;
+    border-radius: 999px;
+
+    font-size: 0.8rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+/* ---------------------------------------------------------
+   SUPPORT TICKET DETAILS
+   --------------------------------------------------------- */
+
+.support-message {
+    padding: 1rem;
+    margin-top: 1rem;
+
+    background: var(--cv-background);
+    border: 1px solid var(--cv-border);
+    border-radius: 10px;
+}
+
+.support-message p {
+    margin: 0;
+    color: var(--cv-text);
+}
+
+.support-reply {
+    padding: 1rem;
+    margin-top: 1rem;
+
+    background: #eef8f1;
+    border: 1px solid #c9e8d3;
+    border-left: 4px solid #238447;
+    border-radius: 10px;
+}
+
+.support-reply p {
+    margin: 0;
+    color: #205333;
+}
+
+/* Waiting for administrator reply */
+
+.support-pending {
+    padding: 1.25rem;
+    margin-top: 1rem;
+
+    background: #fff8e8;
+    border: 1px solid #f0dfb0;
+    border-radius: 10px;
+}
+
+.support-pending h3 {
+    margin-top: 0;
+    color: #795400;
+}
+
+.support-pending p {
+    color: #795400;
+}
+
+/* ---------------------------------------------------------
+   REPORT HISTORY
+   --------------------------------------------------------- */
+
+.reports-history {
+    margin-top: 2rem;
+}
+
+.report-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.25rem 0;
+}
+
+.report-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.report-info h3 {
+    margin: 0 0 0.4rem;
+}
+
+.report-info p {
+    margin: 0.25rem 0;
+    color: var(--cv-muted);
+    font-size: 0.9rem;
+}
+
+.report-info strong {
+    color: var(--cv-text);
+}
+
+/* ---------------------------------------------------------
+   REPORT STATUS BADGE
+   --------------------------------------------------------- */
+
+.report-status {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.report-status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 0.35rem 0.75rem;
+
+    background: #e8efff;
+    color: var(--cv-primary) !important;
+
+    border: 1px solid #cbd9ff;
+    border-radius: 999px;
+
+    font-size: 0.8rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+/* ---------------------------------------------------------
+   SUPPORT AND REPORT FORMS
+   --------------------------------------------------------- */
+
+.support-page .form,
+.reports-page .form {
+    max-width: 100%;
+    width: 100%;
+}
+
+.support-page .form textarea,
+.reports-page .form textarea {
+    min-height: 140px;
+    resize: vertical;
+}
+
+.support-page .form small,
+.reports-page .form small {
+    display: block;
+    color: var(--cv-muted);
+    font-size: 0.85rem;
+}
+
+.support-page .form .heading,
+.reports-page .form .heading {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+
+    border-top: 1px solid var(--cv-border);
+}
+
+.support-page .form .heading .developer-profile-link,
+.reports-page .form .heading .developer-profile-link {
+    margin: 0;
+    padding: 0.65rem 1rem;
+
+    background: var(--cv-background);
+    border: 1px solid var(--cv-border);
+    border-radius: 7px;
+
+    text-decoration: none;
+}
+
+.support-page .form .heading .developer-profile-link:hover,
+.reports-page .form .heading .developer-profile-link:hover {
+    border-color: var(--cv-primary);
+}
+
+/* ---------------------------------------------------------
+   RESPONSIVE SUPPORT AND REPORTS
+   --------------------------------------------------------- */
+
+@media (max-width: 600px) {
+
+    .support-page .developers-header .heading,
+    .reports-page .developers-header .heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .support-page .developers-header .button,
+    .reports-page .developers-header .button {
+        width: 100%;
+        text-align: center;
+    }
+
+    .support-ticket-row,
+    .report-row {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .support-ticket-status {
+        align-items: flex-start;
+        width: 100%;
+    }
+
+    .report-status {
+        justify-content: flex-start;
+        width: 100%;
+    }
+
+    .support-page .form .heading,
+    .reports-page .form .heading {
+        align-items: stretch;
+        flex-direction: column-reverse;
+    }
+
+    .support-page .form .heading button,
+    .reports-page .form .heading button {
+        width: 100%;
+    }
+
+    .support-page .form .heading .developer-profile-link,
+    .reports-page .form .heading .developer-profile-link {
+        text-align: center;
+    }
+}

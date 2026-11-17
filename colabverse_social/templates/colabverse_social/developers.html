@@ -8,17 +8,34 @@ Find Developers · ColabVerse
 
 <section class="developers-page">
 
+    <!-- BACK NAVIGATION -->
+
+    <nav aria-label="Back navigation">
+
+        <a
+            href="{% url 'questions:feed' %}"
+            class="developer-profile-link"
+        >
+            ← Back to Home
+        </a>
+
+    </nav>
+
     <!-- PAGE HEADER -->
+
     <header class="developers-header">
+
         <h1>Find Developers</h1>
 
         <p>
             Discover developers, explore their profiles,
             and connect with people in the ColabVerse community.
         </p>
+
     </header>
 
     <!-- SEARCH FORM -->
+
     <form method="get" class="search developers-search">
 
         <label for="developer-search">
@@ -45,6 +62,7 @@ Find Developers · ColabVerse
     </form>
 
     <!-- SEARCH RESULTS -->
+
     <section
         class="developers-results"
         aria-label="Developer search results"
@@ -57,6 +75,7 @@ Find Developers · ColabVerse
                 <article class="row developer-result">
 
                     <!-- PROFILE PICTURE -->
+
                     <a
                         href="{% url 'public_profile' developer.get_username %}"
                         class="developer-avatar-link"
@@ -66,7 +85,7 @@ Find Developers · ColabVerse
                         {% if developer.developer_profile.avatar %}
 
                             <img
-                                src="{{ developer.developerprofile.avatar.url }}"
+                                src="{{ developer.developer_profile.avatar.url }}"
                                 alt="{{ developer.get_username }}'s profile picture"
                                 class="developer-avatar"
                                 loading="lazy"
@@ -86,6 +105,7 @@ Find Developers · ColabVerse
                     </a>
 
                     <!-- DEVELOPER INFORMATION -->
+
                     <div class="developer-info">
 
                         <h2 class="developer-name">
@@ -102,10 +122,10 @@ Find Developers · ColabVerse
                             @{{ developer.get_username }}
                         </p>
 
-                        {% if developer.developerprofile.title %}
+                        {% if developer.developer_profile.title %}
 
                             <p class="developer-title">
-                                {{ developer.developerprofile.title }}
+                                {{ developer.developer_profile.title }}
                             </p>
 
                         {% endif %}
@@ -120,57 +140,65 @@ Find Developers · ColabVerse
                     </div>
 
                     <!-- FOLLOW / UNFOLLOW -->
+
                     <div class="developer-actions">
 
-                       <!-- Follow / Unfollow form -->
-<form
-    method="post"
-    action="{% url 'colabverse_social:follow_toggle' profile.user.id %}"
-    class="cv-profile-follow-form"
->
+                        {% if developer.pk != request.user.pk %}
 
-    {% csrf_token %}
+                            <form
+                                method="post"
+                                action="{% url 'colabverse_social:follow_toggle' developer.pk %}"
+                            >
 
-    <!-- Return to this profile after following or unfollowing -->
-    <input
-        type="hidden"
-        name="next"
-        value="{{ request.get_full_path }}"
-    >
+                                {% csrf_token %}
 
-    {% if is_following %}
+                                <!-- Return to search results -->
 
-        <input
-            type="hidden"
-            name="action"
-            value="unfollow"
-        >
+                                <input
+                                    type="hidden"
+                                    name="next"
+                                    value="{{ request.get_full_path }}"
+                                >
 
-        <button
-            type="submit"
-            class="cv-primary cv-edit-profile"
-        >
-            Following ✓
-        </button>
+                                {% if developer.pk in following_ids %}
 
-    {% else %}
+                                    <!-- ALREADY FOLLOWING -->
 
-        <input
-            type="hidden"
-            name="action"
-            value="follow"
-        >
+                                    <input
+                                        type="hidden"
+                                        name="action"
+                                        value="unfollow"
+                                    >
 
-        <button
-            type="submit"
-            class="cv-primary cv-edit-profile"
-        >
-            + Follow
-        </button>
+                                    <button
+                                        type="submit"
+                                        class="developer-follow-button developer-following-button"
+                                    >
+                                        Following ✓
+                                    </button>
 
-    {% endif %}
+                                {% else %}
 
-</form>
+                                    <!-- NOT FOLLOWING -->
+
+                                    <input
+                                        type="hidden"
+                                        name="action"
+                                        value="follow"
+                                    >
+
+                                    <button
+                                        type="submit"
+                                        class="developer-follow-button"
+                                    >
+                                        + Follow
+                                    </button>
+
+                                {% endif %}
+
+                            </form>
+
+                        {% endif %}
 
                     </div>
 
@@ -179,6 +207,7 @@ Find Developers · ColabVerse
             {% empty %}
 
                 <!-- EMPTY STATE -->
+
                 <div class="developers-empty">
 
                     <h2>No developers found</h2>
@@ -213,6 +242,7 @@ Find Developers · ColabVerse
     </section>
 
     <!-- PAGINATION -->
+
     {% include 'colabverse_social/pagination.html' %}
 
 </section>

@@ -1,9 +1,172 @@
 {% extends 'colabverse_social/base.html' %}
-{% block title %}Support Ticket · ColabVerse{% endblock %}
+
+{% block title %}
+    Support Ticket · ColabVerse
+{% endblock %}
+
 {% block content %}
-<a href="{% url 'colabverse_social:support_home' %}">← My tickets</a>
-<h1>{{ ticket.subject }}</h1>
-<p>Status: <strong>{{ ticket.get_status_display }}</strong> · Submitted {{ ticket.created_at|date:'M d, Y H:i' }}</p>
-<section class="card"><h2>Your message</h2><p class="preserve">{{ ticket.message }}</p></section>
-<section class="card"><h2>Support reply</h2>{% if ticket.admin_reply %}<p class="preserve">{{ ticket.admin_reply }}</p>{% else %}<p>Our team hasn't replied yet.</p>{% endif %}</section>
+
+<section class="support-page">
+
+    <!-- ============================================== -->
+    <!-- BACK NAVIGATION -->
+    <!-- ============================================== -->
+
+    <nav aria-label="Back navigation">
+
+        <a
+            href="{% url 'colabverse_social:support_home' %}"
+            class="developer-profile-link"
+        >
+            ← Back to Help &amp; Support
+        </a>
+
+    </nav>
+
+    <!-- ============================================== -->
+    <!-- TICKET HEADER -->
+    <!-- ============================================== -->
+
+    <header class="developers-header">
+
+        <h1>{{ ticket.subject }}</h1>
+
+        <p>
+            View your support request and any
+            responses from the ColabVerse support team.
+        </p>
+
+    </header>
+
+    <!-- ============================================== -->
+    <!-- TICKET INFORMATION -->
+    <!-- ============================================== -->
+
+    <section
+        class="card"
+        aria-labelledby="ticket-information-heading"
+    >
+
+        <h2 id="ticket-information-heading">
+            Ticket Information
+        </h2>
+
+        <div class="row">
+
+            <strong>Status</strong>
+
+            <span class="support-status">
+                {{ ticket.get_status_display }}
+            </span>
+
+        </div>
+
+        <div class="row">
+
+            <strong>Submitted</strong>
+
+            <span>
+                {{ ticket.created_at|date:"M d, Y H:i" }}
+            </span>
+
+        </div>
+
+    </section>
+
+    <!-- ============================================== -->
+    <!-- DEVELOPER MESSAGE -->
+    <!-- ============================================== -->
+
+    <section
+        class="card"
+        aria-labelledby="ticket-message-heading"
+    >
+
+        <h2 id="ticket-message-heading">
+            Your Message
+        </h2>
+
+        <p>
+            This is the message you submitted
+            to the ColabVerse support team.
+        </p>
+
+        <div class="support-message">
+
+            <p class="preserve">
+                {{ ticket.message }}
+            </p>
+
+        </div>
+
+    </section>
+
+    <!-- ============================================== -->
+    <!-- ADMINISTRATOR RESPONSE -->
+    <!-- ============================================== -->
+
+    <section
+        class="card"
+        aria-labelledby="support-reply-heading"
+    >
+
+        <h2 id="support-reply-heading">
+            Support Team Response
+        </h2>
+
+        {% if ticket.admin_reply %}
+
+            <!-- ADMINISTRATOR HAS REPLIED -->
+
+            <div class="support-reply">
+
+                <p class="preserve">
+                    {{ ticket.admin_reply }}
+                </p>
+
+            </div>
+
+        {% else %}
+
+            <!-- WAITING FOR ADMINISTRATOR RESPONSE -->
+
+            <div class="support-pending">
+
+                <h3>
+                    Awaiting Support Response
+                </h3>
+
+                <p>
+                    Our support team hasn't replied
+                    to your request yet.
+                </p>
+
+                <p>
+                    You can return to this page later
+                    to check for a response.
+                </p>
+
+            </div>
+
+        {% endif %}
+
+    </section>
+
+    <!-- ============================================== -->
+    <!-- PAGE ACTIONS -->
+    <!-- ============================================== -->
+
+    <div class="heading">
+
+        <a
+            href="{% url 'colabverse_social:support_home' %}"
+            class="button"
+        >
+            ← Back to My Tickets
+        </a>
+
+    </div>
+
+</section>
+
 {% endblock %}

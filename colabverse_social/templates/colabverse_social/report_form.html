@@ -1,11 +1,130 @@
 {% extends 'colabverse_social/base.html' %}
-{% block title %}Submit a Report · ColabVerse{% endblock %}
+
+{% block title %}
+    Submit a Report · ColabVerse
+{% endblock %}
+
 {% block content %}
-<h1>Report content or a group</h1>
-<p>Choose what you're reporting, enter its ID, and explain your concern. Reports are reviewed by administrators.</p>
-<form method="post" class="card form">{% csrf_token %}
-    {{ form.non_field_errors }}
-    {% for field in form %}<label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}{% endfor %}
-    <button type="submit">Submit report</button>
-</form>
+
+<section class="reports-page">
+
+    <!-- BACK NAVIGATION -->
+
+    <nav aria-label="Back navigation">
+
+        <a
+            href="{% url 'colabverse_social:report_history' %}"
+            class="developer-profile-link"
+        >
+            ← Back to My Reports
+        </a>
+
+    </nav>
+
+    <!-- PAGE HEADER -->
+
+    <header class="developers-header">
+
+        <h1>Submit a Report</h1>
+
+        <p>
+            Help keep ColabVerse safe by reporting
+            inappropriate content, harmful behavior,
+            or violations of our community guidelines.
+        </p>
+
+    </header>
+
+    <!-- REPORT INFORMATION -->
+
+    <section
+        class="card"
+        aria-labelledby="report-instructions-heading"
+    >
+
+        <h2 id="report-instructions-heading">
+            Before You Submit
+        </h2>
+
+        <p>
+            Select the type of content or group
+            you want to report.
+        </p>
+
+        <p>
+            Enter the correct content ID and explain
+            why you're submitting the report.
+        </p>
+
+        <p>
+            Reports are reviewed by ColabVerse
+            administrators.
+        </p>
+
+    </section>
+
+    <!-- REPORT FORM -->
+
+    <section
+        class="card"
+        aria-labelledby="report-form-heading"
+    >
+
+        <h2 id="report-form-heading">
+            Report Details
+        </h2>
+
+        <form method="post" class="form">
+
+            {% csrf_token %}
+
+            <!-- GENERAL FORM ERRORS -->
+
+            {{ form.non_field_errors }}
+
+            <!-- FORM FIELDS -->
+
+            {% for field in form %}
+
+                <label for="{{ field.id_for_label }}">
+                    {{ field.label }}
+                </label>
+
+                {{ field }}
+
+                {% if field.help_text %}
+
+                    <small>
+                        {{ field.help_text }}
+                    </small>
+
+                {% endif %}
+
+                {{ field.errors }}
+
+            {% endfor %}
+
+            <!-- FORM ACTIONS -->
+
+            <div class="heading">
+
+                <a
+                    href="{% url 'colabverse_social:report_history' %}"
+                    class="developer-profile-link"
+                >
+                    ← Cancel
+                </a>
+
+                <button type="submit">
+                    Submit Report
+                </button>
+
+            </div>
+
+        </form>
+
+    </section>
+
+</section>
+
 {% endblock %}

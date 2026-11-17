@@ -1,10 +1,130 @@
 {% extends 'colabverse_social/base.html' %}
-{% block title %}New Support Ticket · ColabVerse{% endblock %}
+
+{% block title %}
+    New Support Ticket · ColabVerse
+{% endblock %}
+
 {% block content %}
-<h1>Contact support</h1>
-<form method="post" class="card form">{% csrf_token %}
-    {{ form.non_field_errors }}
-    {% for field in form %}<label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}{% endfor %}
-    <button type="submit">Submit ticket</button>
-</form>
+
+<section class="support-page">
+
+    <!-- BACK NAVIGATION -->
+
+    <nav aria-label="Back navigation">
+
+        <a
+            href="{% url 'colabverse_social:support_home' %}"
+            class="developer-profile-link"
+        >
+            ← Back to Help &amp; Support
+        </a>
+
+    </nav>
+
+    <!-- PAGE HEADER -->
+
+    <header class="developers-header">
+
+        <h1>Contact Support</h1>
+
+        <p>
+            Experiencing an issue with ColabVerse?
+            Submit a support ticket and our team
+            can review your request.
+        </p>
+
+    </header>
+
+    <!-- SUPPORT INFORMATION -->
+
+    <section
+        class="card"
+        aria-labelledby="support-instructions-heading"
+    >
+
+        <h2 id="support-instructions-heading">
+            Before You Submit
+        </h2>
+
+        <p>
+            Describe the problem you're experiencing
+            as clearly as possible.
+        </p>
+
+        <p>
+            Include any relevant details that could
+            help our support team understand the issue.
+        </p>
+
+        <p>
+            After submitting your ticket, you can
+            track its status from the Help &amp; Support page.
+        </p>
+
+    </section>
+
+    <!-- SUPPORT TICKET FORM -->
+
+    <section
+        class="card"
+        aria-labelledby="support-form-heading"
+    >
+
+        <h2 id="support-form-heading">
+            Support Request Details
+        </h2>
+
+        <form method="post" class="form">
+
+            {% csrf_token %}
+
+            <!-- GENERAL FORM ERRORS -->
+
+            {{ form.non_field_errors }}
+
+            <!-- FORM FIELDS -->
+
+            {% for field in form %}
+
+                <label for="{{ field.id_for_label }}">
+                    {{ field.label }}
+                </label>
+
+                {{ field }}
+
+                {% if field.help_text %}
+
+                    <small>
+                        {{ field.help_text }}
+                    </small>
+
+                {% endif %}
+
+                {{ field.errors }}
+
+            {% endfor %}
+
+            <!-- FORM ACTIONS -->
+
+            <div class="heading">
+
+                <a
+                    href="{% url 'colabverse_social:support_home' %}"
+                    class="developer-profile-link"
+                >
+                    ← Cancel
+                </a>
+
+                <button type="submit">
+                    Submit Support Ticket
+                </button>
+
+            </div>
+
+        </form>
+
+    </section>
+
+</section>
+
 {% endblock %}

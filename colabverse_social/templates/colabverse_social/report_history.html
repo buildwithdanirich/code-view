@@ -1,9 +1,181 @@
+
 {% extends 'colabverse_social/base.html' %}
-{% block title %}My Reports · ColabVerse{% endblock %}
+
+{% block title %}
+    My Reports · ColabVerse
+{% endblock %}
+
 {% block content %}
-<div class="heading"><h1>My reports</h1><a class="button" href="{% url 'colabverse_social:report_create' %}">New report</a></div>
-<div class="card">{% for report in page %}
-    <div class="row"><span>{{ report.get_kind_display }} #{{ report.object_id }}</span><span>{{ report.get_status_display }} · {{ report.created_at|date:'M d, Y' }}</span></div>
-{% empty %}<p>You haven't submitted any reports.</p>{% endfor %}</div>
-{% include 'colabverse_social/pagination.html' %}
+
+<section class="reports-page">
+
+    <nav aria-label="Back navigation">
+    <a
+        href="{% url 'questions:feed' %}"
+        class="developer-profile-link"
+    >
+        ← Back to Home
+    </a>
+    </nav>
+    <!-- ============================================== -->
+    <!-- PAGE HEADER -->
+    <!-- ============================================== -->
+
+    <header class="developers-header">
+
+        <div class="heading">
+
+            <div>
+                <h1>My Reports</h1>
+
+                <p>
+                    Help keep ColabVerse safe by reporting
+                    content that violates our community guidelines.
+                </p>
+            </div>
+
+            <a
+                href="{% url 'colabverse_social:report_create' %}"
+                class="button"
+            >
+                + Submit New Report
+            </a>
+
+        </div>
+
+    </header>
+
+    <!-- ============================================== -->
+    <!-- REPORTING INFORMATION -->
+    <!-- ============================================== -->
+
+    <section
+        class="card"
+        aria-labelledby="report-info-heading"
+    >
+
+        <h2 id="report-info-heading">
+            How Reporting Works
+        </h2>
+
+        <p>
+            If you discover inappropriate content,
+            harmful behavior, or violations of our
+            community guidelines, you can submit a report.
+        </p>
+
+        <p>
+            ColabVerse administrators will review submitted
+            reports and determine whether action is necessary.
+        </p>
+
+        <p>
+            You can track the status of your submitted
+            reports below.
+        </p>
+
+    </section>
+
+    <!-- ============================================== -->
+    <!-- MY SUBMITTED REPORTS -->
+    <!-- ============================================== -->
+
+    <section
+        class="reports-history"
+        aria-labelledby="reports-history-heading"
+    >
+
+        <div class="heading">
+
+            <div>
+                <h2 id="reports-history-heading">
+                    Submitted Reports
+                </h2>
+
+                <p>
+                    Review the content you've reported
+                    and its current review status.
+                </p>
+            </div>
+
+        </div>
+
+        <div class="card">
+
+            {% for report in page %}
+
+                <!-- INDIVIDUAL REPORT -->
+                <article class="row report-row">
+
+                    <div class="report-info">
+
+                        <h3>
+                            {{ report.get_kind_display }}
+                        </h3>
+
+                        <p>
+                            Content ID:
+                            <strong>#{{ report.object_id }}</strong>
+                        </p>
+
+                        <p>
+                            Submitted on
+                            {{ report.created_at|date:"M d, Y" }}
+                        </p>
+
+                    </div>
+
+                    <!-- REPORT STATUS -->
+                    <div class="report-status">
+
+                        <span class="report-status-badge">
+                            {{ report.get_status_display }}
+                        </span>
+
+                    </div>
+
+                </article>
+
+            {% empty %}
+
+                <!-- EMPTY STATE -->
+                <div class="developers-empty">
+
+                    <h2>
+                        No Reports Submitted
+                    </h2>
+
+                    <p>
+                        You haven't submitted any reports yet.
+                    </p>
+
+                    <p>
+                        If you encounter content that violates
+                        our community guidelines, you can
+                        submit a report for review.
+                    </p>
+
+                    <a
+                        href="{% url 'colabverse_social:report_create' %}"
+                        class="button"
+                    >
+                        Submit Your First Report
+                    </a>
+
+                </div>
+
+            {% endfor %}
+
+        </div>
+
+    </section>
+
+    <!-- ============================================== -->
+    <!-- PAGINATION -->
+    <!-- ============================================== -->
+
+    {% include 'colabverse_social/pagination.html' %}
+
+</section>
+
 {% endblock %}

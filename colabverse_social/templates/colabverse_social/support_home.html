@@ -1,12 +1,183 @@
 {% extends 'colabverse_social/base.html' %}
-{% block title %}Help &amp; Support · ColabVerse{% endblock %}
+
+{% block title %}
+    Help &amp; Support · ColabVerse
+{% endblock %}
+
 {% block content %}
-<div class="heading"><h1>Help &amp; Support</h1><a class="button" href="{% url 'colabverse_social:ticket_create' %}">New support ticket</a></div>
-<p>See the status of your requests and any replies from our team.</p>
-<div class="card">
-{% for ticket in page %}
-    <div class="row"><a href="{% url 'colabverse_social:ticket_detail' ticket.pk %}">{{ ticket.subject }}</a><span>{{ ticket.get_status_display }} · {{ ticket.created_at|date:'M d, Y' }}</span></div>
-{% empty %}<p>You haven't created any tickets yet.</p>{% endfor %}
-</div>
-{% include 'colabverse_social/pagination.html' %}
+
+<section class="support-page">
+
+    <nav aria-label="Back navigation">
+    <a
+        href="{% url 'questions:feed' %}"
+        class="developer-profile-link"
+    >
+        ← Back to Home
+    </a>
+    </nav>
+    <!-- ============================================== -->
+    <!-- PAGE HEADER -->
+    <!-- ============================================== -->
+
+    <header class="developers-header">
+
+        <div class="heading">
+
+            <div>
+                <h1>Help &amp; Support</h1>
+
+                <p>
+                    Need assistance with ColabVerse?
+                    Submit a support request and track
+                    responses from our team.
+                </p>
+            </div>
+
+            <a
+                href="{% url 'colabverse_social:ticket_create' %}"
+                class="button"
+            >
+                + New Support Ticket
+            </a>
+
+        </div>
+
+    </header>
+
+    <!-- ============================================== -->
+    <!-- SUPPORT INFORMATION -->
+    <!-- ============================================== -->
+
+    <section
+        class="card"
+        aria-labelledby="support-info-heading"
+    >
+
+        <h2 id="support-info-heading">
+            How Support Works
+        </h2>
+
+        <p>
+            If you're experiencing a problem with your
+            account, developer profile, groups, or other
+            ColabVerse features, you can contact our
+            support team.
+        </p>
+
+        <p>
+            After submitting a ticket, you can return
+            here to check its status and read any
+            responses from our administrators.
+        </p>
+
+    </section>
+
+    <!-- ============================================== -->
+    <!-- SUPPORT TICKETS -->
+    <!-- ============================================== -->
+
+    <section
+        class="support-tickets"
+        aria-labelledby="support-tickets-heading"
+    >
+
+        <div class="heading">
+
+            <div>
+                <h2 id="support-tickets-heading">
+                    My Support Tickets
+                </h2>
+
+                <p>
+                    View your previous support requests
+                    and their current status.
+                </p>
+            </div>
+
+        </div>
+
+        <div class="card">
+
+            {% for ticket in page %}
+
+                <!-- INDIVIDUAL SUPPORT TICKET -->
+                <article class="row support-ticket-row">
+
+                    <div class="support-ticket-info">
+
+                        <h3>
+
+                            <a
+                                href="{% url 'colabverse_social:ticket_detail' ticket.pk %}"
+                            >
+                                {{ ticket.subject }}
+                            </a>
+
+                        </h3>
+
+                        <p>
+                            Submitted on
+                            {{ ticket.created_at|date:"M d, Y" }}
+                        </p>
+
+                    </div>
+
+                    <!-- TICKET STATUS -->
+                    <div class="support-ticket-status">
+
+                        <span class="support-status">
+
+                            {{ ticket.get_status_display }}
+
+                        </span>
+
+                        <a
+                            href="{% url 'colabverse_social:ticket_detail' ticket.pk %}"
+                            class="developer-profile-link"
+                        >
+                            View Ticket →
+                        </a>
+
+                    </div>
+
+                </article>
+
+            {% empty %}
+
+                <!-- EMPTY STATE -->
+                <div class="developers-empty">
+
+                    <h2>
+                        No Support Tickets Yet
+                    </h2>
+
+                    <p>
+                        You haven't submitted any support
+                        requests yet.
+                    </p>
+
+                    <a
+                        href="{% url 'colabverse_social:ticket_create' %}"
+                        class="button"
+                    >
+                        Create Your First Ticket
+                    </a>
+
+                </div>
+
+            {% endfor %}
+
+        </div>
+
+    </section>
+
+    <!-- ============================================== -->
+    <!-- PAGINATION -->
+    <!-- ============================================== -->
+
+    {% include 'colabverse_social/pagination.html' %}
+
+</section>
+
 {% endblock %}
