@@ -1,127 +1,165 @@
 """
-Permission helpers for CodeView groups.
+Permission helpers for ColabVerse private development groups.
 
-Group rules:
+Security rules:
 
-1. Public groups:
-   - Registered developers can view them.
-   - Developers can join freely.
-
-2. Private development groups:
-   - Only accepted members can access them.
-   - Only the owner can invite developers.
-   - Only the owner can remove members.
-   - Development features are private-group only.
-
-3. Group ownership:
-   - The owner has management permissions.
-   - Ordinary members cannot manage membership.
+1. Every ColabVerse group is private.
+2. Only the group owner and accepted members can access a group.
+3. Pending invitations do not grant access.
+4. Only the group owner can invite or remove members.
+5. Only the group owner has administrative permissions.
+6. Development features require authorized group membership.
 """
 
+
+# ============================================================
+# 1. GROUP OWNERSHIP
+# ============================================================
 
 def is_group_owner(group, user):
     """
     Check whether the developer owns the group.
 
-    Returns True if the user is the owner.
-    Otherwise, returns False.
+    Returns True only when:
+        - The developer is authenticated.
+        - The developer owns the group.
+        - The group is private.
     """
 
     if not user.is_authenticated:
         return False
 
-    return group.owner_id == user.id
+    if not group.is_private:
+        return False
 
+    return group.owner_id == user.pk
+
+
+# ============================================================
+# 2. GROUP MEMBERSHIP
+# ============================================================
 
 def is_group_member(group, user):
     """
-    Check whether the developer belongs to the group.
+    Check whether a developer belongs to a private group.
 
-    The group owner is always considered a member.
-    Other developers must have a GroupMember record.
+    The owner automatically has membership permissions.
+
+    Other developers must have an existing GroupMember record.
+
+    Pending invitations do not count as membership.
     """
 
     if not user.is_authenticated:
         return False
 
+    # Reject access to non-private groups.
+    if not group.is_private:
+        return False
+
+    # The group owner always has access.
     if is_group_owner(group, user):
         return True
 
-    # Import here to avoid unnecessary circular imports.
+    # Import locally to avoid circular imports.
     from .models import GroupMember
 
+    # Only accepted/current members have GroupMember records.
     return GroupMember.objects.filter(
-        group=group,
-        user=user,
+        group_id=group.pk,
+        user_id=user.pk,
     ).exists()
 
 
+# ============================================================
+# 3. GROUP ADMINISTRATION
+# ============================================================
+
 def is_group_admin(group, user):
     """
-    Compatibility helper for older CodeView code.
+    Compatibility helper for existing CodeView functionality.
 
-    CodeView no longer supports secondary group admins.
+    Only the group owner has administrative permissions.
 
-    Only the owner has administrative permissions.
+    Ordinary members cannot manage the group.
     """
 
     return is_group_owner(group, user)
 
+
+# ============================================================
+# 4. GROUP VISIBILITY
+# ============================================================
 
 def can_view_group(group, user):
     """
-    Check whether a developer can view a group.
+    Check whether a developer can access a private group.
 
-    Public groups:
-        Any authenticated developer can view them.
+    Allowed:
+        - Group owner.
+        - Accepted group members.
 
-    Private groups:
-        Only accepted members and the owner can view them.
+    Denied:
+        - Anonymous visitors.
+        - Developers outside the group.
+        - Developers with pending invitations.
+        - Developers removed from the group.
+        - Non-private groups.
     """
 
-    if not user.is_authenticated:
+    # All groups must be private.
+    if not group.is_private:
         return False
 
-    if not group.is_private:
-        return True
-
+    # Membership verification includes the group owner.
     return is_group_member(group, user)
 
 
+# ============================================================
+# 5. MEMBERSHIP MANAGEMENT
+# ============================================================
+
 def can_manage_group_members(group, user):
     """
-    Only the group owner can remove members
-    or manage membership.
+    Only the private group owner can manage membership.
+
+    Examples:
+        - Remove members.
+        - Manage membership permissions.
     """
 
     return is_group_owner(group, user)
 
+
+# ============================================================
+# 6. GROUP INVITATIONS
+# ============================================================
 
 def can_invite_group_members(group, user):
     """
-    Only private development group owners
-    can send invitations.
-    """
+    Only the private group owner can invite developers.
 
-    if not group.is_private:
-        return False
+    Ordinary members cannot send group invitations.
+    """
 
     return is_group_owner(group, user)
 
 
+# ============================================================
+# 7. DEVELOPMENT FEATURES
+# ============================================================
+
 def can_use_development_features(group, user):
     """
-    Check whether the developer can access features
-    reserved for private development groups.
+    Check whether a developer can access development features.
 
     Examples:
-    - GitHub repository integration
-    - Meeting rooms
-    - Screen sharing
-    - Whiteboard
-    """
+        - GitHub repository integration.
+        - Meeting rooms.
+        - Screen sharing.
+        - Collaborative whiteboard.
 
-    if not group.is_private:
-        return False
+    Only the group owner and accepted members are allowed.
+    """
 
     return is_group_member(group, user)

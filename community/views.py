@@ -1349,7 +1349,6 @@ def delete_group_message(request, group_id, message_id):
 # ============================================================
 # 13. CONNECT GITHUB REPOSITORY
 # ============================================================
-
 @login_required
 @require_POST
 def connect_group_repository(request, group_id):
@@ -1543,7 +1542,7 @@ def connect_group_repository(request, group_id):
                 .first()
             )
 
-            # IMPORTANT: Reject before saving anything.
+            # Reject before saving anything.
             if approval is None:
                 return HttpResponseForbidden(
                     "Your repository approval is no longer valid."
@@ -1571,34 +1570,26 @@ def connect_group_repository(request, group_id):
                 status="used",
                 used_at=timezone.now(),
             )
-                # Notify group members only after the database commits.
-        repository_group_id = locked_group.id
 
-        transaction.on_commit(
-            lambda: broadcast_repository_update(
-                repository_group_id
-            )
-        )
-                    # ====================================================
+        # ====================================================
         # 11. NOTIFY GROUP MEMBERS AFTER A SUCCESSFUL COMMIT
         # ====================================================
 
-        # Capture the group ID before registering the callback.
+        # Capture the group ID.
         repository_group_id = locked_group.id
 
-        # Prepare a minimal event without GitHub credentials.
-        repository_event = {
-            "type": "repository_updated",
-            "group_id": repository_group_id,
-        }
-
-        # Notify connected developers only after PostgreSQL
-        # successfully commits the repository connection.
+        # Register exactly ONE repository-update callback.
+        #
+        # transaction.on_commit() ensures the event is sent
+        # only after PostgreSQL successfully commits.
+        #
+        # The default argument captures the correct group ID.
+        #
+        # The helper broadcasts the update through Django
+        # Channels without exposing GitHub credentials.
         transaction.on_commit(
-            lambda: broadcast_group_event(
-                f"group_repository_updates_{repository_group_id}",
-                "repository.updated",
-                repository_event,
+            lambda group_id=repository_group_id: broadcast_repository_update(
+                group_id
             )
         )
 

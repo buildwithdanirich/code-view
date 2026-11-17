@@ -1,88 +1,50 @@
+{% extends "questions/base.html" %}
 {% load static %}
 
-<!DOCTYPE html>
-<html lang="en">
+{% block title %}My Invitations{% endblock %}
 
-<head>
-    <meta charset="UTF-8">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+{% block extra_css %}
 
-    <title>My Invitations | CodeView</title>
-
-    <!-- Shared CodeView styling. -->
+    <!-- Shared community styles. -->
     <link
         rel="stylesheet"
         href="{% static 'community/sheared.css' %}"
     >
 
-    <!-- Invitation page styling. -->
+    <!-- Received invitations page styles. -->
     <link
         rel="stylesheet"
         href="{% static 'community/invitations/received_invitations.css' %}"
     >
 
-</head>
+{% endblock %}
 
-<body>
 
-    <!-- =====================================================
-         1. TOP NAVIGATION
-    ====================================================== -->
+{% block extra_js %}
 
-    <header class="navbar">
+    <!-- Invitation confirmation modal behavior. -->
+    <script
+        src="{% static 'community/invitations/received_invitations.js' %}"
+        defer
+    ></script>
 
-        <a href="{% url 'groups' %}" class="brand">
-            &lt;/&gt; CodeView
-        </a>
+{% endblock %}
 
-        <nav class="top-links">
 
-            <a href="{% url 'groups' %}">
-                Groups
-            </a>
-
-            <a href="{% url 'create_group' %}">
-                Create Group
-            </a>
-
-            <a
-                href="{% url 'received_group_invitations' %}"
-                class="active"
-                aria-current="page"
-            >
-                My Invitations
-            </a>
-
-        </nav>
-
-        <div class="profile">
-
-            <span class="avatar">
-                {{ request.user.username|first|upper }}
-            </span>
-
-            <span>
-                {{ request.user.username }}
-            </span>
-
-        </div>
-
-    </header>
-
+{% block content %}
 
     <!-- =====================================================
-         2. MAIN CONTENT
-    ====================================================== -->
+         1. INVITATIONS PAGE
+         ===================================================== -->
 
-    <main class="invitations-page">
+    <div class="invitations-page">
 
         <div class="invitations-container">
 
-            <!-- Page heading. -->
+            <!-- =================================================
+                 2. PAGE HEADING
+                 ================================================= -->
 
             <header class="invitations-heading">
 
@@ -111,7 +73,7 @@
 
             <!-- =================================================
                  3. DJANGO NOTIFICATIONS
-            ================================================== -->
+                 ================================================= -->
 
             {% if messages %}
 
@@ -138,7 +100,7 @@
 
             <!-- =================================================
                  4. PENDING INVITATIONS
-            ================================================== -->
+                 ================================================= -->
 
             <section class="invitations-section">
 
@@ -213,17 +175,17 @@
 
                         <!-- =================================================
                              5. ACCEPT OR DECLINE
-                        ================================================== -->
+                             ================================================= -->
 
                         <div class="invitation-actions">
 
                             <!--
-                                The form remains a normal Django POST form.
+                                Both actions remain normal Django POST forms.
 
-                                JavaScript will intercept its submission
-                                to display the custom confirmation modal.
+                                JavaScript displays the confirmation modal
+                                before submitting the selected form.
 
-                                If JavaScript is unavailable, the form
+                                If JavaScript is unavailable, the forms
                                 can still submit normally.
                             -->
 
@@ -304,7 +266,7 @@
                             href="{% url 'groups' %}"
                             class="browse-groups-button"
                         >
-                            Browse Groups
+                            My Groups
                         </a>
 
                     </div>
@@ -315,8 +277,8 @@
 
 
             <!-- =================================================
-                 6. INFORMATION
-            ================================================== -->
+                 6. INFORMATION SECTION
+                 ================================================= -->
 
             <section class="invitations-info">
 
@@ -338,19 +300,19 @@
 
                 <p>
                     Private development groups support a maximum
-                    of 15 members, including the owner.
+                    of 10 members, including the owner.
                 </p>
 
             </section>
 
         </div>
 
-    </main>
+    </div>
 
 
     <!-- =====================================================
          7. CUSTOM CONFIRMATION MODAL
-    ====================================================== -->
+         ===================================================== -->
 
     <!--
         This modal replaces the browser's window.confirm().
@@ -455,17 +417,4 @@
 
     </div>
 
-
-    <!-- =====================================================
-         8. EXTERNAL JAVASCRIPT
-    ====================================================== -->
-
-    <!-- All JavaScript stays in its separate file. -->
-
-    <script
-        src="{% static 'community/invitations/received_invitations.js' %}"
-        defer
-    ></script>
-
-</body>
-</html>
+{% endblock %}

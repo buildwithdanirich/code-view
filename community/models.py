@@ -36,33 +36,46 @@ class ProjectGroup(models.Model):
         editable=False,
     )
 
-    # False = normal chat group.
-    # True = private development group.
-    is_private = models.BooleanField(default=False)
+    # Every ColabVerse group is private.
+    is_private = models.BooleanField(default=True)
 
     # Existing join policies are retained for migration compatibility.
     join_policy = models.CharField(
         max_length=10,
         choices=JOIN_POLICY_CHOICES,
-        default="open",
+        default="invite",
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["-created_at"]
+def clean(self):
+    """
+    Enforce private, invitation-only ColabVerse groups.
 
-    def clean(self):
-        """Prevent unrestricted joining of private groups."""
-        super().clean()
+    Every group must:
+        1. Be private.
+        2. Require an invitation to join.
+    """
 
-        if self.is_private and self.join_policy == "open":
-            raise ValidationError({
-                "join_policy": (
-                    "Private development groups must require "
-                    "an invitation or approval."
-                )
-            })
+    super().clean()
+
+    # Reject attempts to create public groups.
+    if not self.is_private:
+        raise ValidationError({
+            "is_private": (
+                "All ColabVerse groups must be private."
+            )
+        })
+
+    # Reject open joining or membership requests.
+    if self.join_policy != "invite":
+        raise ValidationError({
+            "join_policy": (
+                "ColabVerse groups are invitation-only."
+            )
+        })
 
     def save(self, *args, **kwargs):
         """Validate group settings before saving."""

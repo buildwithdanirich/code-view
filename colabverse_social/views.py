@@ -137,26 +137,21 @@ def valid_report_target(kind, object_id):
 
 def get_report_target(kind, object_id, user):
     """
-    Find the content being reported and verify access.
+    Find content and verify that the developer may report it.
 
-    Questions:
-        The question must exist.
+    Security rules:
+        1. The content must exist.
+        2. The developer cannot report their own content.
+        3. Private groups require membership.
+        4. Comments must belong to an existing question.
 
-    Comments:
-        The comment and its parent question must exist.
-
-    Groups:
-        The developer must be allowed to view the group.
-
-    Return the target object if accessible.
-
-    Raise Http404 if the content is unavailable or
-    the developer does not have permission to view it.
+    Raise Http404 when reporting is not permitted.
     """
 
+    # Find the Django model associated with the content type.
     label = REPORT_TARGETS.get(kind)
 
-    # Reject unsupported reporting categories.
+    # Reject unsupported content types.
     if label is None:
         raise Http404("Unsupported report type.")
 
@@ -166,118 +161,132 @@ def get_report_target(kind, object_id, user):
     except LookupError:
         raise Http404("Reporting target is unavailable.")
 
-    # Find the selected content.
+    # Retrieve the content being reported.
     target = get_object_or_404(
         model._default_manager,
         pk=object_id,
     )
 
-    # -----------------------------------------------------
-    # GROUP ACCESS CHECK
-    # -----------------------------------------------------
+    # =====================================================
+    # GROUP REPORTING
+    # =====================================================
 
     if kind == "group":
 
-        # Reuse the existing group permission system.
+        # Check whether the developer can access this group.
+        #
+        # Public groups can be viewed by authenticated users.
+        # Private groups require membership or ownership.
         if not can_view_group(target, user):
             raise Http404("Group is unavailable.")
 
-    # -----------------------------------------------------
-    # COMMENT ACCESS CHECK
-    # -----------------------------------------------------
+        # Prevent the group owner from reporting their own group.
+        #
+        # This check is performed on the server, so developers
+        # cannot bypass it by manually entering a report URL.
+        if target.owner_id == user.pk:
+            raise Http404(
+                "You cannot report your own group."
+            )
+
+    # =====================================================
+    # QUESTION REPORTING
+    # =====================================================
+
+    elif kind == "question":
+
+        # Prevent developers from reporting their own questions.
+        if target.author_id == user.pk:
+            raise Http404(
+                "You cannot report your own question."
+            )
+
+    # =====================================================
+    # COMMENT AND REPLY REPORTING
+    # =====================================================
 
     elif kind == "comment":
 
-        # Comments must belong to an existing question.
-        # The ForeignKey relationship identifies that question.
-        if not target.question_id:
-            raise Http404("Comment is unavailable.")
+        # Prevent developers from reporting their own comments.
+        #
+        # Nested replies also use the Comment model, so this
+        # restriction applies to both comments and replies.
+        if target.author_id == user.pk:
+            raise Http404(
+                "You cannot report your own comment."
+            )
 
-        question_model = apps.get_model("questions", "Question")
+        # Every comment must belong to an existing question.
+        if not target.question_id:
+            raise Http404(
+                "Comment is unavailable."
+            )
+
+        question_model = apps.get_model(
+            "questions",
+            "Question",
+        )
 
         if not question_model._default_manager.filter(
             pk=target.question_id
         ).exists():
-            raise Http404("Question is unavailable.")
+
+            raise Http404(
+                "Question is unavailable."
+            )
 
     return target
 
-
 @login_required
-def report_create(request, kind=None, object_id=None):
+def report_create(request, kind, object_id):
     """
-    Allow developers to report specific content.
+    Allow authenticated developers to report specific content.
 
-    The content type and object ID come from the URL,
-    not from fields entered in the reporting form.
+    Developers click Report directly on a question,
+    comment, reply, or group.
 
-    Example:
-        /reports/question/15/
+    The reporting target is identified automatically
+    through the URL.
 
-    The developer only provides a reporting reason.
-
-    The backend:
-        1. Validates the reporting target.
-        2. Checks access permissions.
-        3. Validates the reason.
-        4. Prevents repeated pending reports.
-        5. Saves the report for admin review.
+    Developers only enter a reporting reason.
     """
 
-    # -----------------------------------------------------
-    # LEGACY REPORT URL
-    # -----------------------------------------------------
+    # =====================================================
+    # VALIDATE REPORT TARGET
+    # =====================================================
 
-    # The old /reports/new/ URL does not identify content.
-    # Redirect it to report history instead of accepting
-    # a manually entered content ID.
-    if kind is None or object_id is None:
-
-        if request.method == "POST":
-            return HttpResponseBadRequest(
-                "Select Report directly from the content."
-            )
-
-        messages.info(
-            request,
-            "To report content, open the question, comment, "
-            "or group and select Report.",
-        )
-
-        return redirect(
-            "colabverse_social:report_history"
-        )
-
-    # -----------------------------------------------------
-    # VALIDATE CONTENT AND PERMISSIONS
-    # -----------------------------------------------------
-
-    # This check runs for GET and POST requests.
-    # Users cannot bypass it by submitting a form directly.
+    # Check the target and permissions on both GET and POST.
+    #
+    # This prevents unauthorized developers from bypassing
+    # the interface by submitting requests directly.
     target = get_report_target(
         kind=kind,
         object_id=object_id,
         user=request.user,
     )
 
-    # -----------------------------------------------------
+    # =====================================================
     # CREATE REPORT FORM
-    # -----------------------------------------------------
+    # =====================================================
 
+    # The form only contains the reporting reason.
     form = ReportForm(
         request.POST or None
     )
 
-    # -----------------------------------------------------
+    # =====================================================
     # HANDLE REPORT SUBMISSION
-    # -----------------------------------------------------
+    # =====================================================
 
     if request.method == "POST" and form.is_valid():
 
-        # The developer only supplies the reason.
+        # Get the validated reporting reason.
         reason = form.cleaned_data["reason"].strip()
 
-        # Check for an existing pending report.
+        # -------------------------------------------------
+        # PREVENT DUPLICATE PENDING REPORTS
+        # -------------------------------------------------
+
         existing_report = ContentReport.objects.filter(
             reporter=request.user,
             kind=kind,
@@ -294,7 +303,14 @@ def report_create(request, kind=None, object_id=None):
 
         else:
 
-            # Store the report using the verified target.
+            # ---------------------------------------------
+            # SAVE REPORT
+            # ---------------------------------------------
+
+            # Save the verified content type and ID.
+            #
+            # These values come from the URL and database,
+            # not from user-editable form fields.
             ContentReport.objects.create(
                 reporter=request.user,
                 kind=kind,
@@ -307,13 +323,14 @@ def report_create(request, kind=None, object_id=None):
                 "Your report was submitted for review.",
             )
 
+        # Return to the developer's report history.
         return redirect(
             "colabverse_social:report_history"
         )
 
-    # -----------------------------------------------------
+    # =====================================================
     # DISPLAY REPORT FORM
-    # -----------------------------------------------------
+    # =====================================================
 
     return render(
         request,
@@ -324,7 +341,6 @@ def report_create(request, kind=None, object_id=None):
             "report_target": target,
         },
     )
-
 
 @login_required
 def report_history(request):
