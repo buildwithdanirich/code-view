@@ -1,62 +1,12 @@
+{% extends "questions/base.html" %}
 {% load static %}
 
-<!DOCTYPE html>
-<html lang="en">
+{% block extra_css %}
 
-<head>
-    <meta charset="utf-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1"
-    >
-
-    <title>
-        {% block title %}ColabVerse{% endblock %}
-    </title>
-
-    <!-- COLABVERSE SOCIAL STYLES -->
-
+    <!-- Preserve all existing social page styles. -->
     <link
         rel="stylesheet"
         href="{% static 'colabverse_social/css/social.css' %}"
     >
 
-</head>
-
-<body>
-
-    <!-- ============================================== -->
-    <!-- MAIN PAGE CONTENT -->
-    <!-- ============================================== -->
-
-    <main class="container">
-
-        <!-- DJANGO MESSAGES -->
-
-        {% if messages %}
-
-            <div role="status">
-
-                {% for message in messages %}
-
-                    <p class="notice">
-                        {{ message }}
-                    </p>
-
-                {% endfor %}
-
-            </div>
-
-        {% endif %}
-
-        <!-- PAGE CONTENT -->
-
-        {% block content %}
-        {% endblock %}
-
-    </main>
-
-</body>
-
-</html>
+{% endblock %}

@@ -1,7 +1,152 @@
 document.addEventListener("DOMContentLoaded", function () {
 
     // =====================================================
-    // 1. SHOW / HIDE REPLY FORMS
+    // 1. MOBILE SIDEBAR NAVIGATION
+    // =====================================================
+    //
+    // Desktop:
+    // - Sidebar remains visible.
+    //
+    // Mobile (700px and below):
+    // - Sidebar is hidden initially.
+    // - Menu button opens and closes the sidebar.
+    // - Escape closes the menu.
+    // - Clicking a navigation link closes the menu.
+    // - Resizing to desktop resets the mobile menu.
+    // =====================================================
+
+    const mobileMenuButton = document.querySelector(
+        "[data-mobile-menu-toggle]"
+    );
+
+    const mobileSidebar = document.getElementById(
+        "site-sidebar"
+    );
+
+    const mobileBreakpoint = window.matchMedia(
+        "(max-width: 700px)"
+    );
+
+    if (mobileMenuButton && mobileSidebar) {
+
+        // Update the menu's visible and accessible state.
+        function setMobileMenuOpen(isOpen) {
+
+            mobileSidebar.classList.toggle(
+                "is-open",
+                isOpen
+            );
+
+            mobileMenuButton.setAttribute(
+                "aria-expanded",
+                String(isOpen)
+            );
+
+            mobileMenuButton.setAttribute(
+                "aria-label",
+                isOpen
+                    ? "Close navigation menu"
+                    : "Open navigation menu"
+            );
+
+        }
+
+
+        // =================================================
+        // HANDLE MENU BUTTON
+        // =================================================
+
+        mobileMenuButton.addEventListener(
+            "click",
+            function () {
+
+                // Only toggle the sidebar on mobile screens.
+                if (!mobileBreakpoint.matches) {
+                    return;
+                }
+
+                const isCurrentlyOpen =
+                    mobileSidebar.classList.contains(
+                        "is-open"
+                    );
+
+                setMobileMenuOpen(!isCurrentlyOpen);
+
+            }
+        );
+
+
+        // =================================================
+        // CLOSE MENU WITH ESCAPE
+        // =================================================
+
+        document.addEventListener(
+            "keydown",
+            function (event) {
+
+                if (
+                    event.key === "Escape" &&
+                    mobileBreakpoint.matches &&
+                    mobileSidebar.classList.contains("is-open")
+                ) {
+
+                    setMobileMenuOpen(false);
+
+                    // Return keyboard focus to the menu button.
+                    mobileMenuButton.focus();
+
+                }
+
+            }
+        );
+
+
+        // =================================================
+        // CLOSE MENU AFTER SELECTING A LINK
+        // =================================================
+
+        mobileSidebar.querySelectorAll("a").forEach(
+            function (link) {
+
+                link.addEventListener(
+                    "click",
+                    function () {
+
+                        if (mobileBreakpoint.matches) {
+                            setMobileMenuOpen(false);
+                        }
+
+                    }
+                );
+
+            }
+        );
+
+
+        // =================================================
+        // RESET MENU WHEN SCREEN SIZE CHANGES
+        // =================================================
+
+        mobileBreakpoint.addEventListener(
+            "change",
+            function () {
+
+                // Prevent stale mobile state when switching
+                // between mobile and desktop layouts.
+                setMobileMenuOpen(false);
+
+            }
+        );
+
+
+        // Start with the mobile menu closed.
+        setMobileMenuOpen(false);
+
+    }
+
+
+    // =====================================================
+    // 2. SHOW / HIDE REPLY FORMS
     // =====================================================
 
     document.querySelectorAll(".reply-toggle").forEach(function (button) {
@@ -22,7 +167,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
     // =====================================================
-    // 2. CONFIRM DESTRUCTIVE ACTIONS
+    // 3. CONFIRM DESTRUCTIVE ACTIONS
     // =====================================================
 
     document.querySelectorAll("form[data-confirm]").forEach(function (form) {
@@ -41,7 +186,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
     // =====================================================
-    // 3. SHARED AJAX LIKE HANDLER
+    // 4. SHARED AJAX LIKE HANDLER
     // =====================================================
     //
     // Used by:
@@ -231,7 +376,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
     // =====================================================
-    // 4. QUESTION LIKES (COMMUNITY FEED)
+    // 5. QUESTION LIKES (COMMUNITY FEED)
     // =====================================================
 
     setupLikeForms({
@@ -244,7 +389,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
     // =====================================================
-    // 5. COMMENT AND REPLY LIKES
+    // 6. COMMENT AND REPLY LIKES
     // =====================================================
 
     setupLikeForms({

@@ -1192,3 +1192,279 @@ textarea:focus {
     }
 
 }
+
+/* ============================================================
+   COLABVERSE — COLLAPSIBLE MOBILE NAVIGATION
+
+   Purpose:
+   1. Preserve the desktop sidebar.
+   2. Display a menu button on mobile.
+   3. Hide the mobile sidebar by default.
+   4. Show the sidebar when JavaScript adds .is-open.
+   5. Keep the main content immediately below the header.
+   ============================================================ */
+
+
+/* ============================================================
+   1. MOBILE MENU BUTTON — DESKTOP DEFAULT
+   ============================================================ */
+
+.mobile-menu-toggle {
+    display: none;
+
+    align-items: center;
+    justify-content: center;
+
+    flex-shrink: 0;
+
+    width: 42px;
+    height: 42px;
+
+    padding: 9px;
+
+    border: 1px solid var(--line);
+    border-radius: 10px;
+
+    background: var(--panel);
+    color: var(--text);
+
+    cursor: pointer;
+
+    transition:
+        background-color 0.2s ease,
+        border-color 0.2s ease;
+}
+
+.mobile-menu-toggle svg {
+    display: block;
+
+    width: 22px;
+    height: 22px;
+
+    stroke: currentColor;
+}
+
+.mobile-menu-toggle:hover {
+    background: #252f4a;
+    border-color: var(--accent);
+}
+
+.mobile-menu-toggle:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 3px;
+}
+
+
+/* ============================================================
+   2. MOBILE LAYOUT
+   ============================================================ */
+
+@media (max-width: 700px) {
+
+    /* Keep logo, account icons and menu on one row. */
+
+    .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
+        gap: 8px;
+
+        min-height: 65px;
+        height: 65px;
+
+        padding: 0 12px;
+
+        flex-wrap: nowrap;
+    }
+
+    /* Allow the logo to shrink when necessary. */
+
+    .topbar .brand {
+        min-width: 0;
+        flex-shrink: 1;
+    }
+
+    .topbar .colabverse-logo {
+        width: 145px;
+        max-width: 100%;
+        height: auto;
+    }
+
+    /* Keep account icons together. */
+
+    .topbar .topbar-actions {
+        display: flex;
+
+        align-items: center;
+        justify-content: flex-end;
+
+        flex-shrink: 0;
+
+        width: auto;
+
+        gap: 4px;
+    }
+
+    .topbar .header-icon {
+        width: 36px;
+        height: 36px;
+        min-height: 36px;
+    }
+
+    /* Display the hamburger menu. */
+
+    .mobile-menu-toggle {
+        display: inline-flex;
+    }
+
+    /* Main page content uses the available width. */
+
+    .layout {
+        display: block;
+
+        width: 100%;
+        max-width: 100%;
+
+        margin: 16px auto;
+        padding: 0 12px;
+    }
+
+    /* Hide the sidebar until the menu is opened. */
+
+    .layout > .left {
+        display: none;
+
+        position: static;
+
+        width: 100%;
+        max-width: none;
+
+        margin: 0 0 18px;
+    }
+
+    /* JavaScript adds .is-open when the menu is opened. */
+
+    .layout > .left.is-open {
+        display: block;
+
+        position: static;
+
+        width: 100%;
+        max-width: none;
+        max-height: min(70vh, 600px);
+
+        overflow-y: auto;
+
+        margin: 0 0 18px;
+        padding: 16px;
+
+        background: var(--panel);
+
+        border: 1px solid var(--line);
+        border-radius: 14px;
+
+        visibility: visible;
+        transform: none;
+    }
+
+    /* Show navigation links vertically when opened. */
+
+    .layout > .left.is-open nav {
+        display: flex;
+
+        flex-direction: column;
+        align-items: stretch;
+
+        gap: 5px;
+    }
+
+    .layout > .left.is-open nav a {
+        display: flex;
+
+        align-items: center;
+
+        width: 100%;
+
+        padding: 11px 13px;
+
+        font-size: 14px;
+
+        border: 1px solid transparent;
+        border-radius: 9px;
+
+        background: transparent;
+    }
+
+    .layout > .left.is-open nav a:hover {
+        background: #25314d;
+
+        border-color: var(--line);
+    }
+
+    .layout > .left.is-open nav h3 {
+        margin: 14px 0 7px;
+
+        padding: 0 10px;
+    }
+
+    .layout > .left.is-open nav h3:first-child {
+        margin-top: 0;
+    }
+
+    /* Main content follows the header directly. */
+
+    .main-content {
+        width: 100%;
+        min-width: 0;
+    }
+
+}
+
+
+/* ============================================================
+   3. EXTRA SMALL MOBILE SCREENS
+   ============================================================ */
+
+@media (max-width: 360px) {
+
+    .topbar {
+        gap: 5px;
+        padding: 0 8px;
+    }
+
+    .topbar .colabverse-logo {
+        width: 115px;
+    }
+
+    .topbar .topbar-actions {
+        gap: 2px;
+    }
+
+    .topbar .header-icon {
+        width: 32px;
+        height: 32px;
+        min-height: 32px;
+    }
+
+    .mobile-menu-toggle {
+        width: 36px;
+        height: 36px;
+
+        padding: 7px;
+    }
+
+}
+
+
+/* ============================================================
+   4. REDUCED MOTION
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+
+    .mobile-menu-toggle {
+        transition: none;
+    }
+
+}
