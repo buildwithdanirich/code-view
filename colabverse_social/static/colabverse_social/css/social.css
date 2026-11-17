@@ -867,3 +867,38 @@ textarea:focus-visible {
         text-align: center;
     }
 }
+/* =========================================================
+   REPORT FORM — DARK SELECT DROPDOWN
+   ========================================================= */
+
+.reports-page .form select {
+    width: 100%;
+    min-height: 46px;
+    padding: 0.75rem 1rem;
+
+    background-color: #0d1426;
+    color: #eaf0ff;
+
+    border: 1px solid #29334d;
+    border-radius: 8px;
+
+    font-size: 0.95rem;
+    cursor: pointer;
+
+    color-scheme: dark;
+}
+
+.reports-page .form select option {
+    background-color: #141b2f;
+    color: #eaf0ff;
+}
+
+.reports-page .form select:focus {
+    border-color: #8b5cf6;
+    outline: 2px solid #8b5cf6;
+    outline-offset: 2px;
+}
+
+.reports-page .form select:hover {
+    border-color: #8b5cf6;
+}

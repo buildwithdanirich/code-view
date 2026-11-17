@@ -1,7 +1,7 @@
 {% extends 'colabverse_social/base.html' %}
 
 {% block title %}
-    Submit a Report · ColabVerse
+    Report Content · ColabVerse
 {% endblock %}
 
 {% block content %}
@@ -25,17 +25,50 @@
 
     <header class="developers-header">
 
-        <h1>Submit a Report</h1>
+        <h1>Report Content</h1>
 
         <p>
             Help keep ColabVerse safe by reporting
-            inappropriate content, harmful behavior,
-            or violations of our community guidelines.
+            content that violates our community guidelines.
         </p>
 
     </header>
 
-    <!-- REPORT INFORMATION -->
+    <!-- CONTENT BEING REPORTED -->
+
+    <section
+        class="card"
+        aria-labelledby="report-target-heading"
+    >
+
+        <h2 id="report-target-heading">
+            What Are You Reporting?
+        </h2>
+
+        <p>
+            You are reporting:
+
+            <strong>
+                {% if report_kind == "question" %}
+                    A Question
+                {% elif report_kind == "comment" %}
+                    An Answer or Comment
+                {% elif report_kind == "group" %}
+                    A Group
+                {% else %}
+                    Content
+                {% endif %}
+            </strong>
+        </p>
+
+        <p>
+            The content has already been selected.
+            You do not need to enter an ID.
+        </p>
+
+    </section>
+
+    <!-- REPORTING INSTRUCTIONS -->
 
     <section
         class="card"
@@ -47,18 +80,18 @@
         </h2>
 
         <p>
-            Select the type of content or group
-            you want to report.
+            Explain why you believe this content
+            should be reviewed by our moderation team.
         </p>
 
         <p>
-            Enter the correct content ID and explain
-            why you're submitting the report.
+            Provide clear and accurate information.
+            Avoid submitting duplicate reports.
         </p>
 
         <p>
-            Reports are reviewed by ColabVerse
-            administrators.
+            Your report will be reviewed by
+            ColabVerse administrators.
         </p>
 
     </section>
@@ -82,7 +115,7 @@
 
             {{ form.non_field_errors }}
 
-            <!-- FORM FIELDS -->
+            <!-- REPORT REASON -->
 
             {% for field in form %}
 

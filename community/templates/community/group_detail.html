@@ -256,6 +256,29 @@
 
             </section>
 
+            <!-- =================================================
+     REPORT GROUP
+     ================================================= -->
+
+{% if request.user.is_authenticated and not is_owner %}
+
+    {% if not group.is_private or is_member %}
+
+        <div class="group-report-action">
+
+            <a
+                href="{% url 'colabverse_social:report_content' 'group' group.pk %}"
+                class="group-action"
+                aria-label="Report {{ group.name }}"
+            >
+                ⚑ Report Group
+            </a>
+
+        </div>
+
+    {% endif %}
+
+{% endif %}
 
             <!-- Workspace navigation -->
 

@@ -96,6 +96,18 @@
             ☏ Comments
         </a>
 
+        <!-- Report this question -->
+        {% if user.is_authenticated and user != question.author %}
+
+            <a
+                href="{% url 'colabverse_social:report_content' 'question' question.pk %}"
+                aria-label="Report this question"
+            >
+                ⚑ Report
+            </a>
+
+        {% endif %}
+
         {% if user == question.author %}
 
             <a href="{% url 'questions:edit' question.pk %}">
@@ -227,6 +239,7 @@
 
         <!-- Comment actions -->
         <div class="actions">
+
             <form
                 method="post"
                 action="{% url 'questions:comment_like' comment.pk %}"
@@ -234,7 +247,7 @@
                 data-comment-like-form
             >
                 {% csrf_token %}
-            
+
                 <button
                     type="submit"
                     class="cv-comment-like-button{% if comment.pk in liked_comments %} is-liked{% endif %}"
@@ -245,7 +258,10 @@
                     <span data-comment-like-icon aria-hidden="true">
                         {% if comment.pk in liked_comments %}♥{% else %}♡{% endif %}
                     </span>
-                    <span data-comment-like-count>{{ comment.like_count }}</span>
+
+                    <span data-comment-like-count>
+                        {{ comment.like_count }}
+                    </span>
                 </button>
             </form>
 
@@ -258,6 +274,18 @@
                 >
                     ↩ Reply
                 </button>
+
+            {% endif %}
+
+            <!-- Report this comment -->
+            {% if user.is_authenticated and user != comment.author %}
+
+                <a
+                    href="{% url 'colabverse_social:report_content' 'comment' comment.pk %}"
+                    aria-label="Report this comment"
+                >
+                    ⚑ Report
+                </a>
 
             {% endif %}
 
@@ -394,6 +422,7 @@
 
                 <!-- Reply actions -->
                 <div class="actions">
+
                     <form
                         method="post"
                         action="{% url 'questions:comment_like' reply.pk %}"
@@ -401,7 +430,7 @@
                         data-comment-like-form
                     >
                         {% csrf_token %}
-                    
+
                         <button
                             type="submit"
                             class="cv-comment-like-button{% if reply.pk in liked_comments %} is-liked{% endif %}"
@@ -412,9 +441,24 @@
                             <span data-comment-like-icon aria-hidden="true">
                                 {% if reply.pk in liked_comments %}♥{% else %}♡{% endif %}
                             </span>
-                            <span data-comment-like-count>{{ reply.like_count }}</span>
+
+                            <span data-comment-like-count>
+                                {{ reply.like_count }}
+                            </span>
                         </button>
                     </form>
+
+                    <!-- Report this reply -->
+                    {% if user.is_authenticated and user != reply.author %}
+
+                        <a
+                            href="{% url 'colabverse_social:report_content' 'comment' reply.pk %}"
+                            aria-label="Report this reply"
+                        >
+                            ⚑ Report
+                        </a>
+
+                    {% endif %}
 
                     {% if user == question.author and user != reply.author %}
 

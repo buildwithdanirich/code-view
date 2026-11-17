@@ -6,45 +6,102 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.http import Http404, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
-from django.db.models import Q
-
+from community.permissions import can_view_group
 from colabverse_admin.models import ContentReport, SupportTicket
+
 from .forms import ReportForm, TicketForm
 from .models import Follow
 
 
+# =========================================================
+# HELP & SUPPORT
+# =========================================================
+
 @login_required
 def support_home(request):
-    tickets = SupportTicket.objects.filter(requester=request.user).order_by("-created_at", "-pk")
-    return render(request, "colabverse_social/support_home.html", {
-        "page": Paginator(tickets, 20).get_page(request.GET.get("page")),
-    })
+    """Display support tickets belonging to the current developer."""
+
+    tickets = SupportTicket.objects.filter(
+        requester=request.user
+    ).order_by("-created_at", "-pk")
+
+    return render(
+        request,
+        "colabverse_social/support_home.html",
+        {
+            "page": Paginator(tickets, 20).get_page(
+                request.GET.get("page")
+            ),
+        },
+    )
 
 
 @login_required
 def ticket_create(request):
+    """Allow a developer to submit a support ticket."""
+
     form = TicketForm(request.POST or None)
+
     if request.method == "POST" and form.is_valid():
+
         ticket = form.save(commit=False)
+
         ticket.requester = request.user
-        ticket.priority = "normal"  # Users cannot self-assign high priority.
+
+        # Developers cannot assign themselves high priority.
+        ticket.priority = "normal"
+
         ticket.save()
-        messages.success(request, "Your support request was submitted.")
-        return redirect("colabverse_social:ticket_detail", ticket_id=ticket.pk)
-    return render(request, "colabverse_social/ticket_form.html", {"form": form})
+
+        messages.success(
+            request,
+            "Your support request was submitted.",
+        )
+
+        return redirect(
+            "colabverse_social:ticket_detail",
+            ticket_id=ticket.pk,
+        )
+
+    return render(
+        request,
+        "colabverse_social/ticket_form.html",
+        {
+            "form": form,
+        },
+    )
 
 
 @login_required
 def ticket_detail(request, ticket_id):
-    ticket = get_object_or_404(SupportTicket, pk=ticket_id, requester=request.user)
-    return render(request, "colabverse_social/ticket_detail.html", {"ticket": ticket})
+    """Display a support ticket owned by the current developer."""
+
+    ticket = get_object_or_404(
+        SupportTicket,
+        pk=ticket_id,
+        requester=request.user,
+    )
+
+    return render(
+        request,
+        "colabverse_social/ticket_detail.html",
+        {
+            "ticket": ticket,
+        },
+    )
 
 
+# =========================================================
+# CONTENT REPORTING
+# =========================================================
+
+# Supported content types and their Django models.
 REPORT_TARGETS = {
     "question": "questions.Question",
     "comment": "questions.Comment",
@@ -53,51 +110,244 @@ REPORT_TARGETS = {
 
 
 def valid_report_target(kind, object_id):
+    """
+    Check whether a reporting target exists.
+
+    This helper only checks existence.
+
+    Permission checks are handled separately before
+    displaying the reporting form or accepting a report.
+    """
+
     label = REPORT_TARGETS.get(kind)
+
     if label is None:
         return False
+
     try:
         model = apps.get_model(label)
+
     except LookupError:
         return False
-    return model._default_manager.filter(pk=object_id).exists()
+
+    return model._default_manager.filter(
+        pk=object_id
+    ).exists()
+
+
+def get_report_target(kind, object_id, user):
+    """
+    Find the content being reported and verify access.
+
+    Questions:
+        The question must exist.
+
+    Comments:
+        The comment and its parent question must exist.
+
+    Groups:
+        The developer must be allowed to view the group.
+
+    Return the target object if accessible.
+
+    Raise Http404 if the content is unavailable or
+    the developer does not have permission to view it.
+    """
+
+    label = REPORT_TARGETS.get(kind)
+
+    # Reject unsupported reporting categories.
+    if label is None:
+        raise Http404("Unsupported report type.")
+
+    try:
+        model = apps.get_model(label)
+
+    except LookupError:
+        raise Http404("Reporting target is unavailable.")
+
+    # Find the selected content.
+    target = get_object_or_404(
+        model._default_manager,
+        pk=object_id,
+    )
+
+    # -----------------------------------------------------
+    # GROUP ACCESS CHECK
+    # -----------------------------------------------------
+
+    if kind == "group":
+
+        # Reuse the existing group permission system.
+        if not can_view_group(target, user):
+            raise Http404("Group is unavailable.")
+
+    # -----------------------------------------------------
+    # COMMENT ACCESS CHECK
+    # -----------------------------------------------------
+
+    elif kind == "comment":
+
+        # Comments must belong to an existing question.
+        # The ForeignKey relationship identifies that question.
+        if not target.question_id:
+            raise Http404("Comment is unavailable.")
+
+        question_model = apps.get_model("questions", "Question")
+
+        if not question_model._default_manager.filter(
+            pk=target.question_id
+        ).exists():
+            raise Http404("Question is unavailable.")
+
+    return target
 
 
 @login_required
-def report_create(request):
-    initial = {}
-    if request.method == "GET":
-        initial = {"kind": request.GET.get("kind", ""), "object_id": request.GET.get("object_id", "")}
-    form = ReportForm(request.POST or None, initial=initial)
+def report_create(request, kind=None, object_id=None):
+    """
+    Allow developers to report specific content.
+
+    The content type and object ID come from the URL,
+    not from fields entered in the reporting form.
+
+    Example:
+        /reports/question/15/
+
+    The developer only provides a reporting reason.
+
+    The backend:
+        1. Validates the reporting target.
+        2. Checks access permissions.
+        3. Validates the reason.
+        4. Prevents repeated pending reports.
+        5. Saves the report for admin review.
+    """
+
+    # -----------------------------------------------------
+    # LEGACY REPORT URL
+    # -----------------------------------------------------
+
+    # The old /reports/new/ URL does not identify content.
+    # Redirect it to report history instead of accepting
+    # a manually entered content ID.
+    if kind is None or object_id is None:
+
+        if request.method == "POST":
+            return HttpResponseBadRequest(
+                "Select Report directly from the content."
+            )
+
+        messages.info(
+            request,
+            "To report content, open the question, comment, "
+            "or group and select Report.",
+        )
+
+        return redirect(
+            "colabverse_social:report_history"
+        )
+
+    # -----------------------------------------------------
+    # VALIDATE CONTENT AND PERMISSIONS
+    # -----------------------------------------------------
+
+    # This check runs for GET and POST requests.
+    # Users cannot bypass it by submitting a form directly.
+    target = get_report_target(
+        kind=kind,
+        object_id=object_id,
+        user=request.user,
+    )
+
+    # -----------------------------------------------------
+    # CREATE REPORT FORM
+    # -----------------------------------------------------
+
+    form = ReportForm(
+        request.POST or None
+    )
+
+    # -----------------------------------------------------
+    # HANDLE REPORT SUBMISSION
+    # -----------------------------------------------------
+
     if request.method == "POST" and form.is_valid():
-        data = form.cleaned_data
-        if not valid_report_target(data["kind"], data["object_id"]):
-            form.add_error("object_id", "The selected content is unavailable.")
+
+        # The developer only supplies the reason.
+        reason = form.cleaned_data["reason"].strip()
+
+        # Check for an existing pending report.
+        existing_report = ContentReport.objects.filter(
+            reporter=request.user,
+            kind=kind,
+            object_id=target.pk,
+            status__in=("open", "reviewing"),
+        ).exists()
+
+        if existing_report:
+
+            messages.info(
+                request,
+                "You already have a pending report for this item.",
+            )
+
         else:
-            # One pending report per user per target. Repeated submissions do not flood the queue.
-            exists = ContentReport.objects.filter(
-                reporter=request.user, kind=data["kind"], object_id=data["object_id"],
-                status__in=("open", "reviewing"),
-            ).exists()
-            if exists:
-                messages.info(request, "You already have a pending report for this item.")
-            else:
-                ContentReport.objects.create(
-                    reporter=request.user, kind=data["kind"],
-                    object_id=data["object_id"], reason=data["reason"].strip(),
-                )
-                messages.success(request, "Your report was submitted for review.")
-            return redirect("colabverse_social:report_history")
-    return render(request, "colabverse_social/report_form.html", {"form": form})
+
+            # Store the report using the verified target.
+            ContentReport.objects.create(
+                reporter=request.user,
+                kind=kind,
+                object_id=target.pk,
+                reason=reason,
+            )
+
+            messages.success(
+                request,
+                "Your report was submitted for review.",
+            )
+
+        return redirect(
+            "colabverse_social:report_history"
+        )
+
+    # -----------------------------------------------------
+    # DISPLAY REPORT FORM
+    # -----------------------------------------------------
+
+    return render(
+        request,
+        "colabverse_social/report_form.html",
+        {
+            "form": form,
+            "report_kind": kind,
+            "report_target": target,
+        },
+    )
 
 
 @login_required
 def report_history(request):
-    reports = ContentReport.objects.filter(reporter=request.user).order_by("-created_at", "-pk")
-    return render(request, "colabverse_social/report_history.html", {
-        "page": Paginator(reports, 20).get_page(request.GET.get("page")),
-    })
+    """Display reports submitted by the current developer."""
 
+    reports = ContentReport.objects.filter(
+        reporter=request.user
+    ).order_by("-created_at", "-pk")
+
+    return render(
+        request,
+        "colabverse_social/report_history.html",
+        {
+            "page": Paginator(reports, 20).get_page(
+                request.GET.get("page")
+            ),
+        },
+    )
+
+
+# =========================================================
+# FIND DEVELOPERS
+# =========================================================
 
 @login_required
 def developer_list(request):
@@ -120,6 +370,7 @@ def developer_list(request):
     )
 
     if term:
+
         # Search usernames, first names, and last names.
         search_query = (
             Q(**{f"{User.USERNAME_FIELD}__icontains": term})
@@ -131,6 +382,7 @@ def developer_list(request):
         name_parts = term.split()
 
         if len(name_parts) >= 2:
+
             first_name = name_parts[0]
             last_name = " ".join(name_parts[1:])
 
@@ -150,13 +402,19 @@ def developer_list(request):
     )
 
     # Identify which displayed developers the visitor follows.
-    ids = [user.pk for user in page.object_list]
+    ids = [
+        user.pk
+        for user in page.object_list
+    ]
 
     following_ids = set(
         Follow.objects.filter(
             follower=request.user,
             following_id__in=ids,
-        ).values_list("following_id", flat=True)
+        ).values_list(
+            "following_id",
+            flat=True,
+        )
     )
 
     return render(
@@ -169,17 +427,53 @@ def developer_list(request):
         },
     )
 
+
+# =========================================================
+# DEVELOPER SOCIAL PROFILE
+# =========================================================
+
 @login_required
 def follow_profile(request, username):
+    """Display a developer's follower and following counts."""
+
     User = get_user_model()
-    target = get_object_or_404(User, **{User.USERNAME_FIELD: username, "is_active": True})
-    followers = Follow.objects.filter(following=target).count()
-    following = Follow.objects.filter(follower=target).count()
-    is_following = Follow.objects.filter(follower=request.user, following=target).exists()
-    return render(request, "colabverse_social/follow_profile.html", {
-        "target": target, "followers": followers, "following": following,
-        "is_following": is_following,
-    })
+
+    target = get_object_or_404(
+        User,
+        **{
+            User.USERNAME_FIELD: username,
+            "is_active": True,
+        },
+    )
+
+    followers = Follow.objects.filter(
+        following=target
+    ).count()
+
+    following = Follow.objects.filter(
+        follower=target
+    ).count()
+
+    is_following = Follow.objects.filter(
+        follower=request.user,
+        following=target,
+    ).exists()
+
+    return render(
+        request,
+        "colabverse_social/follow_profile.html",
+        {
+            "target": target,
+            "followers": followers,
+            "following": following,
+            "is_following": is_following,
+        },
+    )
+
+
+# =========================================================
+# FOLLOW / UNFOLLOW
+# =========================================================
 
 @require_POST
 @login_required
@@ -202,6 +496,7 @@ def follow_toggle(request, user_id):
 
     # Developers cannot follow themselves.
     if target.pk == request.user.pk:
+
         return HttpResponseBadRequest(
             "You cannot follow yourself."
         )
@@ -212,14 +507,17 @@ def follow_toggle(request, user_id):
     if action == "follow":
 
         try:
+
             # Ensure duplicate follows cannot be created.
             with transaction.atomic():
+
                 Follow.objects.get_or_create(
                     follower=request.user,
                     following=target,
                 )
 
         except IntegrityError:
+
             # A concurrent request may have already created
             # the relationship.
             pass
@@ -233,6 +531,7 @@ def follow_toggle(request, user_id):
         ).delete()
 
     else:
+
         return HttpResponseBadRequest(
             "Invalid action."
         )
@@ -246,13 +545,22 @@ def follow_toggle(request, user_id):
         allowed_hosts={request.get_host()},
         require_https=request.is_secure(),
     ):
+
         return redirect(return_to)
 
     # Default: return to the developer's main profile.
     return redirect(
         "public_profile",
-        username=getattr(target, User.USERNAME_FIELD),
+        username=getattr(
+            target,
+            User.USERNAME_FIELD,
+        ),
     )
+
+
+# =========================================================
+# FOLLOWERS / FOLLOWING LIST
+# =========================================================
 
 @login_required
 def follow_list(request, username, relation):
@@ -296,7 +604,10 @@ def follow_list(request, username, relation):
         )
 
     else:
-        raise Http404("Unknown relationship")
+
+        raise Http404(
+            "Unknown relationship"
+        )
 
     # Paginate the relationships.
     page = Paginator(qs, 20).get_page(
@@ -305,11 +616,14 @@ def follow_list(request, username, relation):
 
     # Collect user IDs from the current page.
     if relation == "followers":
+
         developer_ids = [
             item.follower_id
             for item in page.object_list
         ]
+
     else:
+
         developer_ids = [
             item.following_id
             for item in page.object_list

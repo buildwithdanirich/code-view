@@ -1,4 +1,3 @@
-
 {% extends 'colabverse_social/base.html' %}
 
 {% block title %}
@@ -9,39 +8,33 @@
 
 <section class="reports-page">
 
+    <!-- ============================================== -->
+    <!-- BACK NAVIGATION -->
+    <!-- ============================================== -->
+
     <nav aria-label="Back navigation">
-    <a
-        href="{% url 'questions:feed' %}"
-        class="developer-profile-link"
-    >
-        ← Back to Home
-    </a>
+
+        <a
+            href="{% url 'questions:feed' %}"
+            class="developer-profile-link"
+        >
+            ← Back to Home
+        </a>
+
     </nav>
+
     <!-- ============================================== -->
     <!-- PAGE HEADER -->
     <!-- ============================================== -->
 
     <header class="developers-header">
 
-        <div class="heading">
+        <h1>My Reports</h1>
 
-            <div>
-                <h1>My Reports</h1>
-
-                <p>
-                    Help keep ColabVerse safe by reporting
-                    content that violates our community guidelines.
-                </p>
-            </div>
-
-            <a
-                href="{% url 'colabverse_social:report_create' %}"
-                class="button"
-            >
-                + Submit New Report
-            </a>
-
-        </div>
+        <p>
+            View and track reports you've submitted
+            about content on ColabVerse.
+        </p>
 
     </header>
 
@@ -59,19 +52,26 @@
         </h2>
 
         <p>
-            If you discover inappropriate content,
+            If you encounter inappropriate content,
             harmful behavior, or violations of our
-            community guidelines, you can submit a report.
+            community guidelines, open the content
+            and select Report.
         </p>
 
         <p>
-            ColabVerse administrators will review submitted
-            reports and determine whether action is necessary.
+            You can report questions, comments,
+            and replies directly from their pages.
         </p>
 
         <p>
-            You can track the status of your submitted
-            reports below.
+            ColabVerse administrators will review
+            submitted reports and determine whether
+            action is necessary.
+        </p>
+
+        <p>
+            You can track the status of your
+            submitted reports below.
         </p>
 
     </section>
@@ -88,14 +88,16 @@
         <div class="heading">
 
             <div>
+
                 <h2 id="reports-history-heading">
                     Submitted Reports
                 </h2>
 
                 <p>
-                    Review the content you've reported
-                    and its current review status.
+                    Review your submitted reports
+                    and their current review status.
                 </p>
+
             </div>
 
         </div>
@@ -105,6 +107,7 @@
             {% for report in page %}
 
                 <!-- INDIVIDUAL REPORT -->
+
                 <article class="row report-row">
 
                     <div class="report-info">
@@ -114,8 +117,8 @@
                         </h3>
 
                         <p>
-                            Content ID:
-                            <strong>#{{ report.object_id }}</strong>
+                            Reason:
+                            {{ report.reason|truncatechars:120 }}
                         </p>
 
                         <p>
@@ -126,6 +129,7 @@
                     </div>
 
                     <!-- REPORT STATUS -->
+
                     <div class="report-status">
 
                         <span class="report-status-badge">
@@ -139,6 +143,7 @@
             {% empty %}
 
                 <!-- EMPTY STATE -->
+
                 <div class="developers-empty">
 
                     <h2>
@@ -150,16 +155,16 @@
                     </p>
 
                     <p>
-                        If you encounter content that violates
-                        our community guidelines, you can
-                        submit a report for review.
+                        To report inappropriate content,
+                        open a question or comment
+                        and select Report.
                     </p>
 
                     <a
-                        href="{% url 'colabverse_social:report_create' %}"
+                        href="{% url 'questions:feed' %}"
                         class="button"
                     >
-                        Submit Your First Report
+                        Browse Questions
                     </a>
 
                 </div>
