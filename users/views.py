@@ -865,50 +865,79 @@ def password_reset_confirm(request, uidb64, token):
 # ============================================================
 # DEVELOPER PROFILES
 # ============================================================
-def _profile_context(profile):
+def _profile_context(profile, viewer=None):
     """
-    Prepare developer profile statistics.
+    Prepare developer profile information and statistics.
 
     Includes:
     - Developer profile information
-    - Groups created
-    - Groups joined
-    - Reputation points
-    - Reputation stars
+    - Groups created and joined
+    - Reputation points and stars
+    - Followers and following counts
+    - Whether the current visitor follows this developer
     """
 
     from community.models import ProjectGroup, GroupMember
     from questions.models import Reputation
+    from colabverse_social.models import Follow
 
+    # The developer whose profile is being viewed.
     user = profile.user
 
-    # Retrieve the developer's existing reputation.
-    # Create a default record if one does not exist yet.
+    # Get or create the developer's reputation record.
     reputation, _ = Reputation.objects.get_or_create(
         user=user
     )
 
+    # Count developers who follow this user.
+    followers_count = Follow.objects.filter(
+        following=user
+    ).count()
+
+    # Count developers this user follows.
+    following_count = Follow.objects.filter(
+        follower=user
+    ).count()
+
+    # Default: the visitor is not following this developer.
+    is_following = False
+
+    # Check the relationship only when viewing another user's profile.
+    if (
+        viewer is not None
+        and viewer.is_authenticated
+        and viewer.pk != user.pk
+    ):
+        is_following = Follow.objects.filter(
+            follower=viewer,
+            following=user,
+        ).exists()
+
     return {
-        # Developer profile information.
+        # Existing developer profile.
         "profile": profile,
 
-        # Number of development groups created.
+        # Existing group statistics.
         "groups_created": ProjectGroup.objects.filter(
             owner=user
         ).count(),
 
-        # Number of development groups joined.
         "groups_joined": GroupMember.objects.filter(
             user=user
         ).count(),
 
-        # Developer's total reputation points.
+        # Existing reputation statistics.
         "reputation_points": reputation.points,
-
-        # Star level calculated by the existing reputation model.
         "reputation_stars": reputation.stars,
-    }
 
+        # New follower statistics.
+        "followers_count": followers_count,
+        "following_count": following_count,
+
+        # Whether the visitor already follows this developer.
+        "is_following": is_following,
+    }
+    
 @login_required
 def my_profile(request):
     """Display the logged-in developer's profile."""
@@ -918,9 +947,12 @@ def my_profile(request):
     )
 
     return render(
-        request,
-        "users/profile.html",
-        _profile_context(profile),
+    request,
+    "users/profile.html",
+    _profile_context(
+        profile,
+        viewer=request.user,
+        ),
     )
 
 
@@ -938,7 +970,11 @@ def public_profile(request, username):
         user=user
     )
 
-    context = _profile_context(profile)
+    context = _profile_context(
+        profile,
+        viewer=request.user,
+     )
+
     context["is_public_view"] = True
 
     # Read the optional return destination.

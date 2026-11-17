@@ -16,25 +16,20 @@
 
 <main class="cv-profile-wrap">
 
-
   {% if return_to %}
-
-  <nav
-    class="cv-profile-return-navigation"
-    aria-label="Return to previous page"
-  >
-
-    <a
-      href="{{ return_to }}"
-      class="cv-profile-back-button"
+    <nav
+      class="cv-profile-return-navigation"
+      aria-label="Return to previous page"
     >
-      <span aria-hidden="true">←</span>
-      Back to Group Members
-    </a>
-
-  </nav>
-
-{% endif %}
+      <a
+        href="{{ return_to }}"
+        class="cv-profile-back-button"
+      >
+        <span aria-hidden="true">←</span>
+        Back to Group Members
+      </a>
+    </nav>
+  {% endif %}
 
   <!-- ===================================================== -->
   <!-- PROFILE HEADER -->
@@ -58,7 +53,7 @@
 
     <div class="cv-profile-content">
 
-      <!-- AVATAR AND EDIT BUTTON -->
+      <!-- AVATAR AND PROFILE ACTIONS -->
       <div class="cv-profile-top">
 
         <div class="cv-avatar cv-avatar-large">
@@ -81,8 +76,13 @@
 
         </div>
 
+        <!-- ================================================= -->
+        <!-- EDIT PROFILE / FOLLOW / UNFOLLOW -->
+        <!-- ================================================= -->
+
         {% if profile.user_id == request.user.id %}
 
+          <!-- The profile owner can edit their profile. -->
           <a
             href="{% url 'edit_profile' %}"
             class="cv-primary cv-edit-profile"
@@ -91,11 +91,67 @@
             <span aria-hidden="true">↗</span>
           </a>
 
+        {% else %}
+
+          <!-- Other developers can follow or unfollow this user. -->
+        <!-- Follow / Unfollow form -->
+<form
+    method="post"
+    action="{% url 'colabverse_social:follow_toggle' profile.user.id %}"
+    class="cv-profile-follow-form"
+>
+
+    {% csrf_token %}
+
+    <!-- Return to this profile after following or unfollowing -->
+    <input
+        type="hidden"
+        name="next"
+        value="{{ request.get_full_path }}"
+    >
+
+    {% if is_following %}
+
+        <input
+            type="hidden"
+            name="action"
+            value="unfollow"
+        >
+
+        <button
+            type="submit"
+            class="cv-primary cv-edit-profile"
+        >
+            Following ✓
+        </button>
+
+    {% else %}
+
+        <input
+            type="hidden"
+            name="action"
+            value="follow"
+        >
+
+        <button
+            type="submit"
+            class="cv-primary cv-edit-profile"
+        >
+            + Follow
+        </button>
+
+    {% endif %}
+
+</form>
+
         {% endif %}
 
       </div>
 
+      <!-- ================================================= -->
       <!-- DEVELOPER IDENTITY -->
+      <!-- ================================================= -->
+
       <div class="cv-profile-heading">
 
         <div class="cv-profile-identity">
@@ -165,7 +221,10 @@
 
       </div>
 
+      <!-- ================================================= -->
       <!-- BIOGRAPHY -->
+      <!-- ================================================= -->
+
       <div class="cv-profile-bio-section">
 
         <h2 class="cv-section-heading">
@@ -188,7 +247,10 @@
 
       </div>
 
+      <!-- ================================================= -->
       <!-- LOCATION AND MEMBERSHIP -->
+      <!-- ================================================= -->
+
       <div class="cv-profile-meta">
 
         {% if profile.location %}
@@ -227,8 +289,45 @@
 
       </div>
 
+      <!-- ================================================= -->
       <!-- PROFILE STATISTICS -->
+      <!-- ================================================= -->
+
       <div class="cv-stats">
+
+        <!-- FOLLOWERS -->
+        <a
+          href="{% url 'colabverse_social:follow_list' profile.user.username 'followers' %}"
+          class="cv-stat-item"
+          aria-label="View followers of {{ profile.user.username }}"
+        >
+
+          <strong>
+            {{ followers_count|default:0 }}
+          </strong>
+
+          <span>
+            Followers
+          </span>
+
+        </a>
+
+        <!-- FOLLOWING -->
+        <a
+          href="{% url 'colabverse_social:follow_list' profile.user.username 'following' %}"
+          class="cv-stat-item"
+          aria-label="View developers followed by {{ profile.user.username }}"
+        >
+
+          <strong>
+            {{ following_count|default:0 }}
+          </strong>
+
+          <span>
+            Following
+          </span>
+
+        </a>
 
         <!-- REPUTATION -->
         <div class="cv-stat-item cv-reputation-stat">
@@ -284,7 +383,10 @@
     <!-- LEFT COLUMN -->
     <div class="cv-profile-main">
 
+      <!-- ================================================= -->
       <!-- SKILLS -->
+      <!-- ================================================= -->
+
       <section class="cv-profile-section cv-skills-section">
 
         <div class="cv-section-header">
@@ -331,7 +433,10 @@
 
       </section>
 
+      <!-- ================================================= -->
       <!-- DEVELOPER REPUTATION -->
+      <!-- ================================================= -->
+
       <section class="cv-profile-section cv-reputation-section">
 
         <div class="cv-section-header">
@@ -434,7 +539,10 @@
 
       </section>
 
+      <!-- ================================================= -->
       <!-- COMMUNITY ACTIVITY -->
+      <!-- ================================================= -->
+
       <section class="cv-profile-section">
 
         <div class="cv-section-header">
@@ -496,7 +604,10 @@
     <!-- RIGHT COLUMN -->
     <aside class="cv-profile-sidebar">
 
+      <!-- ================================================= -->
       <!-- SOCIAL LINKS -->
+      <!-- ================================================= -->
+
       <section class="cv-profile-section cv-social-section">
 
         <div class="cv-section-header">
@@ -592,7 +703,10 @@
 
       </section>
 
+      <!-- ================================================= -->
       <!-- ACCOUNT INFORMATION -->
+      <!-- ================================================= -->
+
       <section class="cv-profile-section cv-account-section">
 
         <div class="cv-section-header">

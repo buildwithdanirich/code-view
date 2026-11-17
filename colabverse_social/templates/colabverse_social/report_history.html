@@ -1,0 +1,9 @@
+{% extends 'colabverse_social/base.html' %}
+{% block title %}My Reports · ColabVerse{% endblock %}
+{% block content %}
+<div class="heading"><h1>My reports</h1><a class="button" href="{% url 'colabverse_social:report_create' %}">New report</a></div>
+<div class="card">{% for report in page %}
+    <div class="row"><span>{{ report.get_kind_display }} #{{ report.object_id }}</span><span>{{ report.get_status_display }} · {{ report.created_at|date:'M d, Y' }}</span></div>
+{% empty %}<p>You haven't submitted any reports.</p>{% endfor %}</div>
+{% include 'colabverse_social/pagination.html' %}
+{% endblock %}

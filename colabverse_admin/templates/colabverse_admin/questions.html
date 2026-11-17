@@ -1,18 +1,143 @@
 {% extends 'colabverse_admin/base.html' %}
-{% block title %}Questions{% endblock %}
+
+{% block title %}
+    Overview
+{% endblock %}
+
 {% block content %}
-    <div class="page-heading"><div><p class="eyebrow">CONTENT MODERATION</p><h1>Questions</h1><p>Search and review developer questions.</p></div></div>
-    <form method="get" class="search"><input name="q" value="{{ term }}" placeholder="Search questions"><button class="button">Search</button></form>
-    <div class="panel table-wrap"><table><thead><tr><th>ID</th><th>Question</th><th>Author</th><th>Created</th><th>Moderation</th></tr></thead><tbody>
-    {% for item in page %}
-        <tr><td>{{ item.pk }}</td><td><strong>{{ item.title }}</strong><p class="muted">{{ item.body|truncatechars:140 }}</p></td><td>{{ item.author }}</td><td>{{ item.created_at|date:'M d, Y' }}</td><td>
-        {% if request.user.is_superuser %}
-            <form method="post" action="{% url 'colabverse_admin:delete_content' 'question' item.pk %}" class="delete-form">
-                {% csrf_token %}<input name="confirm" aria-label="Type DELETE to confirm" placeholder="Type DELETE" required><button class="button danger">Delete</button>
-            </form>
-        {% else %}<span class="muted">Read only</span>{% endif %}</td></tr>
-    {% empty %}<tr><td colspan="5">No questions found.</td></tr>{% endfor %}
-    </tbody></table></div>
-    {% include 'colabverse_admin/pagination.html' %}
-    <p class="muted">Deletion is permanent and may cascade to related records. Only superusers can delete.</p>
+
+    <!-- Dashboard heading -->
+    <div class="page-heading">
+
+        <div>
+            <p class="eyebrow">
+                PLATFORM OVERVIEW
+            </p>
+
+            <h1>Dashboard</h1>
+
+            <p>
+                ColabVerse administration and platform activity.
+            </p>
+        </div>
+
+        <!-- Project health shortcut -->
+        <a
+            class="button"
+            href="{% url 'colabverse_admin:health' %}"
+        >
+            View project health →
+        </a>
+
+    </div>
+
+    <!-- Platform statistics -->
+    <div class="stats-grid">
+
+        <!-- Total registered users -->
+        <a
+            class="stat"
+            href="{% url 'colabverse_admin:users' %}"
+        >
+            <span>Total users</span>
+            <strong>{{ counts.users }}</strong>
+        </a>
+
+        <!-- Active user accounts -->
+        <a
+            class="stat"
+            href="{% url 'colabverse_admin:users' %}"
+        >
+            <span>Active users</span>
+            <strong>{{ counts.active_users }}</strong>
+        </a>
+
+        <!-- Communities and development groups -->
+        <a
+            class="stat"
+            href="{% url 'colabverse_admin:groups' %}"
+        >
+            <span>Groups / communities</span>
+
+            <strong>
+                {{ counts.groups|default_if_none:'—' }}
+            </strong>
+        </a>
+
+        <!-- Total community memberships -->
+        <div class="stat">
+
+            <span>Memberships</span>
+
+            <strong>
+                {{ counts.memberships|default_if_none:'—' }}
+            </strong>
+
+        </div>
+
+        <!-- Open moderation reports -->
+        <a
+            class="stat"
+            href="{% url 'colabverse_admin:reports' %}"
+        >
+            <span>Open reports</span>
+
+            <strong>
+                {{ counts.reports }}
+            </strong>
+        </a>
+
+        <!-- Unresolved support tickets -->
+        <a
+            class="stat"
+            href="{% url 'colabverse_admin:support' %}"
+        >
+            <span>Unresolved support tickets</span>
+
+            <strong>
+                {{ counts.support }}
+            </strong>
+        </a>
+
+    </div>
+
+    <!-- Recent administrative activity -->
+    <section class="panel">
+
+        <h2>Recent administrative activity</h2>
+
+        {% for entry in recent_audit %}
+
+            <p class="activity">
+
+                {{ entry.created_at|date:'M d, Y H:i' }}
+
+                ·
+
+                {{ entry.actor|default:'Deleted admin' }}
+
+                ·
+
+                {{ entry.action }}
+
+                ·
+
+                {{ entry.target }}
+
+            </p>
+
+        {% empty %}
+
+            <p class="muted">
+                No recorded admin actions yet.
+            </p>
+
+        {% endfor %}
+
+        <p class="muted">
+            Counts are database totals, not concurrent online-user counts.
+        </p>
+
+    </section>
+
 {% endblock %}

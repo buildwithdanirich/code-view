@@ -1,0 +1,403 @@
+/* =========================================================
+   COLABVERSE — SHARED SOCIAL STYLES
+   ========================================================= */
+
+:root {
+    --cv-primary: #244dc3;
+    --cv-navy: #142447;
+    --cv-background: #f5f7fb;
+    --cv-surface: #ffffff;
+    --cv-text: #18233a;
+    --cv-muted: #526079;
+    --cv-border: #e1e7f0;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: var(--cv-background);
+    color: var(--cv-text);
+    font-family: system-ui, -apple-system, sans-serif;
+    line-height: 1.5;
+}
+
+a {
+    color: var(--cv-primary);
+}
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.site-header {
+    background: var(--cv-navy);
+    padding: 1rem max(1rem, calc((100vw - 1000px) / 2));
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.site-header a {
+    color: white;
+    text-decoration: none;
+}
+
+.site-header nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.brand {
+    font-weight: 800;
+    font-size: 1.25rem;
+}
+
+/* =========================================================
+   MAIN LAYOUT
+   ========================================================= */
+
+.container {
+    max-width: 1000px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+.heading,
+.row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.card {
+    background: var(--cv-surface);
+    border: 1px solid var(--cv-border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin: 1rem 0;
+    box-shadow: 0 3px 12px #13234c0b;
+}
+
+.row {
+    padding: 0.85rem 0;
+    border-bottom: 1px solid #edf0f6;
+}
+
+.row:last-child {
+    border-bottom: none;
+}
+
+.row span {
+    color: var(--cv-muted);
+}
+
+/* =========================================================
+   BUTTONS
+   ========================================================= */
+
+.button,
+button {
+    display: inline-block;
+    border: 0;
+    background: var(--cv-primary);
+    color: white;
+    padding: 0.65rem 1rem;
+    border-radius: 7px;
+    cursor: pointer;
+    text-decoration: none;
+    font: inherit;
+}
+
+.button:hover,
+button:hover {
+    filter: brightness(0.93);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+    outline: 3px solid var(--cv-primary);
+    outline-offset: 3px;
+}
+
+/* =========================================================
+   FORMS
+   ========================================================= */
+
+.form {
+    max-width: 680px;
+    display: grid;
+    gap: 0.5rem;
+}
+
+.form input,
+.form select,
+.form textarea,
+.search input {
+    width: 100%;
+    border: 1px solid #b8c4d8;
+    padding: 0.65rem;
+    border-radius: 7px;
+    font: inherit;
+}
+
+.form label {
+    font-weight: 650;
+    margin-top: 0.6rem;
+}
+
+.errorlist {
+    color: #a72222;
+}
+
+.notice {
+    background: #e5f4e9;
+    padding: 0.8rem;
+    border-radius: 6px;
+}
+
+.preserve {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.pagination,
+.search {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin: 1rem 0;
+}
+
+/* =========================================================
+   DEVELOPER SEARCH PAGE
+   ========================================================= */
+
+.developers-page {
+    width: 100%;
+}
+
+/* Page heading */
+
+.developers-header {
+    margin-bottom: 1.75rem;
+}
+
+.developers-header h1 {
+    margin: 0 0 0.5rem;
+    color: var(--cv-navy);
+    font-size: clamp(1.7rem, 4vw, 2.2rem);
+}
+
+.developers-header p {
+    margin: 0;
+    color: var(--cv-muted);
+    max-width: 650px;
+}
+
+/* Search form */
+
+.developers-search {
+    display: block;
+    background: var(--cv-surface);
+    border: 1px solid var(--cv-border);
+    border-radius: 12px;
+    padding: 1.25rem;
+}
+
+.developers-search label {
+    display: block;
+    font-weight: 650;
+    margin-bottom: 0.65rem;
+}
+
+.developers-search-fields {
+    display: flex;
+    align-items: stretch;
+    gap: 0.75rem;
+}
+
+.developers-search-fields input {
+    flex: 1;
+    min-width: 0;
+}
+
+.developers-search-fields button {
+    flex-shrink: 0;
+}
+
+/* Results */
+
+.developers-results {
+    margin-top: 1.5rem;
+}
+
+.developer-result {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    gap: 1rem;
+    padding: 1.1rem 0;
+}
+
+/* Developer avatar */
+
+.developer-avatar-link {
+    display: inline-flex;
+    flex-shrink: 0;
+    text-decoration: none;
+}
+
+.developer-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--cv-border);
+}
+
+.developer-avatar-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--cv-navy);
+    color: white !important;
+    font-size: 1.4rem;
+    font-weight: 700;
+}
+
+/* Developer details */
+
+.developer-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.developer-name {
+    margin: 0 0 0.2rem;
+    font-size: 1.05rem;
+    line-height: 1.4;
+}
+
+.developer-name a {
+    color: var(--cv-text);
+    text-decoration: none;
+}
+
+.developer-name a:hover {
+    color: var(--cv-primary);
+    text-decoration: underline;
+}
+
+.developer-username {
+    margin: 0;
+    color: var(--cv-muted);
+    font-size: 0.9rem;
+    overflow-wrap: anywhere;
+}
+
+.developer-title {
+    margin: 0.35rem 0 0;
+    color: var(--cv-muted);
+    font-size: 0.9rem;
+}
+
+.developer-profile-link {
+    display: inline-block;
+    margin-top: 0.45rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.developer-profile-link:hover {
+    text-decoration: underline;
+}
+
+/* Follow buttons */
+
+.developer-actions {
+    flex-shrink: 0;
+}
+
+.developer-actions form {
+    margin: 0;
+}
+
+.developer-follow-button {
+    min-width: 110px;
+    font-weight: 650;
+}
+
+.developer-following-button {
+    background: var(--cv-surface);
+    color: var(--cv-primary);
+    border: 1px solid var(--cv-primary);
+}
+
+.developer-following-button:hover {
+    background: var(--cv-background);
+}
+
+/* Empty results */
+
+.developers-empty {
+    padding: 2rem 1rem;
+    text-align: center;
+}
+
+.developers-empty h2 {
+    margin: 0 0 0.5rem;
+    color: var(--cv-navy);
+}
+
+.developers-empty p {
+    color: var(--cv-muted);
+}
+
+/* =========================================================
+   RESPONSIVE DESIGN
+   ========================================================= */
+
+@media (max-width: 600px) {
+
+    .developers-search-fields {
+        flex-direction: column;
+    }
+
+    .developers-search-fields button {
+        width: 100%;
+    }
+
+    .developer-result {
+        flex-wrap: wrap;
+        align-items: flex-start;
+    }
+
+    .developer-avatar {
+        width: 48px;
+        height: 48px;
+    }
+
+    .developer-info {
+        flex-basis: calc(100% - 64px);
+    }
+
+    .developer-actions {
+        width: 100%;
+        padding-left: 64px;
+    }
+
+    .developer-follow-button {
+        width: 100%;
+    }
+}

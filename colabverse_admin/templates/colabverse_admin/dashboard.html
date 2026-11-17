@@ -1,32 +1,122 @@
 {% extends 'colabverse_admin/base.html' %}
-{% block title %}Overview{% endblock %}
+
+{% block title %}
+    Overview
+{% endblock %}
+
 {% block content %}
+
+    <!-- Dashboard heading -->
     <div class="page-heading">
         <div>
             <p class="eyebrow">PLATFORM OVERVIEW</p>
+
             <h1>Dashboard</h1>
-            <p>ColabVerse administration and platform activity.</p>
+
+            <p>
+                ColabVerse administration and platform activity.
+            </p>
         </div>
-        <a class="button" href="{% url 'colabverse_admin:health' %}">View project health →</a>
+
+        <a
+            class="button"
+            href="{% url 'colabverse_admin:health' %}"
+        >
+            View project health →
+        </a>
     </div>
+
+    <!-- Platform statistics -->
     <div class="stats-grid">
-        <a class="stat" href="{% url 'colabverse_admin:users' %}"><span>Total users</span><strong>{{ counts.users }}</strong></a>
-        <a class="stat" href="{% url 'colabverse_admin:users' %}"><span>Active users</span><strong>{{ counts.active_users }}</strong></a>
-        <a class="stat" href="{% url 'colabverse_admin:groups' %}"><span>Groups / communities</span><strong>{{ counts.groups|default_if_none:'—' }}</strong></a>
-        <div class="stat"><span>Memberships</span><strong>{{ counts.memberships|default_if_none:'—' }}</strong></div>
-        <a class="stat" href="{% url 'colabverse_admin:meetings' %}"><span>Meetings</span><strong>{{ counts.meetings|default_if_none:'—' }}</strong></a>
-        <a class="stat" href="{% url 'colabverse_admin:questions' %}"><span>Questions</span><strong>{{ counts.questions|default_if_none:'—' }}</strong></a>
-        <a class="stat" href="{% url 'colabverse_admin:answers' %}"><span>Answers / comments</span><strong>{{ counts.comments|default_if_none:'—' }}</strong></a>
-        <a class="stat" href="{% url 'colabverse_admin:reports' %}"><span>Open reports</span><strong>{{ counts.reports }}</strong></a>
-        <a class="stat" href="{% url 'colabverse_admin:support' %}"><span>Unresolved support tickets</span><strong>{{ counts.support }}</strong></a>
+
+        <!-- Total registered users -->
+        <a
+            class="stat"
+            href="{% url 'colabverse_admin:users' %}"
+        >
+            <span>Total users</span>
+            <strong>{{ counts.users }}</strong>
+        </a>
+
+        <!-- Active user accounts -->
+        <a
+            class="stat"
+            href="{% url 'colabverse_admin:users' %}"
+        >
+            <span>Active users</span>
+            <strong>{{ counts.active_users }}</strong>
+        </a>
+
+        <!-- Communities and development groups -->
+        <a
+            class="stat"
+            href="{% url 'colabverse_admin:groups' %}"
+        >
+            <span>Groups / communities</span>
+
+            <strong>
+                {{ counts.groups|default_if_none:'—' }}
+            </strong>
+        </a>
+
+        <!-- Community memberships -->
+        <div class="stat">
+            <span>Memberships</span>
+
+            <strong>
+                {{ counts.memberships|default_if_none:'—' }}
+            </strong>
+        </div>
+
+        <!-- Open reports -->
+        <a
+            class="stat"
+            href="{% url 'colabverse_admin:reports' %}"
+        >
+            <span>Open reports</span>
+            <strong>{{ counts.reports }}</strong>
+        </a>
+
+        <!-- Unresolved support tickets -->
+        <a
+            class="stat"
+            href="{% url 'colabverse_admin:support' %}"
+        >
+            <span>Unresolved support tickets</span>
+            <strong>{{ counts.support }}</strong>
+        </a>
+
     </div>
+
+    <!-- Recent administrative activity -->
     <section class="panel">
+
         <h2>Recent administrative activity</h2>
+
         {% for entry in recent_audit %}
-            <p class="activity">{{ entry.created_at|date:'M d, Y H:i' }} · {{ entry.actor|default:'Deleted admin' }} · {{ entry.action }} · {{ entry.target }}</p>
+
+            <p class="activity">
+                {{ entry.created_at|date:'M d, Y H:i' }}
+                ·
+                {{ entry.actor|default:'Deleted admin' }}
+                ·
+                {{ entry.action }}
+                ·
+                {{ entry.target }}
+            </p>
+
         {% empty %}
-            <p class="muted">No recorded admin actions yet.</p>
+
+            <p class="muted">
+                No recorded admin actions yet.
+            </p>
+
         {% endfor %}
-        <p class="muted">Counts are database totals, not concurrent online-user counts.</p>
+
+        <p class="muted">
+            Counts are database totals, not concurrent online-user counts.
+        </p>
+
     </section>
+
 {% endblock %}

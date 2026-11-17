@@ -1,0 +1,28 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}ColabVerse{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'colabverse_social/css/social.css' %}">
+</head>
+<body>
+<header class="site-header">
+    <a class="brand" href="/">✦ ColabVerse</a>
+    <nav aria-label="User navigation">
+        <a href="{% url 'colabverse_social:support_home' %}">Help &amp; Support</a>
+        <a href="{% url 'colabverse_social:report_history' %}">My Reports</a>
+        <a href="{% url 'colabverse_social:developer_list' %}">Developers</a>
+    </nav>
+</header>
+<main class="container">
+    {% if messages %}
+        <div role="status">
+            {% for message in messages %}<p class="notice">{{ message }}</p>{% endfor %}
+        </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+</main>
+</body>
+</html>

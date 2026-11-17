@@ -1,0 +1,326 @@
+{% extends 'colabverse_social/base.html' %}
+
+{% block title %}
+    {{ relation|title }} · ColabVerse
+{% endblock %}
+
+{% block content %}
+
+<main class="developers-page">
+
+    <!-- PAGE HEADER -->
+    <header class="developers-header">
+
+        <h1>
+            {{ relation|title }}
+        </h1>
+
+        <p>
+            {% if relation == 'followers' %}
+                Developers following @{{ target.get_username }}.
+            {% else %}
+                Developers followed by @{{ target.get_username }}.
+            {% endif %}
+        </p>
+
+        <a
+            href="{% url 'public_profile' target.get_username %}"
+            class="developer-profile-link"
+        >
+            ← Back to @{{ target.get_username }}'s profile
+        </a>
+
+    </header>
+
+    <!-- FOLLOWERS / FOLLOWING LIST -->
+    <section
+        class="developers-results"
+        aria-label="{{ relation|title }} list"
+    >
+
+        <div class="card">
+
+            {% for item in page %}
+
+                <!-- Identify which developer to display. -->
+                {% if relation == 'followers' %}
+
+                    {% with developer=item.follower %}
+
+                        <article class="row developer-result">
+
+                            <!-- PROFILE PICTURE -->
+                            <a
+                                href="{% url 'public_profile' developer.get_username %}"
+                                class="developer-avatar-link"
+                                aria-label="View {{ developer.get_username }}'s profile"
+                            >
+
+                                {% if developer.developer_profile.avatar %}
+
+                                    <img
+                                        src="{{ developer.developer_profile.avatar.url }}"
+                                        alt="{{ developer.get_username }}'s profile picture"
+                                        class="developer-avatar"
+                                        loading="lazy"
+                                    >
+
+                                {% else %}
+
+                                    <span
+                                        class="developer-avatar developer-avatar-fallback"
+                                        aria-hidden="true"
+                                    >
+                                        {{ developer.get_username|first|upper }}
+                                    </span>
+
+                                {% endif %}
+
+                            </a>
+
+                            <!-- DEVELOPER INFORMATION -->
+                            <div class="developer-info">
+
+                                <h2 class="developer-name">
+
+                                    <a
+                                        href="{% url 'public_profile' developer.get_username %}"
+                                    >
+                                        {{ developer.get_full_name|default:developer.get_username }}
+                                    </a>
+
+                                </h2>
+
+                                <p class="developer-username">
+                                    @{{ developer.get_username }}
+                                </p>
+
+                                {% if developer.developer_profile.title %}
+
+                                    <p class="developer-title">
+                                        {{ developer.developer_profile.title }}
+                                    </p>
+
+                                {% endif %}
+
+                                <a
+                                    href="{% url 'public_profile' developer.get_username %}"
+                                    class="developer-profile-link"
+                                >
+                                    View profile →
+                                </a>
+
+                            </div>
+
+                            <!-- FOLLOW ACTION -->
+                            {% if developer.pk != request.user.pk %}
+
+                                <div class="developer-actions">
+
+                                    <form
+                                        method="post"
+                                        action="{% url 'colabverse_social:follow_toggle' developer.pk %}"
+                                    >
+
+                                        {% csrf_token %}
+
+                                        <input
+                                            type="hidden"
+                                            name="next"
+                                            value="{{ request.get_full_path }}"
+                                        >
+{% if developer.pk in following_ids %}
+
+    <!-- Already following: allow unfollowing. -->
+    <input
+        type="hidden"
+        name="action"
+        value="unfollow"
+    >
+
+    <button
+        type="submit"
+        class="developer-follow-button developer-following-button"
+    >
+        Following ✓
+    </button>
+
+{% else %}
+
+    <!-- Not following: allow following. -->
+    <input
+        type="hidden"
+        name="action"
+        value="follow"
+    >
+
+    <button
+        type="submit"
+        class="developer-follow-button"
+    >
+        + Follow
+    </button>
+
+{% endif %}
+
+                                    </form>
+
+                                </div>
+
+                            {% endif %}
+
+                        </article>
+
+                    {% endwith %}
+
+                {% else %}
+
+                    {% with developer=item.following %}
+
+                        <article class="row developer-result">
+
+                            <!-- PROFILE PICTURE -->
+                            <a
+                                href="{% url 'public_profile' developer.get_username %}"
+                                class="developer-avatar-link"
+                                aria-label="View {{ developer.get_username }}'s profile"
+                            >
+
+                                {% if developer.developer_profile.avatar %}
+
+                                    <img
+                                        src="{{ developer.developer_profile.avatar.url }}"
+                                        alt="{{ developer.get_username }}'s profile picture"
+                                        class="developer-avatar"
+                                        loading="lazy"
+                                    >
+
+                                {% else %}
+
+                                    <span
+                                        class="developer-avatar developer-avatar-fallback"
+                                        aria-hidden="true"
+                                    >
+                                        {{ developer.get_username|first|upper }}
+                                    </span>
+
+                                {% endif %}
+
+                            </a>
+
+                            <!-- DEVELOPER INFORMATION -->
+                            <div class="developer-info">
+
+                                <h2 class="developer-name">
+
+                                    <a
+                                        href="{% url 'public_profile' developer.get_username %}"
+                                    >
+                                        {{ developer.get_full_name|default:developer.get_username }}
+                                    </a>
+
+                                </h2>
+
+                                <p class="developer-username">
+                                    @{{ developer.get_username }}
+                                </p>
+
+                                {% if developer.developer_profile.title %}
+
+                                    <p class="developer-title">
+                                        {{ developer.developer_profile.title }}
+                                    </p>
+
+                                {% endif %}
+
+                                <a
+                                    href="{% url 'public_profile' developer.get_username %}"
+                                    class="developer-profile-link"
+                                >
+                                    View profile →
+                                </a>
+
+                            </div>
+
+                            <!-- FOLLOW ACTION -->
+                            {% if developer.pk != request.user.pk %}
+
+                                <div class="developer-actions">
+
+                                    <form
+                                        method="post"
+                                        action="{% url 'colabverse_social:follow_toggle' developer.pk %}"
+                                    >
+
+                                        {% csrf_token %}
+
+                                        <input
+                                            type="hidden"
+                                            name="next"
+                                            value="{{ request.get_full_path }}"
+                                        >
+
+                                        <input
+                                            type="hidden"
+                                            name="action"
+                                            value="follow"
+                                        >
+
+                                        <button
+                                            type="submit"
+                                            class="developer-follow-button"
+                                        >
+                                            + Follow
+                                        </button>
+
+                                    </form>
+
+                                </div>
+
+                            {% endif %}
+
+                        </article>
+
+                    {% endwith %}
+
+                {% endif %}
+
+            {% empty %}
+
+                <!-- EMPTY STATE -->
+                <div class="developers-empty">
+
+                    <h2>
+                        No developers to show yet
+                    </h2>
+
+                    {% if relation == 'followers' %}
+
+                        <p>
+                            @{{ target.get_username }} doesn't have
+                            any followers yet.
+                        </p>
+
+                    {% else %}
+
+                        <p>
+                            @{{ target.get_username }} isn't
+                            following anyone yet.
+                        </p>
+
+                    {% endif %}
+
+                </div>
+
+            {% endfor %}
+
+        </div>
+
+    </section>
+
+    <!-- PAGINATION -->
+    {% include 'colabverse_social/pagination.html' %}
+
+</main>
+
+{% endblock %}

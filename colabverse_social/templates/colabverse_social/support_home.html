@@ -1,0 +1,12 @@
+{% extends 'colabverse_social/base.html' %}
+{% block title %}Help &amp; Support · ColabVerse{% endblock %}
+{% block content %}
+<div class="heading"><h1>Help &amp; Support</h1><a class="button" href="{% url 'colabverse_social:ticket_create' %}">New support ticket</a></div>
+<p>See the status of your requests and any replies from our team.</p>
+<div class="card">
+{% for ticket in page %}
+    <div class="row"><a href="{% url 'colabverse_social:ticket_detail' ticket.pk %}">{{ ticket.subject }}</a><span>{{ ticket.get_status_display }} · {{ ticket.created_at|date:'M d, Y' }}</span></div>
+{% empty %}<p>You haven't created any tickets yet.</p>{% endfor %}
+</div>
+{% include 'colabverse_social/pagination.html' %}
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends 'colabverse_social/base.html' %}
+{% block title %}{{ target.get_username }} · ColabVerse{% endblock %}
+{% block content %}
+<h1>{{ target.get_username }}</h1>
+<div class="card">
+    <p><a href="{% url 'colabverse_social:follow_list' target.get_username 'followers' %}">{{ followers }} followers</a> · <a href="{% url 'colabverse_social:follow_list' target.get_username 'following' %}">{{ following }} following</a></p>
+    {% if target.pk != request.user.pk %}
+    <form method="post" action="{% url 'colabverse_social:follow_toggle' target.pk %}">{% csrf_token %}
+        {% if is_following %}<input type="hidden" name="action" value="unfollow"><button type="submit">Unfollow</button>
+        {% else %}<input type="hidden" name="action" value="follow"><button type="submit">Follow</button>{% endif %}
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

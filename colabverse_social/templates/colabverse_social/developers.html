@@ -1,0 +1,220 @@
+{% extends 'colabverse_social/base.html' %}
+
+{% block title %}
+Find Developers · ColabVerse
+{% endblock %}
+
+{% block content %}
+
+<section class="developers-page">
+
+    <!-- PAGE HEADER -->
+    <header class="developers-header">
+        <h1>Find Developers</h1>
+
+        <p>
+            Discover developers, explore their profiles,
+            and connect with people in the ColabVerse community.
+        </p>
+    </header>
+
+    <!-- SEARCH FORM -->
+    <form method="get" class="search developers-search">
+
+        <label for="developer-search">
+            Search developers
+        </label>
+
+        <div class="developers-search-fields">
+
+            <input
+                type="search"
+                id="developer-search"
+                name="q"
+                value="{{ term }}"
+                maxlength="80"
+                placeholder="Search by username or full name"
+            >
+
+            <button type="submit">
+                Search
+            </button>
+
+        </div>
+
+    </form>
+
+    <!-- SEARCH RESULTS -->
+    <section
+        class="developers-results"
+        aria-label="Developer search results"
+    >
+
+        <div class="card">
+
+            {% for developer in page %}
+
+                <article class="row developer-result">
+
+                    <!-- PROFILE PICTURE -->
+                    <a
+                        href="{% url 'public_profile' developer.get_username %}"
+                        class="developer-avatar-link"
+                        aria-label="View {{ developer.get_username }}'s profile"
+                    >
+
+                        {% if developer.developer_profile.avatar %}
+
+                            <img
+                                src="{{ developer.developerprofile.avatar.url }}"
+                                alt="{{ developer.get_username }}'s profile picture"
+                                class="developer-avatar"
+                                loading="lazy"
+                            >
+
+                        {% else %}
+
+                            <span
+                                class="developer-avatar developer-avatar-fallback"
+                                aria-hidden="true"
+                            >
+                                {{ developer.get_username|first|upper }}
+                            </span>
+
+                        {% endif %}
+
+                    </a>
+
+                    <!-- DEVELOPER INFORMATION -->
+                    <div class="developer-info">
+
+                        <h2 class="developer-name">
+
+                            <a
+                                href="{% url 'public_profile' developer.get_username %}"
+                            >
+                                {{ developer.get_full_name|default:developer.get_username }}
+                            </a>
+
+                        </h2>
+
+                        <p class="developer-username">
+                            @{{ developer.get_username }}
+                        </p>
+
+                        {% if developer.developerprofile.title %}
+
+                            <p class="developer-title">
+                                {{ developer.developerprofile.title }}
+                            </p>
+
+                        {% endif %}
+
+                        <a
+                            href="{% url 'public_profile' developer.get_username %}"
+                            class="developer-profile-link"
+                        >
+                            View profile →
+                        </a>
+
+                    </div>
+
+                    <!-- FOLLOW / UNFOLLOW -->
+                    <div class="developer-actions">
+
+                       <!-- Follow / Unfollow form -->
+<form
+    method="post"
+    action="{% url 'colabverse_social:follow_toggle' profile.user.id %}"
+    class="cv-profile-follow-form"
+>
+
+    {% csrf_token %}
+
+    <!-- Return to this profile after following or unfollowing -->
+    <input
+        type="hidden"
+        name="next"
+        value="{{ request.get_full_path }}"
+    >
+
+    {% if is_following %}
+
+        <input
+            type="hidden"
+            name="action"
+            value="unfollow"
+        >
+
+        <button
+            type="submit"
+            class="cv-primary cv-edit-profile"
+        >
+            Following ✓
+        </button>
+
+    {% else %}
+
+        <input
+            type="hidden"
+            name="action"
+            value="follow"
+        >
+
+        <button
+            type="submit"
+            class="cv-primary cv-edit-profile"
+        >
+            + Follow
+        </button>
+
+    {% endif %}
+
+</form>
+
+                    </div>
+
+                </article>
+
+            {% empty %}
+
+                <!-- EMPTY STATE -->
+                <div class="developers-empty">
+
+                    <h2>No developers found</h2>
+
+                    {% if term %}
+
+                        <p>
+                            No developers match "{{ term }}".
+                            Try searching with another username or name.
+                        </p>
+
+                        <a
+                            href="{% url 'colabverse_social:developer_list' %}"
+                        >
+                            View all developers
+                        </a>
+
+                    {% else %}
+
+                        <p>
+                            There are no other developers to display yet.
+                        </p>
+
+                    {% endif %}
+
+                </div>
+
+            {% endfor %}
+
+        </div>
+
+    </section>
+
+    <!-- PAGINATION -->
+    {% include 'colabverse_social/pagination.html' %}
+
+</section>
+
+{% endblock %}

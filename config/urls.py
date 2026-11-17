@@ -108,6 +108,12 @@ path(
         include("questions.urls"),
     ),
 
+    path(
+    "social/",
+    include("colabverse_social.urls"),
+    
+    ),
+
 ]
 
 

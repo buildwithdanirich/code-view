@@ -1,0 +1,9 @@
+{% extends 'colabverse_social/base.html' %}
+{% block title %}Support Ticket · ColabVerse{% endblock %}
+{% block content %}
+<a href="{% url 'colabverse_social:support_home' %}">← My tickets</a>
+<h1>{{ ticket.subject }}</h1>
+<p>Status: <strong>{{ ticket.get_status_display }}</strong> · Submitted {{ ticket.created_at|date:'M d, Y H:i' }}</p>
+<section class="card"><h2>Your message</h2><p class="preserve">{{ ticket.message }}</p></section>
+<section class="card"><h2>Support reply</h2>{% if ticket.admin_reply %}<p class="preserve">{{ ticket.admin_reply }}</p>{% else %}<p>Our team hasn't replied yet.</p>{% endif %}</section>
+{% endblock %}
