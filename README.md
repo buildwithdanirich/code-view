@@ -25,7 +25,7 @@ ColabVerse is a developer collaboration platform where programmers can connect, 
 | LiveKit | Voice and video meetings |
 | GitHub API | Repository integration |
 | HTML, CSS & JavaScript | Frontend |
-| Docker | Isolated development environments |
+
 
 ## ⚙️ Local Setup
 
