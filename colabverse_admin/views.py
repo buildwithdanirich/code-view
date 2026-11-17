@@ -374,31 +374,53 @@ def groups(request):
 @never_cache
 @admin_required
 def reports(request):
-    """
-    Display user-submitted content reports.
+    """Show reported content and its author alongside the reporter's reason."""
+    queryset = ContentReport.objects.select_related("reporter").order_by("-created_at")
+    status_filter = request.GET.get("status", "")
+    if status_filter in dict(ContentReport.STATUS_CHOICES):
+        queryset = queryset.filter(status=status_filter)
 
-    Reports help administrators investigate
-    inappropriate content or user behavior.
-    """
-
-    queryset = (
-        ContentReport.objects
-        .select_related("reporter")
-        .order_by("-created_at")
-    )
-
-    context = {
-        "page": page_for(
-            request,
-            queryset,
-        ),
+    page = page_for(request, queryset)
+    # Bulk-fetch each content type to avoid an additional query per report.
+    targets = {
+        "question": model_for("questions.Question"),
+        "comment": model_for("questions.Comment"),
+        "group": model_for("community.ProjectGroup"),
     }
+    objects = {}
+    for kind, model in targets.items():
+        ids = [report.object_id for report in page.object_list if report.kind == kind]
+        objects[kind] = model.objects.in_bulk(ids) if model and ids else {}
 
-    return render(
-        request,
-        "colabverse_admin/reports.html",
-        context,
-    )
+    report_cards = []
+    for report in page.object_list:
+        target = objects.get(report.kind, {}).get(report.object_id)
+        if report.kind == "group":
+            title = getattr(target, "name", "")
+            body = getattr(target, "description", "")
+            author = getattr(target, "owner", None)
+        elif report.kind == "question":
+            title = getattr(target, "title", "")
+            body = getattr(target, "body", "")
+            author = getattr(target, "author", None)
+        else:
+            title = "Comment on: " + str(getattr(getattr(target, "question", None), "title", "Question")) if target else ""
+            body = getattr(target, "body", "")
+            author = getattr(target, "author", None)
+        report_cards.append({
+            "report": report,
+            "title": title,
+            "body": body,
+            "author": author,
+            "deleted": target is None,
+        })
+
+    return render(request, "colabverse_admin/reports.html", {
+        "page": page,
+        "report_cards": report_cards,
+        "status_filter": status_filter,
+        "statuses": ContentReport.STATUS_CHOICES,
+    })
 
 
 @require_POST

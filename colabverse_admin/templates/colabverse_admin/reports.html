@@ -1,14 +1,22 @@
 {% extends 'colabverse_admin/base.html' %}
-{% block title %}Reports{% endblock %}
+{% block title %}Content Reports{% endblock %}
 {% block content %}
-    <div class="page-heading"><div><p class="eyebrow">MODERATION QUEUE</p><h1>Content Reports</h1><p>Review reports submitted through the ContentReport model.</p></div></div>
-    <div class="panel table-wrap"><table><thead><tr><th>ID</th><th>Reporter</th><th>Content</th><th>Reason</th><th>Status</th><th>Review</th></tr></thead><tbody>
-    {% for item in page %}
-        <tr><td>{{ item.pk }}</td><td>{{ item.reporter|default:'Unknown' }}</td><td>{{ item.kind }} #{{ item.object_id }}</td><td>{{ item.reason|truncatechars:180 }}</td><td>{{ item.status }}</td><td>
-        {% if request.user.is_superuser %}<form method="post" action="{% url 'colabverse_admin:report_status' item.pk %}" class="inline-form">{% csrf_token %}<select name="status"><option value="open">Open</option><option value="reviewing">Reviewing</option><option value="resolved">Resolved</option><option value="dismissed">Dismissed</option></select><button class="button">Update</button></form>{% else %}Read only{% endif %}
-        </td></tr>
-    {% empty %}<tr><td colspan="6">No reports submitted yet.</td></tr>{% endfor %}
-    </tbody></table></div>
-    {% include 'colabverse_admin/pagination.html' %}
-    <p class="muted">User-facing report submission must be connected to this model in the main application.</p>
+<section class="page-heading"><div><p class="eyebrow">MODERATION QUEUE</p><h1>Content Reports</h1><p>See the reported content, its author, and the reporter's complete explanation.</p></div></section>
+<form method="get" class="report-filters" aria-label="Filter reports">
+  <label for="report-status-filter">Status</label>
+  <select id="report-status-filter" name="status"><option value="">All statuses</option>{% for value, label in statuses %}<option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+  <button type="submit" class="button">Filter</button>
+</form>
+<div class="report-card-grid">
+{% for card in report_cards %}
+<article class="panel report-card">
+  <header class="report-card-header"><div><span class="report-kind">{{ card.report.get_kind_display }}</span><h2>Report #{{ card.report.pk }}</h2></div><span class="pill">{{ card.report.get_status_display }}</span></header>
+  <dl class="report-meta"><div><dt>Reported by</dt><dd>{{ card.report.reporter|default:'Deleted user' }}</dd></div><div><dt>Content author / owner</dt><dd>{{ card.author|default:'Unavailable' }}</dd></div><div><dt>Submitted</dt><dd>{{ card.report.created_at|date:'M j, Y, g:i A' }}</dd></div><div><dt>Content ID</dt><dd>#{{ card.report.object_id }}</dd></div></dl>
+  <section class="report-content"><h3>Reported {{ card.report.kind }}</h3>{% if card.deleted %}<p class="muted">The original content has been deleted or is unavailable.</p>{% else %}<h4>{{ card.title }}</h4><p class="report-content-body">{{ card.body|default:'No description'|linebreaksbr }}</p>{% endif %}</section>
+  <section class="report-reason"><h3>Reason submitted by reporter</h3><p>{{ card.report.reason|linebreaksbr }}</p></section>
+  {% if request.user.is_superuser %}<form method="post" action="{% url 'colabverse_admin:report_status' card.report.pk %}" class="report-review-form">{% csrf_token %}<label for="review-{{ card.report.pk }}">Review status</label><select id="review-{{ card.report.pk }}" name="status">{% for value, label in statuses %}<option value="{{ value }}" {% if card.report.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select><button class="button" type="submit">Save status</button></form>{% else %}<p class="muted">Only superusers can update report status.</p>{% endif %}
+</article>
+{% empty %}<div class="panel report-empty">No reports found.</div>{% endfor %}
+</div>
+{% include 'colabverse_admin/pagination.html' %}
 {% endblock %}

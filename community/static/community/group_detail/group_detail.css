@@ -1161,3 +1161,7 @@ body:has(.cv-group-detail-modern) .main-content {
 .cv-group-detail-modern #group-chat .chat-composer {
     flex: 0 0 auto;
 }
+/* Keep icons stable on refresh, and minimize workspace navigation footprint. */
+.cv-group-detail-modern .group-top-navigation { gap:4px; }
+.cv-group-detail-modern .group-top-tab { min-height:34px; padding:6px 9px; gap:5px; }
+.cv-group-detail-modern .group-top-tab svg { display:block; width:16px; height:16px; max-width:16px; max-height:16px; flex:none; }

@@ -122,7 +122,7 @@ LOGIN_REDIRECT_URL = "groups"
 SOCIALACCOUNT_PROVIDERS = {
     "google": {
 
-        # Google credentials stored securely in .env.
+        # Google credentials stored securely in environment variables.
         "APP": {
             "client_id": os.environ.get(
                 "CODEVIEW_GOOGLE_CLIENT_ID", ""
@@ -133,15 +133,16 @@ SOCIALACCOUNT_PROVIDERS = {
             "key": "",
         },
 
-        # Information CodeView requests from Google.
+        # Information ColabVerse requests from Google.
         "SCOPE": [
             "profile",
             "email",
         ],
 
-        # We only need Google authentication.
+        # Google authentication configuration.
         "AUTH_PARAMS": {
             "access_type": "online",
+            "prompt": "select_account",
         },
     },
 }
@@ -158,8 +159,9 @@ SOCIALACCOUNT_FORMS = {
 
 # Do not automatically connect Google accounts to existing
 # CodeView accounts based only on matching email addresses.
-SOCIALACCOUNT_EMAIL_AUTHENTICATION = False
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
 
+SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
 
 # Require explicit confirmation before starting Google login.
 SOCIALACCOUNT_LOGIN_ON_GET = False
