@@ -13,6 +13,8 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 from pathlib import Path
 import os
 
+import dj_database_url
+
 
 # Load environment variables from the project's .env file.
 from dotenv import load_dotenv
@@ -32,7 +34,7 @@ load_dotenv(BASE_DIR / ".env")
 SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() == "true"
+DEBUG = os.environ.get("DJANGO_DEBUG", "False" if os.environ.get("RENDER") else "True").lower() == "true"
 
 ALLOWED_HOSTS = [host.strip() for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost").split(",") if host.strip()]
 # Trusted origins for secure POST requests.
@@ -77,6 +79,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -210,27 +213,30 @@ ASGI_APPLICATION = "config.asgi.application"
 # DATABASE CONFIGURATION
 # ============================================================
 
-DATABASES = {
-    "default": {
-        # PostgreSQL is the database system CodeView uses.
-        "ENGINE": "django.db.backends.postgresql",
-
-        # Name of our CodeView database.
-        "NAME": os.environ.get("CODEVIEW_DB_NAME", "codeview"),
-
-        # PostgreSQL username.
-        "USER": os.environ.get("CODEVIEW_DB_USER", "codeview"),
-
-        # Read the database password from the environment.
-        "PASSWORD": os.environ["CODEVIEW_DB_PASSWORD"],
-
-        # PostgreSQL server address.
-        "HOST": os.environ.get("CODEVIEW_DB_HOST", "localhost"),
-
-        # Default PostgreSQL port.
-        "PORT": os.environ.get("CODEVIEW_DB_PORT", "5432"),
+# Render and Supabase use DATABASE_URL. Keep the existing local PostgreSQL
+# variables as a development-only fallback; never require them on Render.
+if os.environ.get("DATABASE_URL"):
+    DATABASES = {
+        "default": dj_database_url.config(
+            env="DATABASE_URL",
+            conn_max_age=0,  # Safe with transaction-pooling database URLs.
+            conn_health_checks=True,
+            ssl_require=not DEBUG,
+        )
     }
-}
+else:
+    if not DEBUG:
+        raise RuntimeError("DATABASE_URL must be configured in production.")
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.environ.get("CODEVIEW_DB_NAME", "codeview"),
+            "USER": os.environ.get("CODEVIEW_DB_USER", "codeview"),
+            "PASSWORD": os.environ.get("CODEVIEW_DB_PASSWORD", ""),
+            "HOST": os.environ.get("CODEVIEW_DB_HOST", "localhost"),
+            "PORT": os.environ.get("CODEVIEW_DB_PORT", "5432"),
+        }
+    }
 
 
 # Password validation
@@ -261,7 +267,25 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# Static files are served by WhiteNoise on the same Render web service.
+STORAGES = {
+    "staticfiles": {
+        "BACKEND": (
+            "django.contrib.staticfiles.storage.StaticFilesStorage"
+            if DEBUG else "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        )
+    },
+    "default": {
+        "BACKEND": (
+            "django.core.files.storage.FileSystemStorage"
+            if DEBUG else "community.supabase_storage.SupabasePublicStorage"
+        )
+    },
+}
+
 
 # ============================================================
 # CODEVIEW EMAIL CONFIGURATION
@@ -363,11 +387,22 @@ LOGIN_REDIRECT_URL = "groups"
 LOGIN_URL = "login"
 
 
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer",
-    },
-}
+# Redis is required in production so all WebSocket connections can exchange
+# events reliably, including membership revocations and meeting notifications.
+REDIS_URL = os.environ.get("REDIS_URL", "")
+if REDIS_URL:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {"hosts": [REDIS_URL]},
+        }
+    }
+elif DEBUG:
+    CHANNEL_LAYERS = {
+        "default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}
+    }
+else:
+    raise RuntimeError("REDIS_URL must be configured in production.")
 
 # ========================================
 # UPLOADED FILES CONFIGURATION
@@ -399,9 +434,9 @@ PRIVATE_MEDIA_ROOT = BASE_DIR / "private_media"
 GITHUB_APP_ID = os.environ.get("GITHUB_APP_ID")
 
 # Location of the private key used to authenticate CodeView with GitHub.
-GITHUB_APP_PRIVATE_KEY_PATH = os.environ.get(
-    "GITHUB_APP_PRIVATE_KEY_PATH"
-)
+GITHUB_APP_PRIVATE_KEY_PATH = os.environ.get("GITHUB_APP_PRIVATE_KEY_PATH")
+# On Render, store the PEM text as a secret environment variable, not a file.
+GITHUB_APP_PRIVATE_KEY = os.environ.get("GITHUB_APP_PRIVATE_KEY", "")
 
 # ============================================================
 # GITHUB USER AUTHORIZATION
@@ -495,3 +530,22 @@ LIVEKIT_MAX_ACTIVE_MEETINGS_PER_GROUP = 1
 # This does not automatically disconnect a participant
 # when the token expires.
 LIVEKIT_TOKEN_TTL_SECONDS = 600
+
+# Render terminates TLS at its proxy. Trust its forwarded HTTPS scheme.
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    # Enable HSTS only after confirming HTTPS and the intended domain.
+    SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_HSTS_SECONDS", "0"))
+
+# Public avatar bucket and private group attachment bucket must already exist
+# in Supabase Storage. Do not expose the service-role/secret key in the browser.
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+SUPABASE_SECRET_KEY = os.environ.get("SUPABASE_SECRET_KEY", "")
+SUPABASE_PUBLIC_BUCKET = os.environ.get("SUPABASE_PUBLIC_BUCKET", "profile_picture")
+SUPABASE_PRIVATE_BUCKET = os.environ.get("SUPABASE_PRIVATE_BUCKET", "group_files")
+if not DEBUG and (not SUPABASE_URL or not SUPABASE_SECRET_KEY):
+    raise RuntimeError("SUPABASE_URL and SUPABASE_SECRET_KEY are required in production.")

@@ -1,0 +1,63 @@
+services:
+  - type: web
+    name: colabverse
+    runtime: python
+    plan: free
+    buildCommand: bash build.sh
+    startCommand: daphne -b 0.0.0.0 -p $PORT config.asgi:application
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_ALLOWED_HOSTS
+        value: colabverse.onrender.com
+      - key: DJANGO_CSRF_TRUSTED_ORIGINS
+        value: https://colabverse.onrender.com
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: GITHUB_APP_ID
+        sync: false
+      - key: GITHUB_APP_PRIVATE_KEY
+        sync: false
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      - key: GITHUB_OAUTH_CALLBACK_URL
+        value: https://colabverse.onrender.com/github/callback/
+      - key: CODEVIEW_GOOGLE_CLIENT_ID
+        sync: false
+      - key: CODEVIEW_GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: LIVEKIT_URL
+        sync: false
+      - key: LIVEKIT_API_KEY
+        sync: false
+      - key: LIVEKIT_API_SECRET
+        sync: false
+      - key: CODEVIEW_EMAIL_BACKEND
+        value: django.core.mail.backends.smtp.EmailBackend
+      - key: CODEVIEW_EMAIL_FROM
+        sync: false
+      - key: CODEVIEW_EMAIL_HOST
+        sync: false
+      - key: CODEVIEW_EMAIL_PORT
+        value: "587"
+      - key: CODEVIEW_EMAIL_USER
+        sync: false
+      - key: CODEVIEW_EMAIL_PASSWORD
+        sync: false
+      - key: CODEVIEW_EMAIL_USE_TLS
+        value: "True"
+      - key: CODEVIEW_EMAIL_USE_SSL
+        value: "False"

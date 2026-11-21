@@ -50,32 +50,32 @@ class ProjectGroup(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
-def clean(self):
-    """
-    Enforce private, invitation-only ColabVerse groups.
+    def clean(self):
+        """
+        Enforce private, invitation-only ColabVerse groups.
 
-    Every group must:
-        1. Be private.
-        2. Require an invitation to join.
-    """
+        Every group must:
+            1. Be private.
+            2. Require an invitation to join.
+        """
 
-    super().clean()
+        super().clean()
 
-    # Reject attempts to create public groups.
-    if not self.is_private:
-        raise ValidationError({
-            "is_private": (
-                "All ColabVerse groups must be private."
-            )
-        })
+        # Reject attempts to create public groups.
+        if not self.is_private:
+            raise ValidationError({
+                "is_private": (
+                    "All ColabVerse groups must be private."
+                )
+            })
 
-    # Reject open joining or membership requests.
-    if self.join_policy != "invite":
-        raise ValidationError({
-            "join_policy": (
-                "ColabVerse groups are invitation-only."
-            )
-        })
+        # Reject open joining or membership requests.
+        if self.join_policy != "invite":
+            raise ValidationError({
+                "join_policy": (
+                    "ColabVerse groups are invitation-only."
+                )
+            })
 
     def save(self, *args, **kwargs):
         """Validate group settings before saving."""
@@ -205,114 +205,7 @@ class GroupMember(models.Model):
         return f"{self.user} in {self.group.name}"
 
 
-# ============================================================
-# 3. EXISTING GROUP MEMBERSHIP REQUEST
-# ============================================================
 
-class GroupMembershipRequest(models.Model):
-    """
-    Legacy membership-request model.
-
-    Keep this temporarily because existing views and migrations
-    may still reference it.
-
-    We will remove the old approval workflow after updating
-    the remaining CodeView files.
-    """
-
-    STATUS_CHOICES = [
-        ("pending", "Pending"),
-        ("approved", "Approved"),
-        ("rejected", "Rejected"),
-    ]
-
-    group = models.ForeignKey(
-        ProjectGroup,
-        on_delete=models.CASCADE,
-        related_name="membership_requests",
-    )
-
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="group_join_requests",
-    )
-
-    status = models.CharField(
-        max_length=10,
-        choices=STATUS_CHOICES,
-        default="pending",
-    )
-
-    message = models.TextField(
-        max_length=1000,
-        blank=True,
-    )
-
-    reviewed_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="reviewed_group_requests",
-    )
-
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    reviewed_at = models.DateTimeField(
-        null=True,
-        blank=True,
-    )
-
-    class Meta:
-        ordering = ["-created_at"]
-
-        constraints = [
-            models.UniqueConstraint(
-                fields=["group", "user"],
-                name="unique_group_membership_request",
-            ),
-        ]
-
-        indexes = [
-            models.Index(
-                fields=["group", "status", "created_at"],
-                name="group_request_status_idx",
-            ),
-        ]
-
-    def clean(self):
-        """Validate legacy membership requests."""
-        super().clean()
-
-        if not self.group_id or not self.user_id:
-            return
-
-        already_member = GroupMember.objects.filter(
-            group_id=self.group_id,
-            user_id=self.user_id,
-        ).exists()
-
-        if already_member:
-            raise ValidationError(
-                "This developer is already a member of the group."
-            )
-
-        if self.group.join_policy == "invite":
-            raise ValidationError(
-                "This group can only be joined through an invitation."
-            )
-
-    def save(self, *args, **kwargs):
-        """Validate before saving."""
-        self.full_clean()
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return (
-            f"{self.user} requested to join "
-            f"{self.group.name}: {self.status}"
-        )
 
 
 # ============================================================

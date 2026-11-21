@@ -224,3 +224,18 @@ __marimo__/
 
 # Node.js dependencies
 node_modules/
+
+# Production/development secrets and generated artifacts
+.env.*
+!.env.example
+staticfiles/
+media/
+*.pem
+*.key
+*.p12
+*.pfx
+*.sqlite3
+*.zip
+*.backup
+*.before_meeting_fixes
+*.before_meeting_lock

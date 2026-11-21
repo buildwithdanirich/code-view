@@ -49,3 +49,10 @@ ujson==6.1.0
 urllib3==2.8.0
 yarl==1.25.1
 zope.interface==8.7
+# Production PostgreSQL URL, Redis channels, Supabase storage, static files
+dj-database-url==3.1.2
+channels_redis==4.3.0
+redis==8.1.0
+supabase==2.34.1
+storage3==2.34.1
+whitenoise==6.12.0

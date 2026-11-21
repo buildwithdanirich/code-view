@@ -27,30 +27,20 @@ def generate_github_app_jwt():
     # Read the GitHub App ID from Django settings.
     app_id = getattr(settings, "GITHUB_APP_ID", None)
 
-    # Read the location of the GitHub App private key.
-    private_key_path = getattr(
-        settings,
-        "GITHUB_APP_PRIVATE_KEY_PATH",
-        None,
-    )
+    # Prefer the private PEM stored as a Render secret environment variable.
+    # The path-based option remains available for local development.
+    private_key_text = getattr(settings, "GITHUB_APP_PRIVATE_KEY", "")
+    private_key_path = getattr(settings, "GITHUB_APP_PRIVATE_KEY_PATH", None)
+    if not app_id or not (private_key_text or private_key_path):
+        raise GitHubAuthError("GitHub App credentials are not configured.")
 
-    # Stop if either configuration value is missing.
-    if not app_id or not private_key_path:
-        raise GitHubAuthError(
-            "GitHub App credentials are not configured."
-        )
-
-    # Locate the private key on the server.
-    key_path = Path(private_key_path).expanduser()
-
-    try:
-        # Read the private key without displaying its contents.
-        private_key = key_path.read_bytes()
-
-    except OSError as exc:
-        raise GitHubAuthError(
-            "Unable to read the GitHub App private key."
-        ) from exc
+    if private_key_text:
+        private_key = private_key_text.replace("\\n", "\n").encode("utf-8")
+    else:
+        try:
+            private_key = Path(private_key_path).expanduser().read_bytes()
+        except OSError as exc:
+            raise GitHubAuthError("Unable to read the GitHub App private key.") from exc
 
     # Get the current Unix timestamp.
     now = int(time.time())
