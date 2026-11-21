@@ -341,7 +341,17 @@
                             <path d="m3 7 9 6 9-6"></path>
                         </svg>
 
-                        <span>Group Invitations</span>
+<span>Group Invitations</span>
+
+{% if pending_invitation_count %}
+    <span
+        class="sidebar-invitation-badge"
+        id="sidebar-invitation-badge"
+        aria-label="{{ pending_invitation_count }} pending group invitations"
+    >
+        {{ pending_invitation_count }}
+    </span>
+{% endif %}
 
                     </a>
 

@@ -1,7 +1,7 @@
 "use strict";
 
 /*
- * CodeView — Private Group Meeting Notifications
+ * ColabVerse — Private Group Meeting Notifications
  *
  * Responsibilities:
  * 1. Connect to the group's meeting notification WebSocket.
@@ -16,11 +16,28 @@
  */
 
 document.addEventListener("DOMContentLoaded", () => {
+
     // ---------------------------------------------------------
     // 1. FIND THE EXISTING HTML ELEMENTS
     // ---------------------------------------------------------
 
-    const socketUrl = document.body.dataset.meetingNotificationSocketUrl;
+    /*
+     * The WebSocket URL is stored on the group-detail container,
+     * not on document.body.
+     *
+     * Read it from the correct element.
+     */
+
+    const groupContainer = document.querySelector(
+        ".cv-group-detail[data-meeting-notification-socket-url]"
+    );
+
+    if (!groupContainer) {
+        return;
+    }
+
+    const socketUrl =
+        groupContainer.dataset.meetingNotificationSocketUrl;
 
     const notification = document.getElementById(
         "group-meeting-notification"
@@ -42,7 +59,7 @@ document.addEventListener("DOMContentLoaded", () => {
         "group-meeting-notification-dismiss"
     );
 
-    // Public groups and non-members have no meeting notification UI.
+    // Pages without authorized meeting notification UI do nothing.
     if (
         !socketUrl ||
         !notification ||
@@ -77,9 +94,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // ---------------------------------------------------------
 
     function showMeetingNotification(data) {
+
         const meetingId = String(data.meeting_id);
 
-        // Do not redisplay a meeting the developer already dismissed.
+        // Do not redisplay a dismissed meeting.
         if (dismissedMeetingId === meetingId) {
             return;
         }
@@ -92,9 +110,10 @@ document.addEventListener("DOMContentLoaded", () => {
             "A developer has started a voice/video meeting.";
 
         /*
-         * The HTML already contains a Django-generated meeting URL.
-         * Keep that trusted URL rather than inserting an arbitrary
-         * URL received over the WebSocket.
+         * The HTML contains a trusted Django-generated meeting URL.
+         *
+         * Do not replace it with an arbitrary URL received
+         * through the WebSocket.
          */
 
         joinButton.textContent = "Join Meeting";
@@ -107,6 +126,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // ---------------------------------------------------------
 
     function hideMeetingNotification() {
+
         notification.hidden = true;
 
         activeMeetingId = null;
@@ -117,25 +137,32 @@ document.addEventListener("DOMContentLoaded", () => {
     // ---------------------------------------------------------
 
     function handleMeetingEvent(data) {
+
         if (!data || typeof data !== "object") {
             return;
         }
 
-        if (data.meeting_id === undefined || data.meeting_id === null) {
+        if (
+            data.meeting_id === undefined ||
+            data.meeting_id === null
+        ) {
             return;
         }
 
         if (data.type === "meeting_started") {
+
             showMeetingNotification(data);
+
             return;
         }
 
         if (data.type === "meeting_ended") {
+
             const endedMeetingId = String(data.meeting_id);
 
             /*
-             * Only hide the alert for the meeting that ended.
-             * An old event must not remove a newer meeting alert.
+             * Only hide the notification belonging
+             * to the meeting that ended.
              */
 
             if (activeMeetingId === endedMeetingId) {
@@ -153,7 +180,11 @@ document.addEventListener("DOMContentLoaded", () => {
     // ---------------------------------------------------------
 
     function scheduleReconnect() {
-        if (!shouldReconnect || reconnectTimer !== null) {
+
+        if (
+            !shouldReconnect ||
+            reconnectTimer !== null
+        ) {
             return;
         }
 
@@ -165,8 +196,11 @@ document.addEventListener("DOMContentLoaded", () => {
         );
 
         reconnectTimer = window.setTimeout(() => {
+
             reconnectTimer = null;
+
             connectWebSocket();
+
         }, delay);
     }
 
@@ -175,11 +209,12 @@ document.addEventListener("DOMContentLoaded", () => {
     // ---------------------------------------------------------
 
     function connectWebSocket() {
+
         if (!shouldReconnect) {
             return;
         }
 
-        // Avoid creating multiple simultaneous connections.
+        // Prevent duplicate connections.
         if (
             socket &&
             (
@@ -193,20 +228,29 @@ document.addEventListener("DOMContentLoaded", () => {
         let connection;
 
         try {
+
             connection = new WebSocket(socketUrl);
+
         } catch (error) {
+
             console.error(
-                "CodeView: Unable to open meeting notification socket.",
+                "ColabVerse: Unable to open meeting notification socket.",
                 error
             );
 
             scheduleReconnect();
+
             return;
         }
 
         socket = connection;
 
+        // -----------------------------------------------------
+        // CONNECTION OPENED
+        // -----------------------------------------------------
+
         connection.addEventListener("open", () => {
+
             if (socket !== connection) {
                 return;
             }
@@ -214,28 +258,41 @@ document.addEventListener("DOMContentLoaded", () => {
             reconnectAttempts = 0;
 
             console.info(
-                "CodeView: Meeting notification connection established."
+                "ColabVerse: Meeting notification connection established."
             );
         });
 
+        // -----------------------------------------------------
+        // MESSAGE RECEIVED
+        // -----------------------------------------------------
+
         connection.addEventListener("message", (event) => {
+
             if (socket !== connection) {
                 return;
             }
 
             try {
+
                 const data = JSON.parse(event.data);
 
                 handleMeetingEvent(data);
+
             } catch (error) {
+
                 console.error(
-                    "CodeView: Invalid meeting notification received.",
+                    "ColabVerse: Invalid meeting notification received.",
                     error
                 );
             }
         });
 
+        // -----------------------------------------------------
+        // CONNECTION CLOSED
+        // -----------------------------------------------------
+
         connection.addEventListener("close", (event) => {
+
             if (socket !== connection) {
                 return;
             }
@@ -246,25 +303,36 @@ document.addEventListener("DOMContentLoaded", () => {
              * 4401 = authentication required
              * 4403 = membership/access denied
              *
-             * Do not reconnect indefinitely when the server
-             * explicitly rejects the developer's access.
+             * Do not reconnect indefinitely after
+             * an explicit authorization failure.
              */
 
-            if (event.code === 4401 || event.code === 4403) {
+            if (
+                event.code === 4401 ||
+                event.code === 4403
+            ) {
+
                 shouldReconnect = false;
+
                 hideMeetingNotification();
+
                 return;
             }
 
             scheduleReconnect();
         });
 
+        // -----------------------------------------------------
+        // CONNECTION ERROR
+        // -----------------------------------------------------
+
         connection.addEventListener("error", () => {
+
             console.warn(
-                "CodeView: Meeting notification connection interrupted."
+                "ColabVerse: Meeting notification connection interrupted."
             );
 
-            // The close handler will schedule reconnection.
+            // The close handler schedules reconnection.
             connection.close();
         });
     }
@@ -274,7 +342,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // ---------------------------------------------------------
 
     dismissButton.addEventListener("click", () => {
+
         if (activeMeetingId !== null) {
+
             dismissedMeetingId = activeMeetingId;
         }
 
@@ -286,15 +356,20 @@ document.addEventListener("DOMContentLoaded", () => {
     // ---------------------------------------------------------
 
     window.addEventListener("pagehide", () => {
+
         shouldReconnect = false;
 
         if (reconnectTimer !== null) {
+
             window.clearTimeout(reconnectTimer);
+
             reconnectTimer = null;
         }
 
         if (socket) {
+
             socket.close();
+
             socket = null;
         }
     });

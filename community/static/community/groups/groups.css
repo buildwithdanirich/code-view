@@ -858,3 +858,190 @@ input[type="search"]::-webkit-search-decoration {
         flex: 1;
     }
 }
+
+/* ============================================================
+   COLABVERSE — GROUP INVITATION NOTIFICATION BADGE
+
+   Purpose:
+   1. Style the Group Invitations navigation button.
+   2. Display pending invitation counts on the SVG.
+   3. Support desktop and mobile layouts.
+   4. Preserve existing My Groups styling.
+============================================================ */
+
+
+/* ============================================================
+   1. GROUP INVITATIONS BUTTON
+============================================================ */
+
+.cv-groups-page .cv-invitations-link {
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    gap: 12px;
+
+    flex-shrink: 0;
+
+    min-height: 44px;
+
+    padding: 10px 16px;
+
+    background: #1b2540;
+    color: #eaf0ff;
+
+    border: 1px solid #36415e;
+    border-radius: 10px;
+
+    font-size: 13px;
+    font-weight: 600;
+
+    text-decoration: none;
+
+    transition:
+        background-color 0.2s ease,
+        border-color 0.2s ease;
+
+}
+
+
+/* Hover effect */
+
+.cv-groups-page .cv-invitations-link:hover {
+
+    background: #252f4d;
+
+    border-color: #8b5cf6;
+
+    color: #ffffff;
+
+}
+
+
+/* Keyboard accessibility */
+
+.cv-groups-page .cv-invitations-link:focus-visible {
+
+    outline: 2px solid #4da3ff;
+    outline-offset: 3px;
+
+}
+
+
+/* ============================================================
+   2. INVITATION SVG CONTAINER
+============================================================ */
+
+.cv-groups-page .cv-invitations-icon {
+
+    position: relative;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    flex-shrink: 0;
+
+    width: 24px;
+    height: 24px;
+
+}
+
+
+/* Prevent oversized SVG flashing */
+
+.cv-groups-page .cv-invitations-icon svg {
+
+    display: block;
+
+    width: 20px;
+    height: 20px;
+
+    min-width: 20px;
+    min-height: 20px;
+
+    max-width: 20px;
+    max-height: 20px;
+
+}
+
+
+/* ============================================================
+   3. NOTIFICATION NUMBER BADGE
+============================================================ */
+
+.cv-groups-page .cv-invitation-badge {
+
+    position: absolute;
+
+    top: -8px;
+    right: -10px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    min-width: 18px;
+    height: 18px;
+
+    padding: 0 4px;
+
+    background: #ef4444;
+    color: #ffffff;
+
+    border: 2px solid #1b2540;
+    border-radius: 999px;
+
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+
+    white-space: nowrap;
+
+}
+
+
+/* Hide the badge when explicitly marked hidden */
+
+.cv-groups-page .cv-invitation-badge[hidden] {
+
+    display: none !important;
+
+}
+
+
+/* ============================================================
+   4. RESPONSIVE DESIGN
+============================================================ */
+
+@media (max-width: 750px) {
+
+    .cv-groups-page .page-heading {
+
+        flex-wrap: wrap;
+        align-items: flex-start;
+
+    }
+
+    .cv-groups-page .cv-invitations-link {
+
+        width: auto;
+        max-width: 100%;
+
+    }
+
+}
+
+
+@media (max-width: 420px) {
+
+    .cv-groups-page .cv-invitations-link {
+
+        padding: 10px 14px;
+
+        font-size: 12px;
+
+    }
+
+}

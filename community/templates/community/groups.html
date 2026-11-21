@@ -9,17 +9,16 @@
      COLABVERSE — MY GROUPS PAGE
 
      Features:
-     1. Search private development groups by name
-     2. Search using Enter or the Search button
-     3. Clear search
-     4. Display private development groups
-     5. Open groups the developer belongs to
-     6. Preserve existing group membership permissions
+     1. Search private development groups.
+     2. Display groups the developer owns or belongs to.
+     3. Open private development groups.
+     4. Link to received group invitations.
+     5. Display the pending invitation count.
 
-     IMPORTANT:
-     - Private development groups are invitation-only.
-     - Public-group joining is no longer supported.
-     - JavaScript and CSS remain in separate static files.
+     Security:
+     - Private groups only.
+     - Invitation-only membership.
+     - Server-side permissions remain enforced.
 ============================================================ -->
 
 <link
@@ -51,15 +50,74 @@
 
         </div>
 
+        <!-- ====================================================
+             GROUP INVITATIONS BUTTON
+
+             The count comes from community/views.py.
+
+             Only pending invitations belonging to the
+             logged-in developer are counted.
+        ==================================================== -->
+
+        <a
+            href="{% url 'received_group_invitations' %}"
+            class="secondary-button cv-invitations-link"
+            aria-label="Group Invitations{% if pending_invitation_count %}, {{ pending_invitation_count }} pending{% endif %}"
+        >
+
+            <span class="cv-invitations-icon">
+
+                <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                >
+                    <rect
+                        x="3"
+                        y="5"
+                        width="18"
+                        height="14"
+                        rx="2"
+                    ></rect>
+
+                    <path
+                        d="m3 7 9 6 9-6"
+                    ></path>
+                </svg>
+
+                {% if pending_invitation_count %}
+
+                    <span
+                        class="cv-invitation-badge"
+                        id="group-invitation-badge"
+                        aria-hidden="true"
+                    >
+                        {{ pending_invitation_count }}
+                    </span>
+
+                {% endif %}
+
+            </span>
+
+            <span>
+                Group Invitations
+            </span>
+
+        </a>
+
     </section>
 
 
     <!-- ========================================================
          2. GROUP SEARCH
 
-         Search is handled by groups.js.
-
-         No backend request is required for local filtering.
+         Existing search functionality is preserved.
     ======================================================== -->
 
     <section
@@ -73,8 +131,6 @@
             role="search"
         >
 
-            <!-- Search input -->
-
             <div class="cv-search-field">
 
                 <label
@@ -84,14 +140,14 @@
                     Search development groups
                 </label>
 
-                <!-- Search icon -->
-
                 <span
                     class="cv-search-icon"
                     aria-hidden="true"
                 >
 
                     <svg
+                        width="20"
+                        height="20"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -125,8 +181,6 @@
             </div>
 
 
-            <!-- Search button -->
-
             <button
                 type="submit"
                 id="group-search-button"
@@ -135,8 +189,6 @@
                 Search
             </button>
 
-
-            <!-- Clear search button -->
 
             <button
                 type="button"
@@ -198,19 +250,16 @@
 
                     <div class="group-card-top">
 
-                        <!-- Display the group's first letter -->
-
                         <div class="group-icon">
                             {{ group.name|first|upper }}
                         </div>
 
 
-                        <!-- Every displayed development group
-                             must be private. -->
-
                         <span class="privacy-badge private">
 
                             <svg
+                                width="16"
+                                height="16"
                                 viewBox="0 0 24 24"
                                 fill="none"
                                 stroke="currentColor"
@@ -252,16 +301,10 @@
                         </h2>
 
 
-                        <!-- Display the developer who created
-                             and owns this group. -->
-
                         <p class="group-owner">
                             Created by @{{ group.owner.username }}
                         </p>
 
-
-                        <!-- All private development groups
-                             require an invitation. -->
 
                         <p class="cv-group-policy">
                             Invitation Only
@@ -276,17 +319,12 @@
 
                     <div class="group-card-footer">
 
-                        <!-- Group creation date -->
-
                         <span class="group-date">
                             {{ group.created_at|date:"M d, Y" }}
                         </span>
 
 
                         {% if group.is_member %}
-
-                            <!-- Accepted members can open
-                                 their development group. -->
 
                             <a
                                 href="{% url 'group_detail' group.id %}"
@@ -297,11 +335,6 @@
 
 
                         {% else %}
-
-                            <!-- No direct joining is allowed.
-
-                                 Membership must be granted
-                                 through an accepted invitation. -->
 
                             <span class="coming-soon">
                                 Invitation Only
@@ -348,7 +381,7 @@
         <!-- ====================================================
              NO SEARCH RESULTS
 
-             groups.js controls the visibility of this message.
+             groups.js controls this message.
         ==================================================== -->
 
         <p
@@ -370,8 +403,6 @@
      4. GROUP SEARCH JAVASCRIPT
 
      External JavaScript only.
-
-     Existing search functionality is preserved.
 ============================================================ -->
 
 <script

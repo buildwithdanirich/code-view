@@ -191,6 +191,7 @@ TEMPLATES = [
             "context_processors": [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
+                "community.context_processors.pending_group_invitations",
                 "django.contrib.messages.context_processors.messages",
             ],
         },

@@ -1468,3 +1468,55 @@ textarea:focus {
     }
 
 }
+/* ============================================================
+   GROUP INVITATION NOTIFICATION BADGE
+   ============================================================ */
+
+/*
+ * Display the number of pending private group invitations
+ * beside the Group Invitations link in the sidebar.
+ */
+
+.left a .sidebar-invitation-badge {
+    /* Keep the badge beside the navigation label. */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    /* Push the badge toward the right side of the link. */
+    margin-left: auto;
+
+    /* Keep the badge circular. */
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+
+    /* Notification appearance. */
+    background-color: #dc2626;
+    color: #ffffff;
+
+    border-radius: 999px;
+
+    /* Badge typography. */
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+
+    /* Prevent the badge from shrinking. */
+    flex-shrink: 0;
+
+    /* Keep numbers on one line. */
+    white-space: nowrap;
+    overflow-wrap: normal;
+}
+
+/* Adjust badge size for smaller screens. */
+@media (max-width: 768px) {
+    .left a .sidebar-invitation-badge {
+        min-width: 20px;
+        height: 20px;
+        padding: 0 5px;
+
+        font-size: 10px;
+    }
+}
